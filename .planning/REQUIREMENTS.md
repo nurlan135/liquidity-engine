@@ -89,32 +89,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| ICT-01 | TBD | Pending |
-| ICT-02 | TBD | Pending |
-| ICT-03 | TBD | Pending |
-| ICT-04 | TBD | Pending |
-| ICT-05 | TBD | Pending |
-| ICT-06 | TBD | Pending |
-| ICT-07 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
-| MOCK-01 | TBD | Pending |
-| MOCK-02 | TBD | Pending |
-| MOCK-03 | TBD | Pending |
-| STATE-01 | TBD | Pending |
-| STATE-02 | TBD | Pending |
-| DEPLOY-01 | TBD | Pending |
+| DATA-01 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Pending |
+| DATA-03 | Phase 2 | Pending |
+| ICT-01 | Phase 1 | Pending |
+| ICT-02 | Phase 1 | Pending |
+| ICT-03 | Phase 1 | Pending |
+| ICT-04 | Phase 1 | Pending |
+| ICT-05 | Phase 1 | Pending |
+| ICT-06 | Phase 1 | Pending |
+| ICT-07 | Phase 1 | Pending |
+| UI-01 | Phase 2 | Pending |
+| UI-02 | Phase 2 | Pending |
+| UI-03 | Phase 2 | Pending |
+| UI-04 | Phase 2 | Pending |
+| MOCK-01 | Phase 2 | Pending |
+| MOCK-02 | Phase 2 | Pending |
+| MOCK-03 | Phase 2 | Pending |
+| STATE-01 | Phase 2 | Pending |
+| STATE-02 | Phase 1 | Pending |
+| DEPLOY-01 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-09-04*
-*Last updated: 2026-09-04 after milestone v1.0 scoping*
+*Last updated: 2026-09-04 after milestone v1.0 roadmapping*
