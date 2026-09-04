@@ -65,6 +65,18 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 | Full report shell (sections 1–6) with unavailable markers | Report shape stable from day one; later phases fill sections | — Pending |
 | Done = deployed + verified (cache, backoff, timezone) | Live data correctness is the core value | — Pending |
 
+## Current Milestone: v1.0 Live Terminal
+
+**Goal:** Live dark-terminal dashboard proving correct D1 Premium/Discount positioning on real NQ data.
+
+**Target features:**
+- Yahoo Finance proxy with 60s cache + 429 backoff
+- D1 Dealing Range pure-function core in `src/lib/ict`
+- Candlestick chart with zone overlays
+- 3-panel terminal shell + rule-based report shell
+- Sentiment/calendar fixtures, Zustand store, Baku timezone
+- Vercel deployment with cache/backoff/timezone verified
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -83,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-04 after initialization*
+*Last updated: 2026-09-04 after milestone v1.0 start*
