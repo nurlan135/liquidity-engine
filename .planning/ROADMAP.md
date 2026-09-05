@@ -56,8 +56,14 @@ Plans:
   3. User sees the 6-section institutional report with section 2 live, other sections marked unavailable, and the blocked side struck-through
   4. User sees the sentiment exposure table (True AVG, 60% crowded flag) and the high-impact calendar (countdown, pre-news flag) with trap-vs-genuine interpretation
 
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 02-01-PLAN.md — Tracer slice: store plus shell plus chart with sentinel pure libs (status-strip, chart-mapper, sentiment, calendar)
+- [ ] 02-02-PLAN.md — Freshness strip plus zone-fill primitive plus stale/closed chart overlays
+- [ ] 02-03-PLAN.md — Fixture snapshots plus sentiment table plus calendar with interpretation prose
+- [ ] 02-04-PLAN.md — Report section 2 plus blocked side plus shell integration with poll loop and toasts
 
 ### Phase 3: Production Deploy & Verification
 
