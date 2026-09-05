@@ -8,14 +8,14 @@ export async function GET() {
     const envelope = await fetchNQDaily(new Date());
     return Response.json(envelope, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
+        'Cache-Control': envelope.stale ? 'no-store' : 'public, s-maxage=60, stale-while-revalidate=30',
       },
     });
   } catch (err) {
     const message = err instanceof UpstreamError ? err.message : 'upstream unavailable';
     return Response.json({ error: message, retryAfter: 60 }, {
       status: 502,
-      headers: { 'Cache-Control': 'no-store' },
+      headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' },
     });
   }
 }
