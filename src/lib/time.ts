@@ -12,5 +12,5 @@ export function getAsOfBakuDate(now: Date = new Date()): string {
 }
 
 export function bakuOffsetMinutes(at: Date): number {
-  return getTimezoneOffset(BAKU_TZ, at);
+  return getTimezoneOffset(BAKU_TZ, at) / 60_000;
 }
