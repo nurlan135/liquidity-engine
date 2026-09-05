@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Live Terminal
-current_phase: 1
+current_phase: 01
 current_phase_name: Data Foundation & ICT Core
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-09-04T14:55:48.891Z"
-last_activity: 2026-09-04
-last_activity_desc: Roadmap created for milestone v1.0 Live Terminal
-state_head: 0190407b55705c50587bedfb37c96d7c3726e5ef
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-09-05T12:34:49Z"
+last_activity: 2026-09-05
+last_activity_desc: Phase 01 plan 01 executed (tracer slice green, 4 commits)
+state_head: bd1ad82
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -25,35 +25,35 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-04)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 1 (Data Foundation & ICT Core) — ready to plan
+**Current focus:** Phase 01 — Data Foundation & ICT Core
 
 ## Current Position
 
-Phase: 1 (Data Foundation & ICT Core) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-09-04 — Roadmap created for milestone v1.0 Live Terminal
+Phase: 01 (Data Foundation & ICT Core) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 01
+Last activity: 2026-09-05 — Completed 01-01 (tracer slice: vitest 5 + types + fetch-range proof + route)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: ~25 min
+- Total execution time: ~0.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 1 | ~25 min | ~25 min |
 
 **Recent Trend:**
 
-- Last 5 plans: —
-- Trend: —
+- Last 5 plans: 01-01 (~25 min, 3 tasks, 4 commits)
+- Trend: on pace
 
 *Updated after each plan completion*
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 
 - [Roadmap 2026-09-04]: 3 phases backend-first (proxy+math → composition → deploy-verify), adapted from research suggestion
 - [Roadmap 2026-09-04]: CDN s-maxage+SWR headers → Phase 3 (production-only verification); 6mo D1 window → Phase 1 proxy; weekend-closed state → Phase 2 chart; rollover-suspect flag → Phase 1 math
+- [01-01 2026-09-05]: vitest 5.0.0 via --legacy-peer-deps (types-only @types/node peer conflict); date-fns/date-fns-tz/vite kept on disk via --no-save so manifests carry only the approved vitest addition
+- [01-01 2026-09-05]: Tracer slice green — mocked 25-candle fixture (24 valid rows) proves fetch→shape-guard→envelope→20-candle range; full ICT core + proxy resilience owned by 01-02/01-03
 
 ### Pending Todos
 
@@ -86,6 +88,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-04T12:15:44.918Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-data-foundation-ict-core/01-CONTEXT.md
+Last session: 2026-09-05T12:34:49Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None

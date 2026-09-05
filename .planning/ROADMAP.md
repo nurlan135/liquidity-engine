@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Tracer slice: vitest harness plus canonical types plus mocked NQ=F fetch-validate-envelope-range path plus thin route
+- [x] 01-01-PLAN.md — Tracer slice: vitest harness plus canonical types plus mocked NQ=F fetch-validate-envelope-range path plus thin route
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
