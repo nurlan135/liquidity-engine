@@ -374,12 +374,13 @@ const blocked = bias === "BULLISH" ? "SHORT" : bias === "BEARISH" ? "LONG" : "BO
 | A5 | Overlay-LineSeries fallback with `autoscaleInfoProvider: () => null` is sufficient if the primitive spike overruns | Pattern 4 | Fallback weaker visually but UI-SPEC-sanctioned; planner's time-box decides |
 | A6 | Baku Saturday/Sunday = NQ daily closed (no separate CME-holiday calendar in v1) | Pitfall 6 | Holiday weekdays show LIVE-with-old-data; acceptable v1 honesty gap — server `stale` flag still guards silence |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Zone-fill primitive implementation cost**
+1. **Zone-fill primitive implementation cost — RESOLVED**
    - What we know: official session-highlighting plugin pattern exists and maps directly (price bands instead of time bands) [CITED]; typings confirm `attachPrimitive`/`detachPrimitive` surface.
    - What's unclear: exact effort inside this codebase (canvas coordinate handling for price bands).
    - Recommendation: planner time-boxes the spike per D-11/UI-SPEC; executor falls back to overlay lines + price-lines without blocking the phase.
+   - Resolution: adopted as planned — 02-02 implements the time-boxed spike with the bounded-box overlay fallback; phase never blocks on the primitive.
 
 ## Environment Availability
 

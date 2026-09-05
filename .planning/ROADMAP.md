@@ -60,9 +60,17 @@ Plans:
 **UI hint**: yes
 
 Plans:
+**Wave 1**
+
 - [ ] 02-01-PLAN.md — Tracer slice: store plus shell plus chart with sentinel pure libs (status-strip, chart-mapper, sentiment, calendar)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-02-PLAN.md — Freshness strip plus zone-fill primitive plus stale/closed chart overlays
 - [ ] 02-03-PLAN.md — Fixture snapshots plus sentiment table plus calendar with interpretation prose
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-04-PLAN.md — Report section 2 plus blocked side plus shell integration with poll loop and toasts
 
 ### Phase 3: Production Deploy & Verification
