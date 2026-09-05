@@ -36,6 +36,9 @@ export function detectRollover(
   asOf: string,
   contractHint: string,
 ): RolloverFlag {
+  if (!Number.isFinite(atr) || atr < 0) {
+    throw new Error(`detectRollover requires a finite non-negative ATR, got ${atr}`);
+  }
   const closed = closedOnly(candles);
   const tripwire = ROLLOVER_ATR_MULT * atr;
   let rolloverSuspect = false;
