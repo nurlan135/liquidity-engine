@@ -7,7 +7,7 @@ const BUFFER_LO = 0.48;
 const BUFFER_HI = 0.52;
 
 export function computeBias(position: number, regime: RegimeState, closedCount: number): BiasOutput {
-  if (closedCount < ANCHOR_WINDOW) {
+  if (!Number.isFinite(position) || closedCount < ANCHOR_WINDOW) {
     return {
       bias: 'COMPRESSION',
       rationale: `Insufficient history (${closedCount} of ${ANCHOR_WINDOW} closed candles) in ${regime} regime: holding COMPRESSION until the anchor window fills.`,
