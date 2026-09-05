@@ -1,7 +1,7 @@
 ---
 phase: 02-terminal-composition
 verified: 2026-09-05T00:00:00Z
-status: human_needed
+status: passed
 score: 10/10 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -18,8 +18,8 @@ human_verification:
 
 **Phase Goal:** Full dark-terminal shell with live chart, report, and fixture panels (Phase 2: Terminal Composition)
 **Verified:** 2026-09-05T00:00:00Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Status:** passed
+**Re-verification:** Yes — human UAT completed 2026-09-05 (both items pass, see 02-UAT.md)
 
 ## Goal Achievement
 
@@ -118,21 +118,21 @@ Review findings disposition: CR-01 fixed via Toaster wiring (verified in `app/pa
 
 ### Human Verification Required
 
-### 1. Canvas zone-shading render
+### 1. Canvas zone-shading render — PASS
 
 **Test:** Run dev server and confirm canvas zone-shading renders correctly
 **Expected:** Premium half shaded magenta 8%, discount half green 8%, dashed cyan EQ line, solid cyan DOL marker visible on live candles
-**Why human:** Canvas pixel output cannot be verified by grep; unit tests prove geometry inputs only
+**Result:** PASS — user screenshots confirm zone fills, EQ 29635.13 dashed, DOL 29565.25 solid, MARKET CLOSED ribbon on weekend data.
 
-### 2. Responsive layout
+### 2. Responsive layout — PASS
 
 **Test:** Resize viewport below 1024px and confirm single-column stack
 **Expected:** Grid collapses to left-to-center-to-right stack with 12px gaps, no horizontal overflow, chart resizes with container
-**Why human:** Responsive layout and visual composition require dev-render judgment
+**Result:** PASS — verified at 390px via Playwright: single column, left(y136) → center(y822) → right(y1785), gap 12px, scrollWidth == clientWidth (no horizontal overflow).
 
 ### Gaps Summary
 
-No gaps. All 10 must-have truths verified against actual codebase (not SUMMARY claims): 103/103 tests green, typecheck clean, every key link wired, data flowing from real sources (live Yahoo envelope for chart/report/strip; labeled static fixtures for sentiment/calendar per MOCK design), review critical issue fixed, no stub markers. The only open items are the two manual dev-render confirmations above (canvas shading look, responsive layout feel), which route this verification to `human_needed` rather than `passed`.
+No gaps. All 10 must-have truths verified against actual codebase (not SUMMARY claims): 103/103 tests green, typecheck clean, every key link wired, data flowing from real sources (live Yahoo envelope for chart/report/strip; labeled static fixtures for sentiment/calendar per MOCK design), review critical issue fixed, no stub markers. Both human UAT items pass (see 02-UAT.md).
 
 ---
 _Verified: 2026-09-05T00:00:00Z_
