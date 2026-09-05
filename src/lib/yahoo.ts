@@ -131,42 +131,178 @@ type SleepFn = (ms: number) => Promise<void>;
 
 const realSleep: SleepFn = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function fetchNQDaily(
+const CACHE_KEY = `${SYMBOL}:D1`;
+const CACHE_TTL_MS = 60_000;
+const FETCH_TIMEOUT_MS = 8_000;
+const MAX_RETRY_AFTER_MS = 10_000;
+const BASE_DELAYS_MS = [500, 1000, 2000];
+
+interface CacheEntry {
+  payload: Envelope;
+  fetchedAt: number;
+}
+
+const payloadCache = new Map<string, CacheEntry>();
+const inFlight = new Map<string, Promise<Envelope>>();
+
+/** Test-only reset for the module-level cache and singleflight maps. */
+export function __resetYahooCacheForTests(): void {
+  payloadCache.clear();
+  inFlight.clear();
+}
+
+function jitteredDelay(baseMs: number): number {
+  return baseMs * (0.75 + Math.random() * 0.5);
+}
+
+function retryAfterMs(header: string | null, nowMs: number): number | null {
+  if (header === null) return null;
+  const trimmed = header.trim();
+  if (trimmed === '') return null;
+  const seconds = Number(trimmed);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+  }
+  const dateMs = Date.parse(trimmed);
+  if (Number.isFinite(dateMs)) {
+    return Math.min(Math.max(dateMs - nowMs, 0), MAX_RETRY_AFTER_MS);
+  }
+  return null;
+}
+
+function isValidPayload(candles: Candle[], symbol: string): boolean {
+  if (symbol.toLowerCase() !== SYMBOL.toLowerCase()) return false;
+  if (candles.length < 5) return false;
+  for (const c of candles) {
+    if (!Number.isFinite(c.open) || !Number.isFinite(c.high) || !Number.isFinite(c.low) || !Number.isFinite(c.close)) {
+      return false;
+    }
+  }
+  for (let i = 1; i < candles.length; i++) {
+    if (candles[i].date <= candles[i - 1].date) return false;
+  }
+  return true;
+}
+
+async function fetchWithTimeout(fetchFn: FetchFn, url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetchFn(url, { headers: HEADERS, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchUpstream(
   now: Date,
-  fetchFn: FetchFn = fetch,
-  sleep: SleepFn = realSleep,
+  fetchFn: FetchFn,
+  sleep: SleepFn,
 ): Promise<Envelope> {
   const period2 = Math.floor(now.getTime() / 1000);
   const period1 = period2 - 182 * 86400;
   const path = `/v8/finance/chart/${ENCODED_SYMBOL}?period1=${period1}&period2=${period2}&interval=1d&events=history`;
 
-  const delays = [500, 1000, 2000];
   let lastError: unknown = null;
+  let failedOver = false;
 
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
+  for (let attempt = 0; attempt <= BASE_DELAYS_MS.length; attempt++) {
     const host = HOSTS[attempt % HOSTS.length];
     try {
-      const res = await fetchFn(`${host}${path}`, { headers: HEADERS });
+      const res = await fetchWithTimeout(fetchFn, `${host}${path}`);
       if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
         lastError = new UpstreamError(`upstream status ${res.status}`);
-      } else if (!res.ok) {
-        throw new UpstreamError(`upstream status ${res.status}`);
-      } else {
-        const json: unknown = await res.json();
-        const { candles } = parseChartJson(json);
-        return buildEnvelope(candles, now);
+        if (attempt < BASE_DELAYS_MS.length) {
+          const retryMs = retryAfterMs(res.headers.get('Retry-After'), now.getTime());
+          await sleep(retryMs ?? jitteredDelay(BASE_DELAYS_MS[attempt]));
+        }
+        continue;
       }
+      if (!res.ok) {
+        // Non-429 client errors fail over once, then throw without further retry.
+        if (!failedOver && attempt === 0) {
+          failedOver = true;
+          lastError = new UpstreamError(`upstream status ${res.status}`);
+          continue;
+        }
+        throw new UpstreamError(`upstream status ${res.status}`);
+      }
+      const json: unknown = await res.json();
+      let candles: Candle[];
+      let symbol = SYMBOL;
+      try {
+        const parsed = parseChartJson(json);
+        candles = parsed.candles;
+        symbol = parsed.contractHint.split(' · ')[0] ?? SYMBOL;
+      } catch {
+        // HTTP 200 bodies carrying a chart error are retryable throttle signals.
+        lastError = new UpstreamError('upstream chart error payload');
+        if (attempt < BASE_DELAYS_MS.length) {
+          await sleep(jitteredDelay(BASE_DELAYS_MS[attempt]));
+        }
+        continue;
+      }
+      if (!isValidPayload(candles, symbol)) {
+        throw new UpstreamError('upstream payload failed validation');
+      }
+      return buildEnvelope(candles, now);
     } catch (err) {
-      if (err instanceof UpstreamError && !String(err.message).startsWith('upstream status 5') && !String(err.message).startsWith('upstream status 429')) {
+      if (err instanceof UpstreamError) {
+        if (String(err.message).startsWith('upstream status 4') && !String(err.message).startsWith('upstream status 429')) {
+          throw err;
+        }
+        if (err.message === 'upstream payload failed validation') {
+          throw err;
+        }
+        if (err.message.startsWith('upstream status 5') || err.message.startsWith('upstream status 429')) {
+          lastError = err;
+          continue;
+        }
+      }
+      // Network throws and abort timeouts are retryable.
+      lastError = err;
+      if (attempt < BASE_DELAYS_MS.length && !(err instanceof UpstreamError && String(err.message).startsWith('upstream status 4'))) {
+        await sleep(jitteredDelay(BASE_DELAYS_MS[attempt]));
+      } else if (err instanceof UpstreamError) {
         throw err;
       }
-      lastError = err;
-    }
-    if (attempt < delays.length) {
-      const jitter = delays[attempt] * (0.75 + Math.random() * 0.5);
-      await sleep(jitter);
     }
   }
 
   throw lastError instanceof Error ? lastError : new UpstreamError('upstream fetch failed');
+}
+
+export async function fetchNQDaily(
+  now: Date,
+  fetchFn: FetchFn = fetch,
+  sleep: SleepFn = realSleep,
+): Promise<Envelope> {
+  const cached = payloadCache.get(CACHE_KEY);
+  if (cached && now.getTime() - cached.fetchedAt < CACHE_TTL_MS) {
+    return { ...cached.payload, source: 'cache' };
+  }
+
+  const pending = inFlight.get(CACHE_KEY);
+  if (pending) {
+    return pending;
+  }
+
+  const task = (async (): Promise<Envelope> => {
+    try {
+      const envelope = await fetchUpstream(now, fetchFn, sleep);
+      payloadCache.set(CACHE_KEY, { payload: envelope, fetchedAt: now.getTime() });
+      return envelope;
+    } catch (err) {
+      const warm = payloadCache.get(CACHE_KEY);
+      if (warm) {
+        return { ...warm.payload, stale: true, source: 'stale' };
+      }
+      throw err;
+    } finally {
+      inFlight.delete(CACHE_KEY);
+    }
+  })();
+
+  inFlight.set(CACHE_KEY, task);
+  return task;
 }

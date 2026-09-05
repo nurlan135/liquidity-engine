@@ -167,7 +167,7 @@ describe('yahoo resilience', () => {
 
     const failing = vi.fn(async () => statusResponse(500));
     const stale = await fetchNQDaily(
-      new Date('2026-02-09T12:00:30Z'),
+      new Date('2026-02-09T12:01:01Z'),
       failing as unknown as typeof fetch,
       noSleep,
     );
