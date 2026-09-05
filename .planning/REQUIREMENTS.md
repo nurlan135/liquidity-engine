@@ -9,8 +9,8 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 
 ### Data Feed
 
-- [ ] **DATA-01**: User receives NQ=F daily candles via `GET /api/yahoo` proxy with server-side 60s TTL cache
-- [ ] **DATA-02**: Proxy survives upstream failure with query1→query2 failover, exponential backoff honoring Retry-After, and serve-stale fallback
+- [x] **DATA-01**: User receives NQ=F daily candles via `GET /api/yahoo` proxy with server-side 60s TTL cache
+- [x] **DATA-02**: Proxy survives upstream failure with query1→query2 failover, exponential backoff honoring Retry-After, and serve-stale fallback
 - [ ] **DATA-03**: User sees data freshness (cache age, stale badge) on the chart header — never silent staleness
 
 ### ICT Math Core
@@ -39,7 +39,7 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 ### State & Time
 
 - [ ] **STATE-01**: Dashboard state (symbol, candles, dealing-range state, confidence) held in a single Zustand store with memoized selectors; math never touches the store
-- [ ] **STATE-02**: All session/date logic runs on Asia/Baku timezone via a single time util module with injected clock; March + November DST covered by tests
+- [x] **STATE-02**: All session/date logic runs on Asia/Baku timezone via a single time util module with injected clock; March + November DST covered by tests
 
 ### Deployment
 
@@ -89,8 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 2 | Pending |
 | ICT-01 | Phase 1 | Pending |
 | ICT-02 | Phase 1 | Complete |
@@ -107,7 +107,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MOCK-02 | Phase 2 | Pending |
 | MOCK-03 | Phase 2 | Pending |
 | STATE-01 | Phase 2 | Pending |
-| STATE-02 | Phase 1 | Pending |
+| STATE-02 | Phase 1 | Complete |
 | DEPLOY-01 | Phase 3 | Pending |
 
 **Coverage:**

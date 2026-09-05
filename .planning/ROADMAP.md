@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Bias (with mandatory rationale), single named Primary DOL, and Expansion/Compression regime derive from codified rules and degrade honestly on thin history
   5. All date logic runs through the Baku time util with injected clock; March and November DST tests pass
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -42,7 +42,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 01-02-PLAN.md — ICT math expansion: levels plus bias plus DOL plus regime plus rollover with re-anchor table
-- [ ] 01-03-PLAN.md — Proxy resilience plus Baku time: failover plus backoff plus singleflight plus serve-stale plus null fixture plus DST suite
+- [x] 01-03-PLAN.md — Proxy resilience plus Baku time: failover plus backoff plus singleflight plus serve-stale plus null fixture plus DST suite
 
 ### Phase 2: Terminal Composition
 
@@ -79,6 +79,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Foundation & ICT Core | 2/3 | In Progress|  |
+| 1. Data Foundation & ICT Core | 3/3 | In Progress|  |
 | 2. Terminal Composition | 0/TBD | Not started | - |
 | 3. Production Deploy & Verification | 0/TBD | Not started | - |
