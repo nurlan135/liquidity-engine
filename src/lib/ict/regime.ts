@@ -14,6 +14,9 @@ export function trueRange(current: Candle, previous: Candle): number {
 }
 
 export function computeATR(candles: Candle[], period: number = ATR_PERIOD): number[] {
+  if (!Number.isInteger(period) || period < 1) {
+    throw new Error(`computeATR requires a positive integer period, got ${period}`);
+  }
   const closed = closedOnly(candles);
   if (closed.length < period + 1) {
     return [];
