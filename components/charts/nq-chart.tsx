@@ -3,13 +3,20 @@
 import { useEffect, useRef } from 'react';
 import type { Candle } from '@/src/lib/ict/types';
 import { mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
+import { zoneBands } from '@/src/lib/zone-bands';
+import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
+
+export type NqChartStatus = 'live' | 'stale' | 'closed';
 
 export interface NqChartProps {
   candles: Candle[];
+  rangeHigh: number;
+  rangeLow: number;
   eq: number;
   dolPrice: number;
   dolName: string;
-  overlay: string;
+  status: NqChartStatus;
+  forming: boolean;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).
@@ -23,7 +30,7 @@ function readVar(name: string, fallback: string): string {
   return value === '' ? fallback : value;
 }
 
-export function NqChart({ candles, eq, dolPrice, dolName, overlay }: NqChartProps) {
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -31,8 +38,9 @@ export function NqChart({ candles, eq, dolPrice, dolName, overlay }: NqChartProp
   const seriesRef = useRef<unknown>(null);
   const eqLineRef = useRef<unknown>(null);
   const dolLineRef = useRef<unknown>(null);
-  const propsRef = useRef({ candles, eq, dolPrice, dolName, overlay });
-  propsRef.current = { candles, eq, dolPrice, dolName, overlay };
+  const zoneRef = useRef<ZoneFillPrimitive | null>(null);
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming });
+  propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming };
 
   // Create the chart once per container; lightweight-charts loads lazily so
   // the module top stays DOM free.
@@ -42,6 +50,7 @@ export function NqChart({ candles, eq, dolPrice, dolName, overlay }: NqChartProp
       const el = containerRef.current;
       if (el === null) return;
       const { createChart, CandlestickSeries, LineStyle } = await import('lightweight-charts');
+      const { attachZoneFill } = await import('@/components/charts/zone-primitive');
       if (disposed || containerRef.current === null) return;
       const up = readVar(VAR_UP, '#00FF88');
       const down = readVar(VAR_DOWN, '#FF00FF');
@@ -80,10 +89,44 @@ export function NqChart({ candles, eq, dolPrice, dolName, overlay }: NqChartProp
         lineStyle: LineStyle.Solid,
         title: props.dolName,
       });
+      // Attach the zone fill once; the getter always reads the latest props so
+      // pan and zoom recompute from live scale coordinates on every draw.
+      zoneRef.current = attachZoneFill(
+        series as {
+          attachPrimitive: (primitive: ZoneFillPrimitive) => void;
+        },
+        () => {
+          const latest = propsRef.current;
+          try {
+            return zoneBands({
+              high: latest.rangeHigh,
+              low: latest.rangeLow,
+              eq: latest.eq,
+              window: 0,
+              asOf: '',
+              thinHistory: false,
+            });
+          } catch {
+            return null;
+          }
+        },
+      );
+      zoneRef.current.opacityScale = props.status === 'stale' ? 0.5 : 1;
+      zoneRef.current.updateBands();
     }
     void mount();
     return () => {
       disposed = true;
+      void (async () => {
+        const { detachZoneFill } = await import('@/components/charts/zone-primitive');
+        const series = seriesRef.current as {
+          detachPrimitive: (primitive: ZoneFillPrimitive) => void;
+        } | null;
+        if (series !== null && zoneRef.current !== null) {
+          detachZoneFill(series, zoneRef.current);
+        }
+        zoneRef.current = null;
+      })();
       chartRef.current?.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -126,21 +169,55 @@ export function NqChart({ candles, eq, dolPrice, dolName, overlay }: NqChartProp
         title: dolName,
       });
     })();
-  }, [candles, eq, dolPrice, dolName]);
+    // Recompute zone geometry on range change; stale desaturates fills.
+    if (zoneRef.current !== null) {
+      zoneRef.current.opacityScale = status === 'stale' ? 0.5 : 1;
+      zoneRef.current.updateBands();
+    }
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status]);
+
+  const latest = candles.length > 0 ? candles[candles.length - 1] : null;
 
   return (
-    <div
-      ref={containerRef}
-      data-slot="nq-chart"
-      data-overlay={overlay}
-      className="min-h-[400px] w-full"
-      style={{
-        // Terminal palette tokens; canvas colors resolve the same variables
-        // through getComputedStyle at mount time.
-        backgroundColor: 'var(--terminal-canvas)',
-        ['--terminal-up' as string]: 'var(--terminal-up)',
-        ['--terminal-down' as string]: 'var(--terminal-down)',
-      }}
-    />
+    <div data-slot="chart-block" data-overlay={status} className="relative min-h-[400px] w-full">
+      <div
+        ref={containerRef}
+        data-slot="nq-chart"
+        className="min-h-[400px] w-full"
+        style={{
+          // Terminal palette tokens; canvas colors resolve the same variables
+          // through getComputedStyle at mount time.
+          backgroundColor: 'var(--terminal-canvas)',
+          ['--terminal-up' as string]: 'var(--terminal-up)',
+          ['--terminal-down' as string]: 'var(--terminal-down)',
+        }}
+      />
+      {status === 'stale' ? (
+        <div data-slot="stale-badge" className="absolute top-2 right-2 rounded bg-[var(--terminal-stale-badge)] px-2 py-1 font-mono text-[11px] font-semibold tracking-widest text-muted-foreground">
+          STALE
+        </div>
+      ) : null}
+      {status === 'closed' ? (
+        <div data-slot="closed-ribbon" className="absolute inset-x-0 top-2 flex justify-center">
+          <span className="rounded bg-[var(--terminal-closed-ribbon)] px-3 py-1 font-mono text-[11px] font-semibold tracking-widest text-muted-foreground">
+            MARKET CLOSED
+          </span>
+        </div>
+      ) : null}
+      {forming && latest !== null ? (
+        <div data-slot="forming-row" className="flex items-center justify-between px-1 py-2 text-xs">
+          <span className="font-mono tabular-nums">{latest.close}</span>
+          <sup data-slot="forming-chip" className="text-[11px] text-muted-foreground">
+            Formalaşan şam
+          </sup>
+        </div>
+      ) : null}
+      {candles.length === 0 ? (
+        <div data-slot="chart-empty" className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <p className="text-base font-semibold">Məlumat yoxdur</p>
+          <p className="text-xs text-muted-foreground">Hələlik şam məlumatı əlçatan deyil.</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
