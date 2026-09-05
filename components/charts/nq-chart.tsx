@@ -140,7 +140,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
     const series = seriesRef.current as {
       setData: (data: { time: string; open: number; high: number; low: number; close: number }[]) => void;
     } | null;
-    if (series === null) return;
+    if (series === null || candles.length === 0) return;
     series.setData(mapCandlesToSeries(candles));
     // Re-create price-lines lazily to keep the module top DOM free.
     void (async () => {

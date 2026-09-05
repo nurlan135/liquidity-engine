@@ -47,8 +47,9 @@ export function trueAvg(rows: BrokerQuote[]): TrueAvgOutput {
   for (const r of kept) {
     sum += r.longPct;
   }
-  const buy = sum / kept.length;
-  const sell = 100 - buy;
+  const round1 = (v: number) => Math.round(v * 10) / 10;
+  const buy = round1(sum / kept.length);
+  const sell = round1(100 - buy);
   const crowded: CrowdedSide | null =
     buy >= CROWDED_THRESHOLD ? 'LONG' : sell >= CROWDED_THRESHOLD ? 'SHORT' : null;
   const rationale =
