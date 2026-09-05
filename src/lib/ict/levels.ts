@@ -21,6 +21,9 @@ const OTE_INNER = 0.62;
 const OTE_OUTER = 0.79;
 
 export function computeLevels(range: DealingRange, lastClose: number): LevelsOutput {
+  if (!Number.isFinite(range.high) || !Number.isFinite(range.low) || !Number.isFinite(lastClose)) {
+    throw new Error('computeLevels requires finite high, low, and lastClose');
+  }
   const width = range.high - range.low;
   const eq = (range.high + range.low) / 2;
   const q1 = range.low + QUARTER * width;
