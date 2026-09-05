@@ -1,0 +1,22 @@
+{
+  "id": "balanced",
+  "label": "balanslı",
+  "sentiment": {
+    "symbol": "NQ",
+    "brokers": [
+      { "broker": "OANDA", "longPct": 55, "shortPct": 45 },
+      { "broker": "Forex.com", "longPct": 48, "shortPct": 52 },
+      { "broker": "IG", "longPct": 52, "shortPct": 48 },
+      { "broker": "InstaForex", "longPct": 90, "shortPct": 10 },
+      { "broker": "FiboGroup", "longPct": 5, "shortPct": 95 }
+    ]
+  },
+  "calendar": {
+    "events": [
+      { "event": "ABŞ Məşğulluq Hesabatı (NFP)", "impact": "high", "startsAtOffsetHours": 6 },
+      { "event": "ABŞ İstehlak Qiymətləri İndeksi (CPI)", "impact": "high", "startsAtOffsetHours": 30 },
+      { "event": "FOMC Faiz Qərarı", "impact": "high", "startsAtOffsetHours": 72 }
+    ]
+  },
+  "interpretation": "Pərakəndə mövqeləşmə balanslıdır, Həqiqi Ortalama hər iki tərəfdə 60% həddindən aşağıdır. NFP xəbəri yaxınlaşsa da izdiham olmadığı üçün tələ riski aşağı qiymətləndirilir. Qiymətin dealing range daxilində qalması və DOL hədəfinə tədrici çatdırılma əsas ssenaridir."
+}

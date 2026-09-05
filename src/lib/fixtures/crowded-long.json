@@ -1,0 +1,22 @@
+{
+  "id": "crowded-long",
+  "label": "izdihamlı-long",
+  "sentiment": {
+    "symbol": "NQ",
+    "brokers": [
+      { "broker": "OANDA", "longPct": 64, "shortPct": 36 },
+      { "broker": "Forex.com", "longPct": 62, "shortPct": 38 },
+      { "broker": "IG", "longPct": 61, "shortPct": 39 },
+      { "broker": "InstaForex", "longPct": 20, "shortPct": 80 },
+      { "broker": "FiboGroup", "longPct": 15, "shortPct": 85 }
+    ]
+  },
+  "calendar": {
+    "events": [
+      { "event": "ABŞ Məşğulluq Hesabatı (NFP)", "impact": "high", "startsAtOffsetHours": 6 },
+      { "event": "ABŞ İstehlak Qiymətləri İndeksi (CPI)", "impact": "high", "startsAtOffsetHours": 30 },
+      { "event": "FOMC Faiz Qərarı", "impact": "high", "startsAtOffsetHours": 72 }
+    ]
+  },
+  "interpretation": "Pərakəndə kütlə NQ long tərəfində sıxlaşıb, Həqiqi Ortalama 60% həddini keçir. NFP xəbəri 24 saatlıq pəncərənin içindədir, yəni xəbər öncəsi likvidlik ovu ehtimalı yüksəkdir. Tələ ssenarisində qiymət əvvəlcə yuxarı süpürüb sonra institusional satışla geri qayıda bilər."
+}

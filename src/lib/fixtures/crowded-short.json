@@ -1,0 +1,22 @@
+{
+  "id": "crowded-short",
+  "label": "izdihamlı-short",
+  "sentiment": {
+    "symbol": "NQ",
+    "brokers": [
+      { "broker": "OANDA", "longPct": 36, "shortPct": 64 },
+      { "broker": "Forex.com", "longPct": 38, "shortPct": 62 },
+      { "broker": "IG", "longPct": 39, "shortPct": 61 },
+      { "broker": "InstaForex", "longPct": 80, "shortPct": 20 },
+      { "broker": "FiboGroup", "longPct": 85, "shortPct": 15 }
+    ]
+  },
+  "calendar": {
+    "events": [
+      { "event": "ABŞ Məşğulluq Hesabatı (NFP)", "impact": "high", "startsAtOffsetHours": 6 },
+      { "event": "ABŞ İstehlak Qiymətləri İndeksi (CPI)", "impact": "high", "startsAtOffsetHours": 30 },
+      { "event": "FOMC Faiz Qərarı", "impact": "high", "startsAtOffsetHours": 72 }
+    ]
+  },
+  "interpretation": "Pərakəndə kütlə NQ short tərəfində sıxlaşıb, Həqiqi Ortalama satışda 60% həddini keçir. NFP xəbəri 24 saatlıq pəncərənin içindədir, ona görə xəbər öncəsi aşağı süpürmə tələ ola bilər. Həqiqi çatdırılma ssenarisində qiymət sell-side likvidliyi təmizlədikdən sonra yuxarı bərpa olunur."
+}
