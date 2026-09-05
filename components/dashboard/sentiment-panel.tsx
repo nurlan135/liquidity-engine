@@ -88,7 +88,7 @@ export function SentimentPanel() {
           </span>
         ) : null}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">Ssenari</span>
           {SCENARIOS.map((option) => (
             <Button

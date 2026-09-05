@@ -59,16 +59,16 @@ export function CalendarPanel() {
             <p className="text-xs">Təqvimdə yaxın günlərdə yüksək təsirli xəbər planlaşdırılmayıb.</p>
           </div>
         ) : (
-          <ul>
+          <ul className="flex flex-col gap-2">
             {events.map((item) => {
               const countdown = formatCountdown(item.startsAt, now);
               const preNews = isPreNews(item.startsAt, now);
               return (
-                <li key={item.event}>
-                  <span>{item.event}</span>
-                  <span className="font-mono">{countdown}</span>
+                <li key={item.event} className="flex flex-col gap-1">
+                  <span className="text-xs">{item.event}</span>
+                  <span className="font-mono text-xs">{countdown}</span>
                   {preNews ? (
-                    <span data-slot="pre-news-flag">{`XƏBƏR ÖNCƏSİ — ${item.event} ${countdown}`}</span>
+                    <span data-slot="pre-news-flag" className="text-xs">{`XƏBƏR ÖNCƏSİ — ${item.event} ${countdown}`}</span>
                   ) : null}
                 </li>
               );

@@ -23,14 +23,18 @@ export function computeBias(position: number, regime: RegimeState, closedCount: 
       regime,
     };
   }
+  // Round UI-facing position to 4 decimals so the rationale never renders a
+  // raw float tail (e.g. 0.450644534469892285). Threshold comparisons above
+  // still use the full-precision value.
+  const displayPosition = Math.round(position * 10_000) / 10_000;
   let bias: BiasDirection;
   let rationale: string;
   if (position < BUFFER_LO) {
     bias = 'BULLISH';
-    rationale = `Discount positioning at ${position} below the 0.48 buffer in ${regime} regime: price sits on the buy side of equilibrium, longs only.`;
+    rationale = `Discount positioning at ${displayPosition} below the 0.48 buffer in ${regime} regime: price sits on the buy side of equilibrium, longs only.`;
   } else {
     bias = 'BEARISH';
-    rationale = `Premium positioning at ${position} above the 0.52 buffer in ${regime} regime: price sits on the sell side of equilibrium, shorts only.`;
+    rationale = `Premium positioning at ${displayPosition} above the 0.52 buffer in ${regime} regime: price sits on the sell side of equilibrium, shorts only.`;
   }
   return { bias, rationale, position, regime };
 }
