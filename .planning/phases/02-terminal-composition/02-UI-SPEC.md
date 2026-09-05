@@ -157,6 +157,8 @@ Rendered language is Azerbaijani; code identifiers stay English (D-04). Locked s
 | Crowded flag | `İZDİHAMLI — {LONG\|SHORT} {NN}%` — shown when True AVG side ≥ 60% (MOCK-01; threshold per `institutional_rules.md` Module 1) |
 | True AVG row | `Həqiqi Ortalama (Insta/FiboGroup xaric): BUY {X}% / SELL {Y}%` |
 | Pre-news flag | `XƏBƏR ÖNCƏSİ — {EVENT} {countdown}` — raised when a high-impact event falls inside the pre-news window (MOCK-02) |
+| Calendar zero-events heading | `Yüksək təsirli xəbər yoxdur` |
+| Calendar zero-events body | `Təqvimdə yaxın günlərdə yüksək təsirli xəbər planlaşdırılmayıb.` |
 | Countdown | `{Ng} {Ns} sonra` (e.g. `2g 4s sonra`) — Baku-time derived via Phase 1 time util, injected clock (D-12) |
 | Scenario switcher label | `Ssenari: {izdihamlı-long / izdihamlı-short / balanslı}` — rotating 2–3 fixture snapshots (D-05) |
 | Trap-vs-genuine heading | `Tələ vs Həqiqi Çatdırılma` — per-scenario prose fusing calendar + regime + position (MOCK-03, D-06) |
@@ -192,21 +194,54 @@ Report header line (Heading 16px): `# NQ=F \| HTF BIAS: {BULLISH / BEARISH / COM
 
 ## UI Considerations
 
-> Researcher-authored state coverage (no ui-phase probe run — no sketch findings exist for this phase). Planner treats ⚠ rows as assumptions.
-
-Applicable state considerations resolved: 7 covered, 2 backstop, 1 unresolved.
+> Probe-resolved state coverage via `ui-consideration-probe` (6 elements E1–E6, 38 applicable considerations raised, user-confirmed 2026-09-05). `resolved` (explicit) → truth string; `resolved` (backstop) → flat scalar `{ statement, verification: backstop }`; `dismissed` carries a reason; `unresolved` → planner assumption. Empty/error COPY lives in `## Copywriting Contract` — this section covers shape-rooted STATE and references those rows.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| loading | Chart block, report section 2, sentiment/calendar panels on first paint + each 60s poll | ✅ covered | Skeleton blocks (pulse, panel-surface) at chart min-height 400px and row height 12px rhythm; skeletons never show fake candles or numbers |
-| empty | Chart with zero candles; sentiment table with zero brokers | ✅ covered | Empty renders the documented `Məlumat yoxdur` copy + `Yenilə` CTA; no zero-row tables |
-| error | Poll failure with no cache; poll failure with cache | ✅ covered | No-cache error renders the documented error copy + toast; with-cache renders serve-stale + `STALE` strip state + toast (never silent — DATA-03) |
-| stale | All panels during serve-stale | ✅ covered | Global strip shows `STALE` state; chart badge overlay + 4% zone opacity; numbers stay visible, nothing hidden |
-| closed | Weekend/market-closed session | ✅ covered | Strip shows `BAZAR BAĞLIDIR` state; last closed candles rendered; `forming` candle may show with `Formalaşan şam` chip; nothing synthesized (D-03) |
-| partial | Thin history (`thinHistory: true` from ICT range) | ✅ covered | Regime badge degrades honestly (`Sıxılma` + rationale notes thin history); chart renders available candles without stretching |
-| zero-one-many | Fixture scenario rotation (2–3 snapshots) | ✅ covered | Switcher shows exactly the shipped snapshot count; single snapshot hides the switcher; crowded flag appears only when a side ≥ 60% |
-| long-text | Bias rationale, interpretation prose, fatal-flaw line (dimmed) | 🧪 backstop | { statement: "Long rationale/interpretation prose wraps at 2 lines then truncates with ellipsis inside panel width", verification: backstop } |
-| overflow | 6-section report + ticket rows in fixed-height center/right panels | 🧪 backstop | { statement: "Panels scroll independently with no horizontal overflow at 280px/320px widths", verification: backstop } |
+| populated (E1) | Terminal shell: header strip, wordmark, session line, status strip, 3-panel grid | ✅ resolved (explicit) | "Terminal shell renders header strip (wordmark, Bakı session line, confidence, Yenilə button), global LIVE/STALE/BAZAR BAĞLIDIR strip spanning all panels, and the 280px/1fr/320px grid per Layout Contract" |
+| overflow (E1) | Terminal shell grid + panels | ✅ resolved (explicit) | "Panels scroll independently with no horizontal overflow at 280px/320px widths; below 1024px the grid collapses to a single-column left→center→right stack with 12px gaps" |
+| empty (E1) | Terminal shell chrome | ➖ dismissed | Shell has no fetch of its own — empty state lives in child panels (Copywriting Contract rows) |
+| loading (E1) | Terminal shell chrome | ➖ dismissed | Shell renders synchronously — loading states owned by child panels (skeletons) |
+| error (E1) | Terminal shell chrome | ➖ dismissed | Error surfaces owned by child panels + toast (E6) — shell chrome has no failure mode of its own |
+| partial (E1) | Terminal shell chrome | ➖ dismissed | Partial data is a panel concern — shell composition is unaffected by row-level incompleteness |
+| zero-one-many (E1) | Terminal shell chrome | ➖ dismissed | Panel count is fixed at three — no zero/one/many variation exists at shell level |
+| long-text (E1) | Header wordmark, session line | ➖ dismissed | Shell strings are fixed and bounded (wordmark, HH:MM session line, confidence) — no free prose at shell level |
+| empty (E2) | Chart block, zero candles | ✅ resolved (explicit) | "Chart with zero candles renders the documented `Məlumat yoxdur` copy + `Yenilə` CTA (see Copywriting Contract); no zero-row canvas, no fake candles" |
+| loading (E2) | Chart block, first paint + each 60s poll | ✅ resolved (explicit) | "Chart block shows pulse skeleton blocks at chart min-height 400px while candles load; skeletons never show fake candles or numbers" |
+| error (E2) | Chart block, poll failure | ✅ resolved (explicit) | "No-cache poll failure renders the documented error copy + toast; with-cache failure renders serve-stale + `STALE` strip state + toast (never silent — DATA-03)" |
+| populated (E2) | Chart block, live candles | ✅ resolved (explicit) | "Chart renders live candles with premium/discount zone shading, EQ dashed price-line, and DOL marker per Color chart rules; wicks match body color" |
+| stale (E2) | Chart block during serve-stale | ✅ resolved (explicit) | "Chart canvas shows `STALE` badge overlay (top-right) and zone fills desaturate to 4% opacity; numbers stay visible, nothing hidden" |
+| closed (E2) | Chart block, weekend/market-closed | ✅ resolved (explicit) | "Last closed candles stay rendered with `MARKET CLOSED` overlay ribbon, no animation; today's `forming: true` candle may show with `Formalaşan şam` chip; nothing ever synthesized (D-03)" |
+| partial (E2) | Chart block, thin history | ✅ resolved (explicit) | "Thin history (`thinHistory: true` from ICT range): chart renders available candles without stretching; regime badge degrades honestly (`Sıxılma` + rationale notes thin history)" |
+| empty (E3) | Report section 2, no bias output | ✅ resolved (explicit) | "Report section 2 with no bias output renders `Məlumat yoxdur` copy; the 6-section skeleton (5 dimmed UNAVAILABLE + section 2) is always present" |
+| loading (E3) | Report section 2, first paint + polls | ✅ resolved (explicit) | "Report section 2 shows pulse skeleton rows at 12px row rhythm while bias/DOL/regime selectors resolve; no fake bias values" |
+| error (E3) | Report section 2, selector failure | ✅ resolved (explicit) | "Selector failure renders the global error copy + toast (Copywriting Contract); dimmed UNAVAILABLE sections are unaffected" |
+| populated (E3) | Report section 2, live | ✅ resolved (explicit) | "Section 2 shows volatility regime badge, position line, delivery-cycle line, DOL line, and bias readout + mandatory rationale string per Report Contract" |
+| partial (E3) | Report section 2, incomplete range output | ➖ dismissed | Selectors derive atomically from a single ICT range output — partial selector state cannot occur; thin-history degradation is covered by E2 partial |
+| overflow (E3) | 6-section report in center panel | 🧪 resolved (backstop) | { statement: "Center panel scrolls independently with no horizontal overflow at 1fr width; all 6 sections reachable", verification: backstop } |
+| zero-one-many (E3) | Report section count | ✅ resolved (explicit) | "Report always renders exactly 6 sections in fixed order (section 2 live, others UNAVAILABLE) — no singular/plural variation" |
+| long-text (E3) | Bias rationale, fatal-flaw line (dimmed) | 🧪 resolved (backstop) | { statement: "Long rationale prose wraps at 2 lines then truncates with ellipsis inside panel width", verification: backstop } |
+| empty (E4) | Sentiment table, zero brokers | ✅ resolved (explicit) | "Sentiment table with zero brokers renders `Məlumat yoxdur` copy + `Yenilə` CTA; no zero-row tables" |
+| loading (E4) | Sentiment panel, first paint | ✅ resolved (explicit) | "Sentiment panel shows pulse skeleton rows at 12px row rhythm while fixture snapshot loads" |
+| error (E4) | Sentiment panel, fixture failure | ✅ resolved (explicit) | "Fixture load failure renders the error copy + toast; with-cache renders serve-stale + `STALE` strip state" |
+| populated (E4) | Sentiment table, typical snapshot | ✅ resolved (explicit) | "Sentiment table shows Broker/Long%/Short% rows with True AVG footer (Insta/FiboGroup excluded) and `İZDİHAMLI` flag chip on the crowded side when ≥ 60%" |
+| partial (E4) | Sentiment table, missing brokers | ➖ dismissed | Fixture snapshots are static bounded sets — partial broker data cannot occur by construction |
+| overflow (E4) | Sentiment table growth | ➖ dismissed | Broker row count is fixed per snapshot; center/left panels scroll independently if rows ever grow |
+| long-text (E4) | Broker names, True AVG row | ➖ dismissed | Broker names and AVG labels are short bounded strings — no free prose in the table |
+| zero-one-many (E4) | Fixture scenario rotation | ✅ resolved (explicit) | "Switcher shows exactly the shipped snapshot count (2–3); single snapshot hides the switcher; crowded flag appears only when a side ≥ 60%" |
+| empty (E5) | Calendar, zero high-impact events | ✅ resolved (explicit) | "Calendar with zero high-impact events renders `Yüksək təsirli xəbər yoxdur` heading + `Təqvimdə yaxın günlərdə yüksək təsirli xəbər planlaşdırılmayıb.` body (see Copywriting Contract)" |
+| loading (E5) | Calendar panel, first paint | ✅ resolved (explicit) | "Calendar panel shows pulse skeleton rows at 12px row rhythm while fixture snapshot loads" |
+| error (E5) | Calendar panel, fixture failure | ➖ dismissed | Fixtures are local static JSON — load failure is not a reachable state; global error path (E3) covers catastrophic failure |
+| populated (E5) | Calendar, typical snapshot | ✅ resolved (explicit) | "Calendar lists high-impact events as `{event name} · {countdown} · {pre-news flag if inside window}` with Baku-time countdowns and the trap-vs-genuine interpretation prose block below" |
+| partial (E5) | Calendar, missing fields | ➖ dismissed | Fixture snapshots are atomic static sets — partial event fields cannot occur by construction |
+| overflow (E5) | Calendar event growth | ➖ dismissed | Event count is fixed per snapshot; right panel scrolls independently if the list ever grows |
+| zero-one-many (E5) | Calendar event count | ✅ resolved (explicit) | "One event renders a single row with countdown; many render the full list; zero renders the zero-events copy — no plural-suffix variation in Azerbaijani copy" |
+| loading (E6) | Refresh button while poll in flight | ✅ resolved (explicit) | "Manual refresh button is disabled with a spinner glyph while a `GET /api/yahoo` poll is in flight; re-enables on settle" |
+| error (E6) | Poll failure toast | ✅ resolved (explicit) | "Poll failure raises a toast with the error copy + retry path (see Copywriting Contract); serve-stale additionally flips the global strip to `STALE`" |
+| empty (E6) | Toast / refresh button | ➖ dismissed | Toast and button have no data states — nothing to be empty |
+| populated (E6) | Toast / refresh button | ➖ dismissed | Feedback surfaces are stateless triggers — no populated volume variation |
+| overflow (E6) | Toast stacking | ➖ dismissed | Single-toast surface — concurrent polls coalesce into one toast, no stacking |
+| long-text (E6) | Toast copy | ➖ dismissed | Toast strings are short locked copy (Copywriting Contract) — no free prose |
 | zone-fill primitive | lightweight-charts v5 premium/discount shading | ⚠ unresolved | Planner time-boxes a spike per D-11; fallback is bounded box overlays with null autoscale — executor must not block the phase on the primitive |
 
 ---
@@ -222,12 +257,12 @@ Applicable state considerations resolved: 7 covered, 2 backstop, 1 unresolved.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking — single-word `Yenilə` CTA accepted; noun-qualified label optional)
+- [x] Dimension 2 Visuals: FLAG (non-blocking — hierarchy implied by Layout Contract; focal-point sentence optional)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** APPROVED (2026-09-05, gsd-ui-checker)
