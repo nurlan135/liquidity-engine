@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusStrip } from '@/components/dashboard/status-strip';
+import { deriveStatus } from '@/src/lib/freshness';
 import { useDashboard } from '@/src/lib/store';
 
 // Chart loads only on the client via the use client shell (never page.tsx).
@@ -26,6 +27,17 @@ export function TerminalShell() {
   const range = selectRange();
   const dol = selectDOL();
   const forming = candles.length > 0 && candles[candles.length - 1].forming === true;
+  // Chart overlay state derives from the same envelope truth as the strip:
+  // weekend envelopes keep last closed candles with the closed ribbon.
+  let chartStatus: 'live' | 'stale' | 'closed' = stale ? 'stale' : 'live';
+  if (lastUpdatedISO !== null) {
+    try {
+      const derived = deriveStatus({ stale, lastUpdatedISO }, new Date()).state;
+      chartStatus = derived === 'CLOSED' ? 'closed' : derived === 'STALE' ? 'stale' : 'live';
+    } catch {
+      chartStatus = 'stale';
+    }
+  }
 
   return (
     <div data-slot="terminal-shell" className="flex min-h-full flex-col gap-3 p-4">
@@ -65,16 +77,16 @@ export function TerminalShell() {
                 </Button>
               </div>
             ) : range !== null && dol !== null ? (
-              <div data-slot="chart-block">
-                {forming ? <span data-slot="forming-chip">Formalaşan şam</span> : null}
-                <NqChart
-                  candles={candles}
-                  eq={range.eq}
-                  dolPrice={dol.price}
-                  dolName={dol.name}
-                  overlay={stale ? 'stale' : 'live'}
-                />
-              </div>
+              <NqChart
+                candles={candles}
+                rangeHigh={range.high}
+                rangeLow={range.low}
+                eq={range.eq}
+                dolPrice={dol.price}
+                dolName={dol.name}
+                status={chartStatus}
+                forming={forming}
+              />
             ) : (
               <div data-slot="chart-empty">
                 <p className="text-base font-semibold">Məlumat yoxdur</p>

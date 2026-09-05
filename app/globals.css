@@ -123,6 +123,10 @@
   --terminal-down: #ff00ff;
   --terminal-premium-fill: rgba(255, 0, 255, 0.08);
   --terminal-discount-fill: rgba(0, 255, 136, 0.08);
+  --terminal-premium-fill-stale: rgba(255, 0, 255, 0.04);
+  --terminal-discount-fill-stale: rgba(0, 255, 136, 0.04);
+  --terminal-stale-badge: rgba(255, 255, 255, 0.06);
+  --terminal-closed-ribbon: rgba(255, 255, 255, 0.08);
   --terminal-canvas: #0e0e12;
 }
 
