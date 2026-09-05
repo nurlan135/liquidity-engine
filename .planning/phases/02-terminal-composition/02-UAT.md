@@ -24,14 +24,14 @@ result: pass — screenshots confirm zone fills, EQ 29635.13 dashed, DOL 29565.2
 
 ### 2. Responsive layout
 expected: below 1024px the grid collapses to a single left-to-center-to-right stack with 12px gaps and no horizontal overflow
-result: [pending] — second screenshot is a narrow viewport render; explicit sub-1024px resize check still open
+result: pass — verified at 390px via Playwright: single column, left(y136) → center(y822) → right(y1785), gap 12px, scrollWidth == clientWidth (no horizontal overflow)
 
 ## Summary
 
 total: 2
-passed: 1
+passed: 2
 issues: 3
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
