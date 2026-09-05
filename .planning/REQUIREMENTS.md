@@ -15,7 +15,7 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 
 ### ICT Math Core
 
-- [ ] **ICT-01**: User sees D1 Dealing Range with Premium/Discount zones and Equilibrium (`EQ = (Rhigh + Rlow) / 2`, position >/< 0.5) computed as pure functions in `src/lib/ict`
+- [x] **ICT-01**: User sees D1 Dealing Range with Premium/Discount zones and Equilibrium (`EQ = (Rhigh + Rlow) / 2`, position >/< 0.5) computed as pure functions in `src/lib/ict`
 - [x] **ICT-02**: User sees Equilibrium + quadrant/OTE levels (0.25/0.75 quadrants, 0.62–0.79 OTE pocket) derived from range anchors
 - [x] **ICT-03**: Range re-anchors correctly — close beyond either extreme or new leg through major liquidity retires the range
 - [x] **ICT-04**: User sees bias readout (BULLISH / BEARISH / COMPRESSION) with mandatory rationale string, derived from D1 position + regime
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 2 | Complete |
-| ICT-01 | Phase 1 | Pending |
+| ICT-01 | Phase 1 | Complete |
 | ICT-02 | Phase 1 | Complete |
 | ICT-03 | Phase 1 | Complete |
 | ICT-04 | Phase 1 | Complete |
