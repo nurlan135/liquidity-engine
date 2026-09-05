@@ -134,6 +134,13 @@ export function NqChart({ candles, eq, dolPrice, dolName, overlay }: NqChartProp
       data-slot="nq-chart"
       data-overlay={overlay}
       className="min-h-[400px] w-full"
+      style={{
+        // Terminal palette tokens; canvas colors resolve the same variables
+        // through getComputedStyle at mount time.
+        backgroundColor: 'var(--terminal-canvas)',
+        ['--terminal-up' as string]: 'var(--terminal-up)',
+        ['--terminal-down' as string]: 'var(--terminal-down)',
+      }}
     />
   );
 }

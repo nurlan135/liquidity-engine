@@ -115,6 +115,15 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Terminal tokens (UI-SPEC color contract, dark-only terminal). */
+  --terminal-background: #0a0a0f;
+  --terminal-panel: #14141e;
+  --terminal-accent: #00d9ff;
+  --terminal-up: #00ff88;
+  --terminal-down: #ff00ff;
+  --terminal-premium-fill: rgba(255, 0, 255, 0.08);
+  --terminal-discount-fill: rgba(0, 255, 136, 0.08);
+  --terminal-canvas: #0e0e12;
 }
 
 @layer base {
