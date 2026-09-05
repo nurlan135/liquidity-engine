@@ -11,7 +11,7 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 
 - [x] **DATA-01**: User receives NQ=F daily candles via `GET /api/yahoo` proxy with server-side 60s TTL cache
 - [x] **DATA-02**: Proxy survives upstream failure with query1→query2 failover, exponential backoff honoring Retry-After, and serve-stale fallback
-- [ ] **DATA-03**: User sees data freshness (cache age, stale badge) on the chart header — never silent staleness
+- [x] **DATA-03**: User sees data freshness (cache age, stale badge) on the chart header — never silent staleness
 
 ### ICT Math Core
 
@@ -25,20 +25,20 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 
 ### Terminal UI
 
-- [ ] **UI-01**: User sees full 3-panel dark terminal shell per `reference/design.html` (#0A0A0F / #14141E / #00D9FF), Module 2 live, other modules marked unavailable
-- [ ] **UI-02**: User sees candlestick chart (lightweight-charts v5, dynamic `ssr:false`) with shaded premium/discount zones + EQ price-line + DOL marker
-- [ ] **UI-03**: User sees institutional report shell (sections 1–6), section 2 live, sections 1/3–6 with explicit unavailable markers
-- [ ] **UI-04**: Blocked side shown struck-through (longs only in discount, shorts only in premium) — teaches discipline, never hidden
+- [x] **UI-01**: User sees full 3-panel dark terminal shell per `reference/design.html` (#0A0A0F / #14141E / #00D9FF), Module 2 live, other modules marked unavailable
+- [x] **UI-02**: User sees candlestick chart (lightweight-charts v5, dynamic `ssr:false`) with shaded premium/discount zones + EQ price-line + DOL marker
+- [x] **UI-03**: User sees institutional report shell (sections 1–6), section 2 live, sections 1/3–6 with explicit unavailable markers
+- [x] **UI-04**: Blocked side shown struck-through (longs only in discount, shorts only in premium) — teaches discipline, never hidden
 
 ### Sentiment & Calendar (Fixtures)
 
-- [ ] **MOCK-01**: User sees sentiment exposure table (symbol, long%, short%, True AVG excl. Insta/FiboGroup) with 60% crowded flag, from Myfxbook/ForexFactory-shaped fixtures
-- [ ] **MOCK-02**: User sees economic calendar with high-impact-only filter + countdown + pre-news warning flag on bias/DOL, from shaped fixtures
-- [ ] **MOCK-03**: User sees pre-news liquidity-engineering interpretation (trap vs genuine delivery) fusing calendar + regime + position
+- [x] **MOCK-01**: User sees sentiment exposure table (symbol, long%, short%, True AVG excl. Insta/FiboGroup) with 60% crowded flag, from Myfxbook/ForexFactory-shaped fixtures
+- [x] **MOCK-02**: User sees economic calendar with high-impact-only filter + countdown + pre-news warning flag on bias/DOL, from shaped fixtures
+- [x] **MOCK-03**: User sees pre-news liquidity-engineering interpretation (trap vs genuine delivery) fusing calendar + regime + position
 
 ### State & Time
 
-- [ ] **STATE-01**: Dashboard state (symbol, candles, dealing-range state, confidence) held in a single Zustand store with memoized selectors; math never touches the store
+- [x] **STATE-01**: Dashboard state (symbol, candles, dealing-range state, confidence) held in a single Zustand store with memoized selectors; math never touches the store
 - [x] **STATE-02**: All session/date logic runs on Asia/Baku timezone via a single time util module with injected clock; March + November DST covered by tests
 
 ### Deployment
@@ -91,7 +91,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 1 | Complete |
-| DATA-03 | Phase 2 | Pending |
+| DATA-03 | Phase 2 | Complete |
 | ICT-01 | Phase 1 | Pending |
 | ICT-02 | Phase 1 | Complete |
 | ICT-03 | Phase 1 | Complete |
@@ -99,14 +99,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ICT-05 | Phase 1 | Complete |
 | ICT-06 | Phase 1 | Complete |
 | ICT-07 | Phase 1 | Complete |
-| UI-01 | Phase 2 | Pending |
-| UI-02 | Phase 2 | Pending |
-| UI-03 | Phase 2 | Pending |
-| UI-04 | Phase 2 | Pending |
-| MOCK-01 | Phase 2 | Pending |
-| MOCK-02 | Phase 2 | Pending |
-| MOCK-03 | Phase 2 | Pending |
-| STATE-01 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Complete |
+| UI-02 | Phase 2 | Complete |
+| UI-03 | Phase 2 | Complete |
+| UI-04 | Phase 2 | Complete |
+| MOCK-01 | Phase 2 | Complete |
+| MOCK-02 | Phase 2 | Complete |
+| MOCK-03 | Phase 2 | Complete |
+| STATE-01 | Phase 2 | Complete |
 | STATE-02 | Phase 1 | Complete |
 | DEPLOY-01 | Phase 3 | Pending |
 

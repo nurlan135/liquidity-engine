@@ -14,7 +14,7 @@ v1.0 proves one thing: correct D1 Premium/Discount positioning on live NQ data. 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Data Foundation & ICT Core** - Resilient NQ proxy plus pure-function dealing-range math, proven by tests (no UI yet)
-- [ ] **Phase 2: Terminal Composition** - Full dark-terminal shell with live chart, report, and fixture panels
+- [x] **Phase 2: Terminal Composition** - Full dark-terminal shell with live chart, report, and fixture panels (completed 2026-09-05)
 - [ ] **Phase 3: Production Deploy & Verification** - Live on Vercel Hobby with resilience drills green
 
 ## Phase Details
@@ -56,22 +56,22 @@ Plans:
   3. User sees the 6-section institutional report with section 2 live, other sections marked unavailable, and the blocked side struck-through
   4. User sees the sentiment exposure table (True AVG, 60% crowded flag) and the high-impact calendar (countdown, pre-news flag) with trap-vs-genuine interpretation
 
-**Plans**: 4 plans
+**Plans**: 4/4 plans executed
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Tracer slice: store plus shell plus chart with sentinel pure libs (status-strip, chart-mapper, sentiment, calendar)
+- [x] 02-01-PLAN.md — Tracer slice: store plus shell plus chart with sentinel pure libs (status-strip, chart-mapper, sentiment, calendar)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md — Freshness strip plus zone-fill primitive plus stale/closed chart overlays
-- [ ] 02-03-PLAN.md — Fixture snapshots plus sentiment table plus calendar with interpretation prose
+- [x] 02-02-PLAN.md — Freshness strip plus zone-fill primitive plus stale/closed chart overlays
+- [x] 02-03-PLAN.md — Fixture snapshots plus sentiment table plus calendar with interpretation prose
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-04-PLAN.md — Report section 2 plus blocked side plus shell integration with poll loop and toasts
+- [x] 02-04-PLAN.md — Report section 2 plus blocked side plus shell integration with poll loop and toasts
 
 ### Phase 3: Production Deploy & Verification
 
@@ -94,5 +94,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Foundation & ICT Core | 3/3 | In Progress|  |
-| 2. Terminal Composition | 0/TBD | Not started | - |
+| 2. Terminal Composition | 4/4 | Complete    | 2026-09-05 |
 | 3. Production Deploy & Verification | 0/TBD | Not started | - |
