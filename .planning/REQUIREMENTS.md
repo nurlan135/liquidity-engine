@@ -16,12 +16,12 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 ### ICT Math Core
 
 - [ ] **ICT-01**: User sees D1 Dealing Range with Premium/Discount zones and Equilibrium (`EQ = (Rhigh + Rlow) / 2`, position >/< 0.5) computed as pure functions in `src/lib/ict`
-- [ ] **ICT-02**: User sees Equilibrium + quadrant/OTE levels (0.25/0.75 quadrants, 0.62–0.79 OTE pocket) derived from range anchors
-- [ ] **ICT-03**: Range re-anchors correctly — close beyond either extreme or new leg through major liquidity retires the range
-- [ ] **ICT-04**: User sees bias readout (BULLISH / BEARISH / COMPRESSION) with mandatory rationale string, derived from D1 position + regime
-- [ ] **ICT-05**: User sees a single named Primary DOL target (e.g. PDH/PDL level) selected by codified position + regime rules
-- [ ] **ICT-06**: User sees volatility regime badge (Expansion / Compression) from daily range heuristic, degrading honestly on thin history
-- [ ] **ICT-07**: Rollover-corrupted ranges are flagged — raw OHLC never adjclose, `rolloverSuspect` flag on N×ATR close-to-close jumps, contract hint + proximity warning
+- [x] **ICT-02**: User sees Equilibrium + quadrant/OTE levels (0.25/0.75 quadrants, 0.62–0.79 OTE pocket) derived from range anchors
+- [x] **ICT-03**: Range re-anchors correctly — close beyond either extreme or new leg through major liquidity retires the range
+- [x] **ICT-04**: User sees bias readout (BULLISH / BEARISH / COMPRESSION) with mandatory rationale string, derived from D1 position + regime
+- [x] **ICT-05**: User sees a single named Primary DOL target (e.g. PDH/PDL level) selected by codified position + regime rules
+- [x] **ICT-06**: User sees volatility regime badge (Expansion / Compression) from daily range heuristic, degrading honestly on thin history
+- [x] **ICT-07**: Rollover-corrupted ranges are flagged — raw OHLC never adjclose, `rolloverSuspect` flag on N×ATR close-to-close jumps, contract hint + proximity warning
 
 ### Terminal UI
 
@@ -93,12 +93,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-02 | Phase 1 | Pending |
 | DATA-03 | Phase 2 | Pending |
 | ICT-01 | Phase 1 | Pending |
-| ICT-02 | Phase 1 | Pending |
-| ICT-03 | Phase 1 | Pending |
-| ICT-04 | Phase 1 | Pending |
-| ICT-05 | Phase 1 | Pending |
-| ICT-06 | Phase 1 | Pending |
-| ICT-07 | Phase 1 | Pending |
+| ICT-02 | Phase 1 | Complete |
+| ICT-03 | Phase 1 | Complete |
+| ICT-04 | Phase 1 | Complete |
+| ICT-05 | Phase 1 | Complete |
+| ICT-06 | Phase 1 | Complete |
+| ICT-07 | Phase 1 | Complete |
 | UI-01 | Phase 2 | Pending |
 | UI-02 | Phase 2 | Pending |
 | UI-03 | Phase 2 | Pending |
@@ -111,6 +111,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-01 | Phase 3 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 20 total
 - Mapped to phases: 20
 - Unmapped: 0

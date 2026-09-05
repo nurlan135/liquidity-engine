@@ -5,17 +5,17 @@ milestone_name: Live Terminal
 current_phase: 01
 current_phase_name: Data Foundation & ICT Core
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-09-05T12:34:49Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-09-05T13:02:27.241Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 01 plan 01 executed (tracer slice green, 4 commits)
-state_head: bd1ad82
+state_head: 841051be377f86983ffeb640071723ebf1c27af6
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 0
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-09-04)
 ## Current Position
 
 Phase: 01 (Data Foundation & ICT Core) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 01
+Plan: 3 of 3
+Status: Ready to execute
 Last activity: 2026-09-05 — Completed 01-01 (tracer slice: vitest 5 + types + fetch-range proof + route)
 
-Progress: [███░░░░░░░] 33%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -56,6 +56,11 @@ Progress: [███░░░░░░░] 33%
 - Trend: on pace
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P02 | ~35 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -68,6 +73,7 @@ Recent decisions affecting current work:
 - [Roadmap 2026-09-04]: CDN s-maxage+SWR headers → Phase 3 (production-only verification); 6mo D1 window → Phase 1 proxy; weekend-closed state → Phase 2 chart; rollover-suspect flag → Phase 1 math
 - [01-01 2026-09-05]: vitest 5.0.0 via --legacy-peer-deps (types-only @types/node peer conflict); date-fns/date-fns-tz/vite kept on disk via --no-save so manifests carry only the approved vitest addition
 - [01-01 2026-09-05]: Tracer slice green — mocked 25-candle fixture (24 valid rows) proves fetch→shape-guard→envelope→20-candle range; full ICT core + proxy resilience owned by 01-02/01-03
+- [Phase 01]: 01-02 ICT math core green: levels/bias/DOL/regime/rollover plus re-anchor table, 43/43 tests
 
 ### Pending Todos
 
@@ -88,6 +94,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-05T12:34:49Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-09-05T13:02:27.202Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
