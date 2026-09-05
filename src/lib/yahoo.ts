@@ -12,14 +12,19 @@ export const HEADERS: Record<string, string> = {
 };
 
 export class UpstreamError extends Error {
-  constructor(message: string) {
+  readonly retryable: boolean;
+  readonly status?: number;
+  constructor(message: string, opts: { retryable?: boolean; status?: number } = {}) {
     super(message);
     this.name = 'UpstreamError';
+    this.retryable = opts.retryable ?? false;
+    if (opts.status !== undefined) this.status = opts.status;
   }
 }
 
 export interface Envelope {
   candles: Candle[];
+  contractHint: string;
   lastUpdatedISO: string;
   stale: boolean;
   source: string;
@@ -39,7 +44,7 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
-export function parseChartJson(json: unknown): { candles: Candle[]; contractHint: string } {
+export function parseChartJson(json: unknown): { candles: Candle[]; contractHint: string; symbol: string } {
   const root = json as {
     chart?: { error?: unknown; result?: Array<Record<string, unknown>> };
   };
@@ -114,12 +119,13 @@ export function parseChartJson(json: unknown): { candles: Candle[]; contractHint
   }
 
   const exchangeName = typeof meta.exchangeName === 'string' ? meta.exchangeName : 'CME';
-  return { candles, contractHint: `${SYMBOL} · ${exchangeName}` };
+  return { candles, contractHint: `${SYMBOL} · ${exchangeName}`, symbol };
 }
 
-export function buildEnvelope(candles: Candle[], now: Date = new Date()): Envelope {
+export function buildEnvelope(candles: Candle[], now: Date = new Date(), contractHint = `${SYMBOL} · CME`): Envelope {
   return {
     candles,
+    contractHint,
     lastUpdatedISO: now.toISOString(),
     stale: false,
     source: 'live',
@@ -133,9 +139,12 @@ const realSleep: SleepFn = (ms: number) => new Promise((resolve) => setTimeout(r
 
 const CACHE_KEY = `${SYMBOL}:D1`;
 const CACHE_TTL_MS = 60_000;
-const FETCH_TIMEOUT_MS = 8_000;
+// WR-08 budget: 4 attempts x 4s timeouts + ~3.5s backoff ~= worst case under the route's 15s maxDuration.
+const FETCH_TIMEOUT_MS = 4_000;
 const MAX_RETRY_AFTER_MS = 10_000;
 const BASE_DELAYS_MS = [500, 1000, 2000];
+// WR-09: refuse to serve entries older than 30 min as stale; fall through to the 502 path.
+const MAX_STALE_MS = 30 * 60_000;
 
 interface CacheEntry {
   payload: Envelope;
@@ -211,7 +220,7 @@ async function fetchUpstream(
     try {
       const res = await fetchWithTimeout(fetchFn, `${host}${path}`);
       if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
-        lastError = new UpstreamError(`upstream status ${res.status}`);
+        lastError = new UpstreamError(`upstream status ${res.status}`, { retryable: true, status: res.status });
         if (attempt < BASE_DELAYS_MS.length) {
           const retryMs = retryAfterMs(res.headers.get('Retry-After'), now.getTime());
           await sleep(retryMs ?? jitteredDelay(BASE_DELAYS_MS[attempt]));
@@ -222,49 +231,45 @@ async function fetchUpstream(
         // Non-429 client errors fail over once, then throw without further retry.
         if (!failedOver && attempt === 0) {
           failedOver = true;
-          lastError = new UpstreamError(`upstream status ${res.status}`);
+          lastError = new UpstreamError(`upstream status ${res.status}`, { retryable: true, status: res.status });
           continue;
         }
-        throw new UpstreamError(`upstream status ${res.status}`);
+        throw new UpstreamError(`upstream status ${res.status}`, { retryable: false, status: res.status });
       }
       const json: unknown = await res.json();
       let candles: Candle[];
       let symbol = SYMBOL;
+      let contractHint = `${SYMBOL} · CME`;
       try {
         const parsed = parseChartJson(json);
         candles = parsed.candles;
-        symbol = parsed.contractHint.split(' · ')[0] ?? SYMBOL;
+        symbol = parsed.symbol;
+        contractHint = parsed.contractHint;
       } catch {
         // HTTP 200 bodies carrying a chart error are retryable throttle signals.
-        lastError = new UpstreamError('upstream chart error payload');
+        lastError = new UpstreamError('upstream chart error payload', { retryable: true });
         if (attempt < BASE_DELAYS_MS.length) {
           await sleep(jitteredDelay(BASE_DELAYS_MS[attempt]));
         }
         continue;
       }
       if (!isValidPayload(candles, symbol)) {
-        throw new UpstreamError('upstream payload failed validation');
+        throw new UpstreamError('upstream payload failed validation', { retryable: false });
       }
-      return buildEnvelope(candles, now);
+      return buildEnvelope(candles, now, contractHint);
     } catch (err) {
       if (err instanceof UpstreamError) {
-        if (String(err.message).startsWith('upstream status 4') && !String(err.message).startsWith('upstream status 429')) {
+        // WR-11: branch on the structured discriminator, never message text.
+        if (!err.retryable) {
           throw err;
         }
-        if (err.message === 'upstream payload failed validation') {
-          throw err;
-        }
-        if (err.message.startsWith('upstream status 5') || err.message.startsWith('upstream status 429')) {
-          lastError = err;
-          continue;
-        }
+        lastError = err;
+        continue;
       }
       // Network throws and abort timeouts are retryable.
       lastError = err;
-      if (attempt < BASE_DELAYS_MS.length && !(err instanceof UpstreamError && String(err.message).startsWith('upstream status 4'))) {
+      if (attempt < BASE_DELAYS_MS.length) {
         await sleep(jitteredDelay(BASE_DELAYS_MS[attempt]));
-      } else if (err instanceof UpstreamError) {
-        throw err;
       }
     }
   }
@@ -279,23 +284,25 @@ export async function fetchNQDaily(
 ): Promise<Envelope> {
   const cached = payloadCache.get(CACHE_KEY);
   if (cached && now.getTime() - cached.fetchedAt < CACHE_TTL_MS) {
-    return { ...cached.payload, source: 'cache' };
+    return { ...cached.payload, candles: cached.payload.candles.map((c) => ({ ...c })), source: 'cache' };
   }
 
   const pending = inFlight.get(CACHE_KEY);
   if (pending) {
-    return pending;
+    return pending.then((env) => ({ ...env, candles: env.candles.map((c) => ({ ...c })) }));
   }
 
   const task = (async (): Promise<Envelope> => {
     try {
       const envelope = await fetchUpstream(now, fetchFn, sleep);
       payloadCache.set(CACHE_KEY, { payload: envelope, fetchedAt: now.getTime() });
-      return envelope;
+      return { ...envelope, candles: envelope.candles.map((c) => ({ ...c })) };
     } catch (err) {
       const warm = payloadCache.get(CACHE_KEY);
-      if (warm) {
-        return { ...warm.payload, stale: true, source: 'stale' };
+      // WR-09: only serve stale within MAX_STALE_MS; non-retryable 4xx fail loudly (IN-07).
+      const nonRetryable4xx = err instanceof UpstreamError && err.retryable === false && err.status !== undefined && err.status >= 400 && err.status < 500;
+      if (warm && !nonRetryable4xx && now.getTime() - warm.fetchedAt < MAX_STALE_MS) {
+        return { ...warm.payload, candles: warm.payload.candles.map((c) => ({ ...c })), stale: true, source: 'stale' };
       }
       throw err;
     } finally {
