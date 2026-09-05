@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatusStrip } from '@/components/dashboard/status-strip';
 import { useDashboard } from '@/src/lib/store';
 
 // Chart loads only on the client via the use client shell (never page.tsx).
@@ -11,13 +12,6 @@ const NqChart = dynamic(() => import('@/components/charts/nq-chart').then((mod) 
   ssr: false,
   loading: () => <div data-slot="chart-skeleton" className="min-h-[400px] animate-pulse" />,
 });
-
-function ageLabel(lastUpdatedISO: string | null, now: number): string {
-  if (lastUpdatedISO === null) return '';
-  const ageSeconds = Math.max(0, Math.floor((now - new Date(lastUpdatedISO).getTime()) / 1000));
-  if (ageSeconds < 60) return `${ageSeconds} san əvvəl`;
-  return `${Math.floor(ageSeconds / 60)}d sonra`;
-}
 
 export function TerminalShell() {
   const candles = useDashboard((s) => s.candles);
@@ -29,8 +23,6 @@ export function TerminalShell() {
   const selectRange = useDashboard((s) => s.selectRange);
   const selectDOL = useDashboard((s) => s.selectDOL);
 
-  const now = Date.now();
-  const freshness = lastUpdatedISO === null ? 'loading' : stale ? 'stale' : 'live';
   const range = selectRange();
   const dol = selectDOL();
   const forming = candles.length > 0 && candles[candles.length - 1].forming === true;
@@ -45,15 +37,7 @@ export function TerminalShell() {
         </Button>
       </header>
 
-      <section data-slot="status-strip" data-freshness={freshness} className="rounded-xl px-4 py-2 text-xs">
-        {lastUpdatedISO === null ? (
-          <span>Yüklənir…</span>
-        ) : stale ? (
-          <span>{`STALE · ${ageLabel(lastUpdatedISO, now)} — son keş göstərilir`}</span>
-        ) : (
-          <span>{`LIVE · ${ageLabel(lastUpdatedISO, now)}`}</span>
-        )}
-      </section>
+      <StatusStrip />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_1fr_320px]">
         <Card data-slot="panel-left">
