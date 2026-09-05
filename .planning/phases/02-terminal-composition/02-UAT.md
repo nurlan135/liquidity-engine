@@ -20,18 +20,18 @@ awaiting: user response
 
 ### 1. Canvas zone-shading render
 expected: premium magenta 8% / discount green 8% fills plus dashed EQ and solid DOL lines on live candles
-result: [pending]
+result: pass — screenshots confirm zone fills, EQ 29635.13 dashed, DOL 29565.25 solid, MARKET CLOSED ribbon on weekend data
 
 ### 2. Responsive layout
 expected: below 1024px the grid collapses to a single left-to-center-to-right stack with 12px gaps and no horizontal overflow
-result: [pending]
+result: [pending] — second screenshot is a narrow viewport render; explicit sub-1024px resize check still open
 
 ## Summary
 
 total: 2
-passed: 0
-issues: 0
-pending: 2
+passed: 1
+issues: 3
+pending: 1
 skipped: 0
 blocked: 0
 
