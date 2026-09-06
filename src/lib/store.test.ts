@@ -109,6 +109,66 @@ describe('store: refresh writes envelope in one update', () => {
     vi.unstubAllGlobals();
   });
 
+  it('refresh-failure-sets-stale: failed fetch marks stale with last-known preserved', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = fixtureCandles();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+    const beforeISO = useDashboard.getState().lastUpdatedISO;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    );
+    await useDashboard.getState().refresh();
+
+    const state = useDashboard.getState();
+    expect(state.stale).toBe(true);
+    expect(state.lastError).toBe('network down');
+    expect(state.candles).toEqual(candles);
+    expect(state.lastUpdatedISO).toBe(beforeISO);
+    expect(state.inFlight).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('refresh-success-clears-stale: next success restores envelope truth', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = fixtureCandles();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    );
+    await useDashboard.getState().refresh();
+    expect(useDashboard.getState().stale).toBe(true);
+    vi.unstubAllGlobals();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+
+    const state = useDashboard.getState();
+    expect(state.stale).toBe(false);
+    expect(state.lastError).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it('derives range with eq equal to (high + low) / 2 plus bias and DOL from ict', async () => {
     const { useDashboard } = await import('@/src/lib/store');
     const { computeRange } = await import('@/src/lib/ict/range');
@@ -137,6 +197,38 @@ describe('store: refresh writes envelope in one update', () => {
     expect(dol!.price).toBeGreaterThan(0);
     expect(dol!.name.length).toBeGreaterThan(0);
     expect([expected.high, expected.low]).toContain(dol!.price);
+  });
+
+  it('lastclose-closed-basis-divergence: forming close never skews derived position', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const { computeRange, computePosition } = await import('@/src/lib/ict/range');
+    const closed = fixtureCandles().filter((c) => !c.forming);
+    // Force the last closed row to a known close, then append a far forming close.
+    closed[closed.length - 1] = { ...closed[closed.length - 1], close: 20205 };
+    const candles: Candle[] = [
+      ...closed,
+      { date: '2026-01-22', open: 21000, high: 21050, low: 20950, close: 21000, forming: true },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    const state = useDashboard.getState();
+    expect(state.selectLastClose()).toBe(20205);
+    const range = state.selectRange();
+    expect(range).not.toBeNull();
+    const expectedRange = computeRange(closed, state.asOfBaku, 20);
+    expect(state.selectPosition()).toBeCloseTo(
+      computePosition(expectedRange, 20205),
+      10,
+    );
+    expect(state.candles).toHaveLength(closed.length + 1);
+    expect(state.candles[state.candles.length - 1].forming).toBe(true);
+    expect(range!.high).toBe(expectedRange.high);
+    expect(range!.high).not.toBe(21050);
   });
 
   it('excludes the forming candle from the derived range but retains it in stored candles', async () => {

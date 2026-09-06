@@ -32,10 +32,3 @@ export function computePosition(range: DealingRange, price: number): number {
   }
   return (price - range.low) / (range.high - range.low);
 }
-
-export function checkReanchor(prev: DealingRange, candle: Candle): boolean {
-  if (candle.forming) {
-    return false;
-  }
-  return candle.close > prev.high || candle.close < prev.low;
-}

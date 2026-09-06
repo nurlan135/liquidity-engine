@@ -120,9 +120,12 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
         inFlight: false,
       });
     } catch (err) {
-      // Preserve last-known candles; record the error and release the guard.
+      // Preserve last-known candles; mark the envelope stale immediately so the
+      // badge reflects failure without waiting on the 120s age ramp. Success
+      // path restores stale from the envelope on the next round.
       set({
         lastError: err instanceof Error ? err.message : 'refresh failed',
+        stale: true,
         inFlight: false,
       });
     }
@@ -141,8 +144,9 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
 
   selectLastClose: () => {
     const { candles } = get();
-    if (candles.length === 0) return null;
-    return candles[candles.length - 1].close;
+    const closed = closedOnly(candles);
+    if (closed.length === 0) return null;
+    return closed[closed.length - 1].close;
   },
 
   selectPosition: () => {
