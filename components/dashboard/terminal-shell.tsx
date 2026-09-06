@@ -32,6 +32,12 @@ export function TerminalShell() {
   const inFlight = useDashboard((s) => s.inFlight);
   const lastError = useDashboard((s) => s.lastError);
   const refresh = useDashboard((s) => s.refresh);
+  const startDualPoll = useDashboard((s) => s.startDualPoll);
+  const stopDualPoll = useDashboard((s) => s.stopDualPoll);
+  // D-13: coverage diagnostics ride in the data; the shell surfaces the
+  // dev-only debug line from the store field. Hidden in production UI via
+  // muted styling, always present in data.
+  const coverage = useDashboard(useShallow((s) => s.coverage));
   // Derived-value subscriptions (StatusStrip useShallow precedent): re-render
   // on any input change (candles / contractHint / asOfBaku), not just on
   // selector-function identity. useShallow keeps the per-render fresh
@@ -86,17 +92,13 @@ export function TerminalShell() {
     }
   }
 
-  // Single poll owner: one refresh on mount, then every 60s (matching the
-  // proxy TTL) only while the tab is visible; refresh singleflights in-flight
-  // polls so the guarded Yenilə path shares the same cadence.
+  // Dual poll owner (D-01/D-03): startDualPoll on mount, stopDualPoll on
+  // unmount. Mount still owns the first NQ poll; the staggered always-on
+  // timers replace the single visibility-gated 60s loop. The manual Yenilə
+  // button stays wired to the NQ refresh path.
   useEffect(() => {
-    void refresh();
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void refresh();
-      }
-    }, 60_000);
-    return () => clearInterval(id);
+    startDualPoll();
+    return () => stopDualPoll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -126,6 +128,10 @@ export function TerminalShell() {
       </header>
 
       <StatusStrip />
+
+      <p data-slot="join-coverage" className="px-4 font-mono text-[11px] text-muted-foreground tabular-nums">
+        NQ {coverage.nq} / ES {coverage.es} / joined {coverage.joined}
+      </p>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_1fr_320px]">
         <div className="overflow-auto">

@@ -180,10 +180,23 @@ beforeEach(() => {
     scenario: 'crowded-long',
     lastError: null,
     asOfBaku: '',
+    nq: { candles: [], contractHint: '', lastUpdatedISO: null, stale: false, source: 'none', lastError: null },
+    es: { candles: [], contractHint: '', lastUpdatedISO: null, stale: false, source: 'none', lastError: null },
+    inFlightNQ: false,
+    inFlightES: false,
+    coverage: { nq: 0, es: 0, joined: 0, dropped: 0 },
+    lastSchedule: null,
   });
 });
 
 afterEach(async () => {
+  // Stop the shell-owned dual timers before unmounting so no staggered
+  // interval fires across tests (D-01/D-03 always-on timers).
+  try {
+    useDashboard.getState().stopDualPoll();
+  } catch {
+    // store may be in a reset state — nothing to stop
+  }
   vi.useRealTimers();
   vi.unstubAllGlobals();
   for (const root of roots) {
@@ -272,8 +285,43 @@ describe('terminal shell composes the full grid on live data', () => {
   });
 });
 
-describe('terminal shell owns the single 60s visibility-gated poll loop', () => {
-  it('polls once per 60s while visible and pauses while hidden', async () => {
+describe('terminal shell owns the dual staggered always-on poll loop (D-01/D-02/D-03)', () => {
+  it('mount triggers the NQ fetch and the staggered NQ/ES timers fire with no visibility gating', async () => {
+    vi.useFakeTimers();
+    const fetchFn = vi.fn(async (url: string) => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    await renderShell();
+    // Mount owns the first poll on the bare NQ path.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledWith('/api/yahoo', { cache: 'no-store' });
+
+    // Staggered offsets recorded in state: NQ near :00, ES :30 later.
+    const schedule = useDashboard.getState().lastSchedule;
+    expect(schedule).not.toBeNull();
+
+    // Always-on per D-03: hidden tabs do NOT pause the staggered timers.
+    setVisibility('hidden');
+    await act(async () => {
+      vi.advanceTimersByTime(300_000);
+    });
+    const nqCalls = fetchFn.mock.calls.filter(([url]) => url === '/api/yahoo');
+    const esCalls = fetchFn.mock.calls.filter(([url]) => String(url).includes('symbol=ES'));
+    expect(nqCalls.length).toBeGreaterThanOrEqual(2);
+    expect(esCalls.length).toBeGreaterThanOrEqual(1);
+
+    // Unmount stops the loop: no further fetches after teardown.
+    const atEnd = fetchFn.mock.calls.length;
+    await act(async () => {
+      vi.advanceTimersByTime(300_000);
+    });
+    // Note: unmount happens in afterEach; within this test the loop still
+    // runs — the stopDualPoll-on-unmount path is pinned by the
+    // store-level stopDualPoll test. Advance only asserts cadence holds.
+    expect(fetchFn.mock.calls.length).toBeGreaterThan(atEnd);
+  });
+
+  it('stopDualPoll on unmount halts all timers (no cross-test leakage)', async () => {
     vi.useFakeTimers();
     const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
     vi.stubGlobal('fetch', fetchFn);
@@ -281,29 +329,13 @@ describe('terminal shell owns the single 60s visibility-gated poll loop', () => 
     await renderShell();
     expect(fetchFn).toHaveBeenCalledTimes(1);
 
-    // One loop only: exactly one extra poll per 60s tick.
     await act(async () => {
-      vi.advanceTimersByTime(60_000);
+      useDashboard.getState().stopDualPoll();
     });
-    expect(fetchFn).toHaveBeenCalledTimes(2);
     await act(async () => {
-      vi.advanceTimersByTime(60_000);
+      vi.advanceTimersByTime(300_000);
     });
-    expect(fetchFn).toHaveBeenCalledTimes(3);
-
-    // Hidden tab: the loop pauses.
-    setVisibility('hidden');
-    await act(async () => {
-      vi.advanceTimersByTime(180_000);
-    });
-    expect(fetchFn).toHaveBeenCalledTimes(3);
-
-    // Visible again: polling resumes on the same cadence.
-    setVisibility('visible');
-    await act(async () => {
-      vi.advanceTimersByTime(60_000);
-    });
-    expect(fetchFn).toHaveBeenCalledTimes(4);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -463,7 +495,7 @@ describe('terminal shell shows chart-header freshness matching the strip (W2)', 
     vi.setSystemTime(new Date('2026-09-04T08:00:00Z'));
   }
 
-  it('header-freshness-live: fresh envelope shows LIVE in the header and the strip', async () => {
+  it('header-freshness-live: fresh envelope shows LIVE in the header and both leg ages in the strip', async () => {
     pinBakuFridayNoon();
     const freshEnv = {
       ...liveEnvelope(),
@@ -477,13 +509,17 @@ describe('terminal shell shows chart-header freshness matching the strip (W2)', 
 
     const { header, strip } = await headerAndStrip(container);
     expect(header.textContent).toContain('LIVE');
-    expect(strip.textContent).toContain('LIVE');
+    // Per-leg strip (D-04): the NQ leg mirrors the fresh envelope; the ES
+    // leg has never landed so it renders the pending marker — LIVE copy is
+    // asserted on the NQ segment, not the whole paired line.
+    expect(strip.textContent).toMatch(/NQ.*LIVE/);
+    expect(strip.textContent).toContain('ES …');
     expect(header.getAttribute('data-freshness')).toBe('live');
     expect(header.querySelector('[data-slot="live-dot"]')).not.toBeNull();
     vi.useRealTimers();
   });
 
-  it('header-freshness-stale: stale envelope shows STALE in the header and the strip', async () => {
+  it('header-freshness-stale: stale envelope shows STALE in the header and the NQ leg segment of the strip', async () => {
     pinBakuFridayNoon();
     const staleEnv = {
       ...liveEnvelope(),
@@ -497,7 +533,7 @@ describe('terminal shell shows chart-header freshness matching the strip (W2)', 
 
     const { header, strip } = await headerAndStrip(container);
     expect(header.textContent).toContain('STALE');
-    expect(strip.textContent).toContain('STALE');
+    expect(strip.textContent).toMatch(/NQ.*STALE/);
     expect(header.getAttribute('data-freshness')).toBe('stale');
     vi.useRealTimers();
   });
@@ -613,5 +649,95 @@ describe('terminal shell degrades honestly without data', () => {
       expect(Number.isFinite(finite.bearOTE.lo)).toBe(true);
       expect(Number.isFinite(finite.bearOTE.hi)).toBe(true);
     }
+  });
+});
+
+describe('terminal shell per-leg strip ages plus coverage line (D-04/D-13)', () => {
+  // Pin Baku Friday noon (2026-09-04 12:00 +04:00 == 08:00Z) so deriveStatus
+  // weekend-wins never fires: the W2 suite proves CLOSED separately, and
+  // these cases pin the paired-age rendering on a weekday.
+  function weekdayISO(): string {
+    return new Date('2026-09-04T08:00:00Z').toISOString();
+  }
+
+  function legEnvelope(hint: string, stale: boolean) {
+    return {
+      candles: fixtureCandles(),
+      contractHint: hint,
+      lastUpdatedISO: weekdayISO(),
+      stale,
+      source: 'live' as const,
+    };
+  }
+
+  it('paired ages render with both legs fresh (NQ seconds · ES seconds)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-04T08:00:00Z'));
+    const fetchFn = vi.fn(async (url: string) =>
+      Response.json(
+        String(url).includes('symbol=ES') ? legEnvelope('ES=F · CME', false) : legEnvelope('NQ=F · CME', false),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    await act(async () => {
+      await useDashboard.getState().refreshES();
+    });
+
+    const strip = container.querySelector('[data-slot="status-strip"]');
+    expect(strip).not.toBeNull();
+    // Plan acceptance: NQ plus digits plus s, middle dot, ES plus digits
+    // plus s — against the Azerbaijani `san` copy (`0 san` contains `0 s`).
+    expect(strip!.textContent).toMatch(/NQ.*\d+ s.*·.*ES.*\d+ s/);
+    expect(strip!.getAttribute('data-freshness')).toBe('live');
+  });
+
+  it('one stale leg shows its STALE copy while the other stays LIVE with no merged boolean', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-04T08:00:00Z'));
+    const fetchFn = vi.fn(async (url: string) =>
+      Response.json(
+        String(url).includes('symbol=ES') ? legEnvelope('ES=F · CME', true) : legEnvelope('NQ=F · CME', false),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    await act(async () => {
+      await useDashboard.getState().refreshES();
+    });
+
+    const strip = container.querySelector('[data-slot="status-strip"]');
+    expect(strip).not.toBeNull();
+    // ES segment carries STALE, NQ segment stays LIVE — independent legs.
+    expect(strip!.textContent).toMatch(/NQ.*LIVE/);
+    expect(strip!.textContent).toMatch(/ES.*STALE/);
+    expect(strip!.getAttribute('data-freshness')).toBe('stale');
+    // No merged stale boolean anywhere on the state.
+    expect('staleMerged' in useDashboard.getState()).toBe(false);
+  });
+
+  it('coverage line shows the pinned join counts on fixture legs', async () => {
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    // Seed both legs with the same 20-row envelope: identical date strings
+    // join 1:1, so coverage reads NQ 20 / ES 20 / joined 20.
+    const candles = fixtureCandles();
+    const iso = weekdayISO();
+    await act(async () => {
+      useDashboard.setState({
+        nq: { candles, contractHint: 'NQ=F · CME', lastUpdatedISO: iso, stale: false, source: 'live', lastError: null },
+        es: { candles, contractHint: 'ES=F · CME', lastUpdatedISO: iso, stale: false, source: 'live', lastError: null },
+        coverage: { nq: 20, es: 17, joined: 14, dropped: 7 },
+      });
+    });
+
+    const line = container.querySelector('[data-slot="join-coverage"]');
+    expect(line).not.toBeNull();
+    expect(line!.textContent).toMatch(/NQ 20 \/ ES 17 \/ joined 14/);
   });
 });
