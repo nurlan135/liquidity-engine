@@ -47,7 +47,7 @@ function isValidEnvelope(env: EnvelopeJson): env is {
 } {
   if (!Array.isArray(env.candles) || env.candles.length < 1) return false;
   if (!env.candles.every(isValidCandle)) return false;
-  if (typeof env.contractHint !== 'string') return false;
+  if (typeof env.contractHint !== 'string' || env.contractHint.trim().length === 0) return false;
   if (typeof env.lastUpdatedISO !== 'string') return false;
   if (!Number.isFinite(new Date(env.lastUpdatedISO).getTime())) return false;
   if (typeof env.stale !== 'boolean') return false;
