@@ -84,7 +84,21 @@ Plans:
   2. Cold-start and stale-serve drill passes: upstream killed → stale badge shows, nothing fails silently
   3. Live-URL checklist is green: cache age, DST-date rendering, rollover banner path
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Tracer: gates plus verify script plus local production proof plus temporary drill flag
+- [ ] 03-02-PLAN.md — One-way master to main rename before Vercel connection
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-03-PLAN.md — Vercel connection plus edge headers plus preview stale-serve drill
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-04-PLAN.md — Drill removal plus production gate plus rendering spot-checks
 
 ## Progress
 
