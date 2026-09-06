@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import type { Candle } from '@/src/lib/ict/types';
+import { useEffect, useRef } from 'react';import type { Candle } from '@/src/lib/ict/types';
 import { mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
@@ -40,7 +39,11 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const dolLineRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
   const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming });
-  propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming };
+  // Sync the latest props outside render so the zone-fill getter reads live
+  // values without violating the react-hooks/refs render-phase rule.
+  useEffect(() => {
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming };
+  });
 
   // Create the chart once per container; lightweight-charts loads lazily so
   // the module top stays DOM free.

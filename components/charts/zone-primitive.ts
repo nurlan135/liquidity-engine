@@ -7,7 +7,6 @@ import type {
   IPrimitivePaneView,
   ISeriesApi,
   ISeriesPrimitive,
-  Logical,
   SeriesAttachedParameter,
   SeriesType,
   Time,
@@ -119,7 +118,7 @@ export class ZoneFillPrimitive implements ISeriesPrimitive<Time> {
     return this.views;
   }
 
-  autoscaleInfo(_start: Logical, _end: Logical): AutoscaleInfo | null {
+  autoscaleInfo(): AutoscaleInfo | null {
     // Zone fills never rescale the price axis; candles own autoscale.
     return null;
   }
