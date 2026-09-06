@@ -2,45 +2,45 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 milestone_name: Live Terminal
-current_phase: "03.2"
-current_phase_name: close-gap-phase-1-retroactive-gate-ict-01-claim-ict-02-rende
-status: executing
-stopped_at: Phase 03.2 context gathered
-last_updated: "2026-09-06T12:00:50.088Z"
+current_phase: 1
+current_phase_name: Data Foundation & ICT Core
+status: planning
+stopped_at: Phase 03.2 complete, ready to plan Phase 1
+last_updated: "2026-09-06T14:31:30.686Z"
 last_activity: 2026-09-06
-last_activity_desc: Phase 03.1 execution started
-state_head: bdaf9f4bc080fda4db7b3da16207817b94f4a37c
+last_activity_desc: Phase 03.2 complete, transitioned to Phase 1
+state_head: 45e85638371104e19188eb029d248063d06a6e82
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 16
-  completed_plans: 12
-  percent: 40
+  completed_plans: 16
+  percent: 60
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-04)
+See: .planning/PROJECT.md (updated 2026-09-06)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 03.1 — Close gap ICT-07 banner (INSERTED)
+**Current focus:** Milestone v1.0 complete — all phases done, ready to archive
 
 ## Current Position
 
-Phase: 03.2 (close-gap-phase-1-retroactive-gate-ict-01-claim-ict-02-rende) — READY TO EXECUTE
-Plan: 1 of 1
-Status: Ready to execute
-Last activity: 2026-09-06 — Phase 03.1 execution started
+Phase: 03.2 — close-gap-phase-1-retroactive-gate-ict-01-claim-ict-02-rende
+Plan: 4 of 4
+Status: Complete (milestone v1.0: all 5 phases complete)
+Last activity: 2026-09-06 — Phase 03.2 complete (UAT 1/1 pass, verification passed, SECURITY + VALIDATION done); Phase 1 retroactively closed via 01-VERIFICATION.md 10/10
 
-Progress: [████░░░░░░] 40%
+Progress: [████████████████████] 16/16 plans (100%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
+- Total plans completed: 13
 - Average duration: ~25 min
 - Total execution time: ~0.4 hours
 
@@ -51,6 +51,7 @@ Progress: [████░░░░░░] 40%
 | 01 | 1 | ~25 min | ~25 min |
 | 02 | 4 | - | - |
 | 03 | 4 | - | - |
+| 03.2 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-02 ICT math core green: levels/bias/DOL/regime/rollover plus re-anchor table, 43/43 tests
 - [Phase 03.1]: [03.1-01] selectRollover guards atr<=0 to null (honest degrade) so thin history never false-flags
 - [Phase 03.1]: [03.1-01] Rollover banner is an inline conditional block in the chart card; NqChart props untouched
+- [Phase 03.2]: [03.2-01] Stable selector-function subscription over useShallow for selectLevels (fresh OTE pocket identity loops useShallow); chart try/catch nulls level refs so non-finite levels never blank EQ/DOL
+- [Phase 03.2]: [03.2-02] W1 closed-only last close + D-04 immediate STALE latch; D-08 checkReanchor deleted with rule-table rewritten on rolling recompute
+- [Phase 03.2]: [03.2-04] Retroactive 01 gate passed 10/10 — ICT-01 claim recorded, all 8 audit partials resolved; pre-existing tsc LayoutProps error (3a3a1cb) left as noted residual
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-06T11:29:10.383Z
-Stopped at: Phase 03.2 context gathered
-Resume file: .planning/phases/03.2-close-gap-phase-1-retroactive-gate-ict-01-claim-ict-02-rende/03.2-CONTEXT.md
+Last session: 2026-09-06T19:45:00Z
+Stopped at: Milestone v1.0 complete — all 5 phases done, ready to archive
+Resume file: None

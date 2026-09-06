@@ -64,6 +64,10 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 | Fixture files for sentiment/calendar mocks | Replaceable with real APIs later, zero budget now | — Pending |
 | Full report shell (sections 1–6) with unavailable markers | Report shape stable from day one; later phases fill sections | — Pending |
 | Done = deployed + verified (cache, backoff, timezone) | Live data correctness is the core value | — Pending |
+| [03.2] Stable selector-function subscription over useShallow for selectLevels | useShallow on selectLevels() output loops forever (fresh nested OTE pocket identity per call); deriving during render gives the same outcome stub tests pin | ✓ Levels render, no update-depth errors |
+| [03.2] D-08 delete checkReanchor, rule-table rewritten on rolling recompute | Zero callers outside tests; rolling ANCHOR_WINDOW recompute carries re-anchoring (wick pierce extends with supersede comment) | ✓ 5 rewritten cases green |
+| [03.2] Pre-existing tsc LayoutProps error left untouched | From commit 3a3a1cb in app/layout.tsx, outside every 03.2 plan's files and scope | ⚠ Noted residual for a later phase |
+| [03.2] UAT visual glance passes: Q1/OTE lines legible | Canvas legibility judged by human per plan coverage D3 | ✓ 03.2-UAT 1/1 pass |
 
 ## Current Milestone: v1.0 Live Terminal
 
@@ -95,4 +99,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-04 after milestone v1.0 start*
+*Last updated: 2026-09-06 after Phase 03.2*

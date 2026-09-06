@@ -13,7 +13,7 @@ v1.0 proves one thing: correct D1 Premium/Discount positioning on live NQ data. 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Data Foundation & ICT Core** - Resilient NQ proxy plus pure-function dealing-range math, proven by tests (no UI yet)
+- [x] **Phase 1: Data Foundation & ICT Core** - Resilient NQ proxy plus pure-function dealing-range math, proven by tests (no UI yet) (completed 2026-09-06 — retroactive gate 01-VERIFICATION.md passed 10/10 via Phase 03.2)
 - [x] **Phase 2: Terminal Composition** - Full dark-terminal shell with live chart, report, and fixture panels (completed 2026-09-05)
 - [x] **Phase 3: Production Deploy & Verification** - Live on Vercel Hobby with resilience drills green (completed 2026-09-06)
 
@@ -116,22 +116,22 @@ Phases execute in numeric order: 1 → 2 → 3
 **Goal:** Phase 1 is trusted on written evidence and the chart shows the full level set — retroactive Phase 1 gate recorded, quadrant/OTE levels rendered, W1/W2/F2 fixes applied, deploy script extended
 **Requirements**: DATA-01, DATA-02, DATA-03, ICT-01, ICT-02, ICT-03, ICT-04, ICT-05, ICT-06, STATE-02, DEPLOY-01
 **Depends on:** Phase 3
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 
 **Wave 1**
 
-- [ ] 03.2-01-PLAN.md — ICT-02 render slice: levelLineInputs helper plus shell subscription plus four dashed quadrant/OTE price-lines
-- [ ] 03.2-02-PLAN.md — Store fixes plus dead-code decision: closed-only last close plus immediate STALE plus checkReanchor deletion with rule-table rewrite
+- [x] 03.2-01-PLAN.md — ICT-02 render slice: levelLineInputs helper plus shell subscription plus four dashed quadrant/OTE price-lines
+- [x] 03.2-02-PLAN.md — Store fixes plus dead-code decision: closed-only last close plus immediate STALE plus checkReanchor deletion with rule-table rewrite
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03.2-03-PLAN.md — Header freshness copy plus verify-deploy extension: three-state chart-freshness span plus stale/502, DST-date, rollover-banner steps plus gates
+- [x] 03.2-03-PLAN.md — Header freshness copy plus verify-deploy extension: three-state chart-freshness span plus stale/502, DST-date, rollover-banner steps plus gates
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03.2-04-PLAN.md — Retroactive Phase 1 gate: green-baseline confirm plus 10-truth VERIFICATION.md scoring ICT-01 and all 8 partials
+- [x] 03.2-04-PLAN.md — Retroactive Phase 1 gate: green-baseline confirm plus 10-truth VERIFICATION.md scoring ICT-01 and all 8 partials
 
 ### Phase 03.1: Close gap ICT-07 banner (INSERTED)
 
