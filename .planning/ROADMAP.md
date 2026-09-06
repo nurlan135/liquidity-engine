@@ -40,7 +40,12 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   2. User receives NQ + ES 1H/15M candles with forming candle excluded, incomplete pre-join rows dropped, and coverage diagnostics visible
   3. Dual-symbol polling staggers load (NQ :00 / ES :30 + jitter) and SMT refuses with a stated reason when either leg is stale — never a merged `stale` boolean
   4. Cross-symbol comparisons operate on timestamp inner-joined rows only; misaligned rows are never compared
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 06-01-PLAN.md — Tracer: live ES=F probe plus parameterized ES=F daily proxy with byte-identical NQ default
+- [ ] 06-02-PLAN.md — Intraday parser branch with epoch contract plus bounded ranges
+- [ ] 06-03-PLAN.md — Pure timestamp inner-join with coverage diagnostics
+- [ ] 06-04-PLAN.md — Dual-leg staggered store plus per-leg strip ages plus phase gate
 
 ### Phase 7: SMT + 4H/1H Sequencing Math
 **Goal**: Users see SMT divergence status and engineered-liquidity transition state from pure-function math
