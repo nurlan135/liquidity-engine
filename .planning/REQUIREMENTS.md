@@ -43,7 +43,7 @@ Requirements for milestone v1.0 Live Terminal. Each maps to roadmap phases.
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: Terminal is deployed on Vercel Hobby with CDN cache headers verified, cold-start + stale-serve drill passed, live-URL checklist green (cache age, DST dates, rollover banner path)
+- [x] **DEPLOY-01**: Terminal is deployed on Vercel Hobby with CDN cache headers verified, cold-start + stale-serve drill passed, live-URL checklist green (cache age, DST dates, rollover banner path)
 
 ## v2 Requirements
 
@@ -108,7 +108,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MOCK-03 | Phase 2 | Complete |
 | STATE-01 | Phase 2 | Complete |
 | STATE-02 | Phase 1 | Complete |
-| DEPLOY-01 | Phase 3 | Pending |
+| DEPLOY-01 | Phase 3 | Complete |
 
 **Coverage:**
 
