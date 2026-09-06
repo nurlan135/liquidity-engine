@@ -1,4 +1,5 @@
 import type { Candle } from '@/src/lib/ict/types';
+import type { LevelsOutput } from '@/src/lib/ict/levels';
 
 export interface SeriesCandle {
   time: string;
@@ -37,4 +38,33 @@ export function priceLineInputs(eq: number, dolPrice: number): PriceLineInputs {
     throw new Error('priceLineInputs requires finite eq and dolPrice');
   }
   return { eq, dol: dolPrice };
+}
+
+export interface LevelLineInputs {
+  q1: number;
+  q3: number;
+  oteBull: number;
+  oteBear: number;
+}
+
+// Pass quadrant lines through unchanged and collapse each OTE pocket to its
+// mid for thin dashed price-line creation (D-03 four-line lock).
+export function levelLineInputs(levels: LevelsOutput): LevelLineInputs {
+  const { q1, q3, bullOTE, bearOTE } = levels;
+  if (
+    !isFiniteNumber(q1) ||
+    !isFiniteNumber(q3) ||
+    !isFiniteNumber(bullOTE.lo) ||
+    !isFiniteNumber(bullOTE.hi) ||
+    !isFiniteNumber(bearOTE.lo) ||
+    !isFiniteNumber(bearOTE.hi)
+  ) {
+    throw new Error('levelLineInputs requires finite q1, q3, and OTE pocket bounds');
+  }
+  return {
+    q1,
+    q3,
+    oteBull: (bullOTE.lo + bullOTE.hi) / 2,
+    oteBear: (bearOTE.lo + bearOTE.hi) / 2,
+  };
 }

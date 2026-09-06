@@ -393,6 +393,52 @@ describe('terminal shell flags rollover weeks with a banner (ICT-07b)', () => {
   });
 });
 
+describe('terminal shell passes selectLevels output to the chart (ICT-02 render)', () => {
+  it('levels-prop-clean: chart stub levels prop deep-equals the selector output on the clean envelope', async () => {
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+    const props = chartCapture.props as unknown as { levels: unknown };
+    const expected = useDashboard.getState().selectLevels();
+    expect(expected).not.toBeNull();
+    expect(props.levels).toEqual(expected);
+    const finite = expected as unknown as {
+      q1: number;
+      q3: number;
+      bullOTE: { lo: number; hi: number };
+      bearOTE: { lo: number; hi: number };
+    };
+    expect(Number.isFinite(finite.q1)).toBe(true);
+    expect(Number.isFinite(finite.q3)).toBe(true);
+    expect(Number.isFinite(finite.bullOTE.lo)).toBe(true);
+    expect(Number.isFinite(finite.bullOTE.hi)).toBe(true);
+    expect(Number.isFinite(finite.bearOTE.lo)).toBe(true);
+    expect(Number.isFinite(finite.bearOTE.hi)).toBe(true);
+  });
+
+  it('levels-prop-gapped-co-render: gapped envelope keeps the banner while the stub levels prop matches the selector', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-19T12:00:00Z'));
+    const fetchFn = vi.fn(async () => Response.json(gappedEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="rollover-banner"]')).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+    const props = chartCapture.props as unknown as { levels: unknown };
+    expect(props.levels).toEqual(useDashboard.getState().selectLevels());
+    vi.useRealTimers();
+  });
+});
+
 describe('terminal shell degrades honestly without data', () => {
   it('shows the chart skeleton before the first envelope lands', async () => {
     const fetchFn = vi.fn(async () => new Promise<Response>(() => {}));
@@ -421,5 +467,66 @@ describe('terminal shell degrades honestly without data', () => {
     const container = await renderShell();
     expect(container.textContent).toContain('Məlumat yoxdur');
     expect(container.querySelector('[data-slot="nq-chart-stub"]')).toBeNull();
+  });
+
+  it('levels-null-empty: empty-candle envelope renders no chart stub and throws nothing', async () => {
+    const fetchFn = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    vi.stubGlobal('fetch', fetchFn);
+
+    useDashboard.setState({
+      candles: [],
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: new Date().toISOString(),
+      stale: true,
+      source: 'cache',
+    });
+
+    const container = await renderShell();
+    expect(container.querySelector('[data-slot="nq-chart-stub"]')).toBeNull();
+    expect(useDashboard.getState().selectLevels()).toBeNull();
+    expect(chartCapture.props).toBeNull();
+  });
+
+  it('levels-thin-honest: five closed candles render without throw with stub levels null or finite matching the selector', async () => {
+    const thin = fixtureCandles().slice(0, 5);
+    const fetchFn = vi.fn(async () =>
+      Response.json({
+        candles: thin,
+        contractHint: 'NQ=F · CME',
+        lastUpdatedISO: new Date().toISOString(),
+        stale: false,
+        source: 'live',
+      }),
+    );
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    const stub = shell!.querySelector('[data-slot="nq-chart-stub"]');
+    const expected = useDashboard.getState().selectLevels();
+    if (expected === null) {
+      expect(stub).toBeNull();
+      expect(shell!.textContent).toContain('Məlumat yoxdur');
+    } else {
+      expect(stub).not.toBeNull();
+      const props = chartCapture.props as unknown as { levels: unknown };
+      expect(props.levels).toEqual(expected);
+      const finite = expected as unknown as {
+        q1: number;
+        q3: number;
+        bullOTE: { lo: number; hi: number };
+        bearOTE: { lo: number; hi: number };
+      };
+      expect(Number.isFinite(finite.q1)).toBe(true);
+      expect(Number.isFinite(finite.q3)).toBe(true);
+      expect(Number.isFinite(finite.bullOTE.lo)).toBe(true);
+      expect(Number.isFinite(finite.bullOTE.hi)).toBe(true);
+      expect(Number.isFinite(finite.bearOTE.lo)).toBe(true);
+      expect(Number.isFinite(finite.bearOTE.hi)).toBe(true);
+    }
   });
 });
