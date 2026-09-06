@@ -4,17 +4,17 @@ milestone: v2.0
 milestone_name: Modul 3 (Liquidity Sequencing & SMT)
 current_phase: 06
 current_phase_name: Dual-Symbol Proxy + Data Contracts
-status: executing
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-09-06T17:11:43.562Z"
+status: verifying
+stopped_at: Completed 06-04-PLAN.md
+last_updated: "2026-09-06T18:12:02.687Z"
 last_activity: 2026-09-06
 last_activity_desc: Phase 06 execution started
-state_head: 23512439592169398ccdf17b289e6d57be9cd4c4
+state_head: 994c7cb480c55dd5a52db9ff071cc2371bf91b55
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-09-06)
 
 Phase: 06 (Dual-Symbol Proxy + Data Contracts) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-06 — Phase 06 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 06 P03 | ~9 min | 2 tasks | 3 files |
+| Phase 06-dual-symbol-proxy-data-contracts P04 | ~60 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 06-01: fetchSymbol parameterized proxy with composite cache keys and per-key singleflight; NQ default byte-identical via delegation
 - [Phase ?]: [06-02] Intraday path is a separate parse/fetch/cache lane, not a branch inside daily functions — D1 stays byte-identical
 - [Phase 06]: [06-03] Join re-validates at its own boundary (forming + non-finite OHLC dropped pre-join) rather than trusting parser flags
+- [Phase 06]: [06-04] ES :30 stagger uses ((60 - sec) % 60) + 30 phase form to avoid the :30 zero-trap
+- [Phase 06]: [06-04] Stagger offsets recorded in zustand state (lastSchedule), never a module-level probe cell
+- [Phase 06]: [06-04] Strip per-leg segments reuse deriveStatus plus formatStripAge vocabulary with no new status enum
 
 ### Pending Todos
 
@@ -102,8 +106,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-06T17:11:43.518Z
-Stopped at: Completed 06-03-PLAN.md
+Last session: 2026-09-06T18:12:02.589Z
+Stopped at: Completed 06-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

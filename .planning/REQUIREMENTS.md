@@ -11,7 +11,7 @@ Requirements for milestone v2.0 Modul 3 (Liquidity Sequencing & SMT). Each maps 
 
 - [x] **DATA-04**: User receives ES=F daily candles via parameterized `GET /api/yahoo?symbol=&interval=` proxy with per-combo cache keys, allowlists, singleflight (NQ pipe untouched)
 - [x] **DATA-05**: User receives NQ + ES intraday candles (1H and 15M) with intraday epoch contract — forming candle excluded, pre-join incomplete rows dropped, coverage diagnostics surfaced
-- [ ] **DATA-06**: Dual-symbol polling is staggered (NQ :00 / ES :30 + jitter) with per-symbol stale envelopes — SMT refuses when either leg is stale, never merged `stale` boolean
+- [x] **DATA-06**: Dual-symbol polling is staggered (NQ :00 / ES :30 + jitter) with per-symbol stale envelopes — SMT refuses when either leg is stale, never merged `stale` boolean
 - [x] **DATA-07**: NQ/ES candles are timestamp inner-joined before any cross-symbol comparison — no index-zipped alignment, misaligned rows never compared
 
 ### ICT Math Core (Modul 3)
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DATA-04 | Phase 6 | Complete |
 | DATA-05 | Phase 6 | Complete |
-| DATA-06 | Phase 6 | Pending |
+| DATA-06 | Phase 6 | Complete |
 | DATA-07 | Phase 6 | Complete |
 | ICT-08 | Phase 7 | Pending |
 | ICT-09 | Phase 7 | Pending |
