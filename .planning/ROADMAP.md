@@ -111,6 +111,28 @@ Phases execute in numeric order: 1 → 2 → 3
 | 2. Terminal Composition | 4/4 | Complete    | 2026-09-05 |
 | 3. Production Deploy & Verification | 4/4 | Complete    | 2026-09-06 |
 
+### Phase 03.2: Close gap: Phase 1 retroactive gate + ICT-01 claim + ICT-02 render/descope + W1/W2/F2 fixes (INSERTED)
+
+**Goal:** Phase 1 is trusted on written evidence and the chart shows the full level set — retroactive Phase 1 gate recorded, quadrant/OTE levels rendered, W1/W2/F2 fixes applied, deploy script extended
+**Requirements**: DATA-01, DATA-02, DATA-03, ICT-01, ICT-02, ICT-03, ICT-04, ICT-05, ICT-06, STATE-02, DEPLOY-01
+**Depends on:** Phase 3
+**Plans:** 4 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 03.2-01-PLAN.md — ICT-02 render slice: levelLineInputs helper plus shell subscription plus four dashed quadrant/OTE price-lines
+- [ ] 03.2-02-PLAN.md — Store fixes plus dead-code decision: closed-only last close plus immediate STALE plus checkReanchor deletion with rule-table rewrite
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03.2-03-PLAN.md — Header freshness copy plus verify-deploy extension: three-state chart-freshness span plus stale/502, DST-date, rollover-banner steps plus gates
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03.2-04-PLAN.md — Retroactive Phase 1 gate: green-baseline confirm plus 10-truth VERIFICATION.md scoring ICT-01 and all 8 partials
+
 ### Phase 03.1: Close gap ICT-07 banner (INSERTED)
 
 **Goal:** Close the ICT-07 functional gap: wire detectRollover into a store selector (selectRollover) + banner component (flag-and-continue made visible), so E2E flow F5 (rollover week → flagged banner) exists. Scope is banner-only.
