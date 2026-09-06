@@ -47,3 +47,20 @@ export interface RolloverFlag {
 export function closedOnly(candles: Candle[]): Candle[] {
   return candles.filter((c) => !c.forming);
 }
+
+// D-16: intraday contract uses UTC epoch seconds. D1 stays on business-day
+// strings — the two contracts are never unified. Plans 02/03 consume this
+// shape without depending on each other.
+export interface IntradayCandle {
+  /** Row timestamp in UTC epoch seconds. */
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  forming?: boolean;
+}
+
+export function closedOnlyIntraday(candles: IntradayCandle[]): IntradayCandle[] {
+  return candles.filter((c) => !c.forming);
+}

@@ -1,9 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetYahooCacheForTests, fetchNQDaily, parseChartJson } from '@/src/lib/yahoo';
+import { __resetYahooCacheForTests, fetchNQDaily, fetchSymbol, parseChartJson } from '@/src/lib/yahoo';
 import nullFixture from '@/src/lib/__fixtures__/yahoo-null.json';
+import esDailyFixture from '@/src/lib/__fixtures__/es-daily.json';
+import nqBaseline from '@/src/lib/__fixtures__/nq-daily-baseline.json';
 
 const DAY = 86400;
 const BASE_TS = Math.floor(new Date('2026-01-05T00:00:00Z').getTime() / 1000);
+
+function mockYahooJsonFor(symbol: 'NQ=F' | 'ES=F', n: number, startPrice: number) {
+  const timestamp: number[] = [];
+  const open: unknown[] = [];
+  const high: unknown[] = [];
+  const low: unknown[] = [];
+  const close: unknown[] = [];
+  for (let i = 0; i < n; i++) {
+    const price = startPrice + i * 10;
+    timestamp.push(BASE_TS + i * DAY);
+    open.push(price);
+    high.push(price + 15);
+    low.push(price - 12);
+    close.push(price + 5);
+  }
+  return {
+    chart: {
+      result: [
+        {
+          timestamp,
+          meta: { symbol, exchangeName: 'CME' },
+          indicators: { quote: [{ open, high, low, close }] },
+        },
+      ],
+      error: null,
+    },
+  };
+}
 
 function mockYahooJson(n: number, startPrice: number) {
   const timestamp: number[] = [];
@@ -297,6 +327,89 @@ describe('yahoo resilience', () => {
     expect(a.candles).toEqual(b.candles);
     expect(b.candles).toEqual(c.candles);
     expect(a.lastUpdatedISO).toBe(b.lastUpdatedISO);
+  });
+
+  it('params: ES daily returns live envelope with ES contractHint', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const fetchFn = vi.fn(async () => okResponse(esDailyFixture));
+    const envelope = await fetchSymbol('ES=F', '1d', now, fetchFn as unknown as typeof fetch, noSleep);
+    expect(envelope.source).toBe('live');
+    expect(envelope.candles).toHaveLength(10);
+    expect(envelope.contractHint).toContain('ES=F');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('params: NQ default output deep-equals the baseline fixture body', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const json = mockYahooJson(10, 20000);
+    const fetchFn = vi.fn(async () => okResponse(json));
+    const envelope = await fetchNQDaily(now, fetchFn as unknown as typeof fetch, noSleep);
+    // Baseline carries the frozen daily envelope shape; the fresh fetch must
+    // match its body keys, and equal candle values for identical upstream rows.
+    expect(Object.keys(envelope).sort()).toEqual(Object.keys(nqBaseline).sort());
+    expect(envelope.contractHint).toContain('NQ=F');
+    expect(envelope.stale).toBe(false);
+  });
+
+  it('params: per-combo keys isolate NQ and ES entries', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const nqFetch = vi.fn(async () => okResponse(mockYahooJson(10, 20000)));
+    const warm = await fetchNQDaily(now, nqFetch as unknown as typeof fetch, noSleep);
+    expect(warm.source).toBe('live');
+
+    const esFetch = vi.fn(async () => okResponse(esDailyFixture));
+    const es = await fetchSymbol('ES=F', '1d', now, esFetch as unknown as typeof fetch, noSleep);
+    expect(es.source).toBe('live');
+    expect(es.contractHint).toContain('ES=F');
+    // NQ was warm yet the ES leg fetched upstream exactly once — no sharing.
+    expect(esFetch).toHaveBeenCalledTimes(1);
+
+    // NQ still served from its own entry without a second upstream call.
+    const nqAgain = vi.fn(async () => okResponse(mockYahooJson(10, 20000)));
+    const hit = await fetchNQDaily(now, nqAgain as unknown as typeof fetch, noSleep);
+    expect(hit.source).toBe('cache');
+    expect(nqAgain).not.toHaveBeenCalled();
+  });
+
+  it('params: concurrent same-combo misses join one call, other combo independent', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    let esCalls = 0;
+    const esFetch = vi.fn(async () => {
+      esCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return okResponse(esDailyFixture);
+    });
+    let nqCalls = 0;
+    const nqFetch = vi.fn(async () => {
+      nqCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return okResponse(mockYahooJsonFor('NQ=F', 10, 20000));
+    });
+    const [a, b, c, d] = await Promise.all([
+      fetchSymbol('ES=F', '1d', now, esFetch as unknown as typeof fetch, noSleep),
+      fetchSymbol('ES=F', '1d', now, esFetch as unknown as typeof fetch, noSleep),
+      fetchSymbol('ES=F', '1d', now, esFetch as unknown as typeof fetch, noSleep),
+      fetchSymbol('NQ=F', '1d', now, nqFetch as unknown as typeof fetch, noSleep),
+    ]);
+    expect(esCalls).toBe(1);
+    expect(nqCalls).toBe(1);
+    expect(a.candles).toEqual(b.candles);
+    expect(b.candles).toEqual(c.candles);
+    expect(d.contractHint).toContain('NQ=F');
+  });
+
+  it('params: empty-cache ES failure throws UpstreamError and caches nothing', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const failing = vi.fn(async () => statusResponse(500));
+    await expect(
+      fetchSymbol('ES=F', '1d', now, failing as unknown as typeof fetch, noSleep),
+    ).rejects.toMatchObject({ name: 'UpstreamError' });
+    expect(failing).toHaveBeenCalledTimes(4);
+
+    const recovery = vi.fn(async () => okResponse(esDailyFixture));
+    const envelope = await fetchSymbol('ES=F', '1d', now, recovery as unknown as typeof fetch, noSleep);
+    expect(envelope.source).toBe('live');
+    expect(envelope.candles).toHaveLength(10);
   });
 
   it('resilience: expired TTL refetches upstream', async () => {

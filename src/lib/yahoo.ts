@@ -30,8 +30,39 @@ export interface Envelope {
   source: string;
 }
 
-const SYMBOL = 'NQ=F';
-const ENCODED_SYMBOL = 'NQ%3DF';
+// D-08: strict allowlists. Unknown symbols/intervals are rejected before any URL build.
+export const SYMBOL_ALLOWLIST = ['NQ=F', 'ES=F'] as const;
+export type Symbol = (typeof SYMBOL_ALLOWLIST)[number];
+
+export const INTERVAL_ALLOWLIST = ['1d', '1h', '15m'] as const;
+export type Interval = (typeof INTERVAL_ALLOWLIST)[number];
+
+export const ENCODED_FOR: Record<Symbol, string> = {
+  'NQ=F': 'NQ%3DF',
+  'ES=F': 'ES%3DF',
+};
+
+// D-02: server-derived range map pinned by the Task 1 live probe
+// (ES=F 1h/3mo: 1800 rows, 15m/1mo: 2419 rows, no truncation flags).
+// 1d keeps the proven 182-day period window; never an unbounded range on a looped fetch.
+export const RANGE_FOR_INTERVAL: Record<Interval, string> = {
+  '1d': '182d',
+  '1h': '3mo',
+  '15m': '1mo',
+};
+
+/** D-11: composite cache key — one entry per symbol-interval-range combo. */
+export function cacheKey(symbol: Symbol, interval: Interval, range: string): string {
+  return `${symbol}:${interval}:${range}`;
+}
+
+function isAllowlistedSymbol(v: string): v is Symbol {
+  return (SYMBOL_ALLOWLIST as readonly string[]).includes(v);
+}
+
+function isAllowlistedInterval(v: string): v is Interval {
+  return (INTERVAL_ALLOWLIST as readonly string[]).includes(v);
+}
 
 interface QuoteArrays {
   open?: unknown;
@@ -44,7 +75,10 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
-export function parseChartJson(json: unknown): { candles: Candle[]; contractHint: string; symbol: string } {
+export function parseChartJson(
+  json: unknown,
+  expectedSymbol: Symbol = 'NQ=F',
+): { candles: Candle[]; contractHint: string; symbol: string } {
   const root = json as {
     chart?: { error?: unknown; result?: Array<Record<string, unknown>> };
   };
@@ -106,8 +140,8 @@ export function parseChartJson(json: unknown): { candles: Candle[]; contractHint
 
   const meta = (r['meta'] as { symbol?: unknown; exchangeName?: unknown } | undefined) ?? {};
   const symbol = typeof meta.symbol === 'string' ? meta.symbol : '';
-  if (symbol.toLowerCase() !== SYMBOL.toLowerCase()) {
-    throw new UpstreamError(`symbol mismatch: expected ${SYMBOL}, got ${symbol || '(missing)'}`);
+  if (symbol.toLowerCase() !== expectedSymbol.toLowerCase()) {
+    throw new UpstreamError(`symbol mismatch: expected ${expectedSymbol}, got ${symbol || '(missing)'}`);
   }
 
   for (let i = 1; i < candles.length; i++) {
@@ -119,10 +153,10 @@ export function parseChartJson(json: unknown): { candles: Candle[]; contractHint
   }
 
   const exchangeName = typeof meta.exchangeName === 'string' ? meta.exchangeName : 'CME';
-  return { candles, contractHint: `${SYMBOL} · ${exchangeName}`, symbol };
+  return { candles, contractHint: `${expectedSymbol} · ${exchangeName}`, symbol };
 }
 
-export function buildEnvelope(candles: Candle[], now: Date = new Date(), contractHint = `${SYMBOL} · CME`): Envelope {
+export function buildEnvelope(candles: Candle[], now: Date = new Date(), contractHint = 'NQ=F · CME'): Envelope {
   return {
     candles,
     contractHint,
@@ -137,7 +171,6 @@ type SleepFn = (ms: number) => Promise<void>;
 
 const realSleep: SleepFn = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const CACHE_KEY = `${SYMBOL}:D1`;
 const CACHE_TTL_MS = 60_000;
 // WR-08 budget: 4 attempts x 4s timeouts + ~3.5s backoff ~= worst case under the route's 15s maxDuration.
 const FETCH_TIMEOUT_MS = 4_000;
@@ -179,8 +212,8 @@ function retryAfterMs(header: string | null, nowMs: number): number | null {
   return null;
 }
 
-function isValidPayload(candles: Candle[], symbol: string): boolean {
-  if (symbol.toLowerCase() !== SYMBOL.toLowerCase()) return false;
+function isValidPayload(candles: Candle[], expectedSymbol: string): boolean {
+  if (!isAllowlistedSymbol(expectedSymbol)) return false;
   if (candles.length < 5) return false;
   for (const c of candles) {
     if (!Number.isFinite(c.open) || !Number.isFinite(c.high) || !Number.isFinite(c.low) || !Number.isFinite(c.close)) {
@@ -191,6 +224,18 @@ function isValidPayload(candles: Candle[], symbol: string): boolean {
     if (candles[i].date <= candles[i - 1].date) return false;
   }
   return true;
+}
+
+function buildPath(symbol: Symbol, interval: Interval, now: Date): string {
+  const enc = ENCODED_FOR[symbol];
+  if (interval === '1d') {
+    // Proven v1.0 window: byte-identical URL for the NQ daily default path.
+    const period2 = Math.floor(now.getTime() / 1000);
+    const period1 = period2 - 182 * 86400;
+    return `/v8/finance/chart/${enc}?period1=${period1}&period2=${period2}&interval=1d&events=history`;
+  }
+  const range = RANGE_FOR_INTERVAL[interval];
+  return `/v8/finance/chart/${enc}?range=${range}&interval=${interval}&events=history`;
 }
 
 async function fetchWithTimeout(fetchFn: FetchFn, url: string): Promise<Response> {
@@ -207,10 +252,10 @@ async function fetchUpstream(
   now: Date,
   fetchFn: FetchFn,
   sleep: SleepFn,
+  symbol: Symbol,
+  interval: Interval,
 ): Promise<Envelope> {
-  const period2 = Math.floor(now.getTime() / 1000);
-  const period1 = period2 - 182 * 86400;
-  const path = `/v8/finance/chart/${ENCODED_SYMBOL}?period1=${period1}&period2=${period2}&interval=1d&events=history`;
+  const path = buildPath(symbol, interval, now);
 
   let lastError: unknown = null;
   let failedOver = false;
@@ -238,12 +283,10 @@ async function fetchUpstream(
       }
       const json: unknown = await res.json();
       let candles: Candle[];
-      let symbol = SYMBOL;
-      let contractHint = `${SYMBOL} · CME`;
+      let contractHint = `${symbol} · CME`;
       try {
-        const parsed = parseChartJson(json);
+        const parsed = parseChartJson(json, symbol);
         candles = parsed.candles;
-        symbol = parsed.symbol;
         contractHint = parsed.contractHint;
       } catch {
         // HTTP 200 bodies carrying a chart error are retryable throttle signals.
@@ -277,28 +320,41 @@ async function fetchUpstream(
   throw lastError instanceof Error ? lastError : new UpstreamError('upstream fetch failed');
 }
 
-export async function fetchNQDaily(
+export async function fetchSymbol(
+  symbol: Symbol,
+  interval: Interval,
   now: Date,
   fetchFn: FetchFn = fetch,
   sleep: SleepFn = realSleep,
 ): Promise<Envelope> {
-  const cached = payloadCache.get(CACHE_KEY);
+  // Defense in depth: the route allowlists first, but a non-allowlisted value
+  // must never reach the upstream even on direct calls (T-06-01).
+  if (!isAllowlistedSymbol(symbol) || !isAllowlistedInterval(interval)) {
+    throw new UpstreamError(`unsupported symbol or interval: ${String(symbol)}/${String(interval)}`, {
+      retryable: false,
+    });
+  }
+  const key = cacheKey(symbol, interval, RANGE_FOR_INTERVAL[interval]);
+
+  const cached = payloadCache.get(key);
   if (cached && now.getTime() - cached.fetchedAt < CACHE_TTL_MS) {
     return { ...cached.payload, candles: cached.payload.candles.map((c) => ({ ...c })), source: 'cache' };
   }
 
-  const pending = inFlight.get(CACHE_KEY);
+  const pending = inFlight.get(key);
   if (pending) {
     return pending.then((env) => ({ ...env, candles: env.candles.map((c) => ({ ...c })) }));
   }
 
   const task = (async (): Promise<Envelope> => {
     try {
-      const envelope = await fetchUpstream(now, fetchFn, sleep);
-      payloadCache.set(CACHE_KEY, { payload: envelope, fetchedAt: now.getTime() });
+      const envelope = await fetchUpstream(now, fetchFn, sleep, symbol, interval);
+      payloadCache.set(key, { payload: envelope, fetchedAt: now.getTime() });
       return { ...envelope, candles: envelope.candles.map((c) => ({ ...c })) };
     } catch (err) {
-      const warm = payloadCache.get(CACHE_KEY);
+      // D-06/D-10: serve only THIS leg's last-good within the ceiling; never
+      // cross-substitute the other leg's entry.
+      const warm = payloadCache.get(key);
       // WR-09: only serve stale within MAX_STALE_MS; non-retryable 4xx fail loudly (IN-07).
       const nonRetryable4xx = err instanceof UpstreamError && err.retryable === false && err.status !== undefined && err.status >= 400 && err.status < 500;
       if (warm && !nonRetryable4xx && now.getTime() - warm.fetchedAt < MAX_STALE_MS) {
@@ -306,10 +362,19 @@ export async function fetchNQDaily(
       }
       throw err;
     } finally {
-      inFlight.delete(CACHE_KEY);
+      inFlight.delete(key);
     }
   })();
 
-  inFlight.set(CACHE_KEY, task);
+  inFlight.set(key, task);
   return task;
+}
+
+export async function fetchNQDaily(
+  now: Date,
+  fetchFn: FetchFn = fetch,
+  sleep: SleepFn = realSleep,
+): Promise<Envelope> {
+  // D-05: the bare NQ daily path delegates untouched — byte-identical output.
+  return fetchSymbol('NQ=F', '1d', now, fetchFn, sleep);
 }
