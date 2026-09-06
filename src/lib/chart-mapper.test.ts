@@ -57,4 +57,10 @@ describe('chart-mapper: quadrant/OTE level lines', () => {
       levelLineInputs({ ...levelsFixture, bullOTE: { lo: Number.NaN, hi: 20380 } }),
     ).toThrow(/levelLineInputs/);
   });
+
+  it('infinite-bound-throws: throws naming levelLineInputs when bullOTE.hi is positive Infinity', () => {
+    expect(() =>
+      levelLineInputs({ ...levelsFixture, bullOTE: { lo: 20210, hi: Number.POSITIVE_INFINITY } }),
+    ).toThrow(/levelLineInputs/);
+  });
 });
