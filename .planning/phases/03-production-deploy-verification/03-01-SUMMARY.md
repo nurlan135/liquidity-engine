@@ -164,6 +164,10 @@ None - no external service configuration required.
 - DRILL_FORCE_STALE is the exact variable name plan 03-03 sets in the Vercel dashboard; flag plus test file are both removed in plan 03-04 per D-07.
 - Blockers: none. Branch rename (plan 03-02) can proceed — gates are green.
 
+## Self-Check: PASSED
+
+All created files found on disk; commits f954329, 61cb36f, 41de201, bc75428 verified in history; no unintended deletions; no untracked leftovers.
+
 ---
 *Phase: 03-production-deploy-verification*
 *Completed: 2026-09-06*
