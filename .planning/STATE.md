@@ -25,14 +25,14 @@ current_phase_name: Data Foundation & ICT Core
 See: .planning/PROJECT.md (updated 2026-09-06)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Milestone v1.0 complete — all phases done, ready to archive
+**Current focus:** Planning next milestone (v1.0 archived 2026-09-06)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Milestone v1.0 complete (archived)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-06 — Milestone v1.0 completed and archived
+Status: Awaiting next milestone — run `/gsd-new-milestone` to start v1.1/v2.0
+Last activity: 2026-09-06 — Milestone v1.0 completed and archived (override_closeout: 1 acknowledged scanner hit, see Deferred Items)
 
 ## Performance Metrics
 
