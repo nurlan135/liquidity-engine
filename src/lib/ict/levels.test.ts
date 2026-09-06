@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Candle, DealingRange } from '@/src/lib/ict/types';
-import { ANCHOR_WINDOW, checkReanchor, computeRange } from '@/src/lib/ict/range';
+import { ANCHOR_WINDOW, computeRange } from '@/src/lib/ict/range';
 import { computeLevels } from '@/src/lib/ict/levels';
 
 function candle(date: string, price: number, overrides: Partial<Candle> = {}): Candle {
