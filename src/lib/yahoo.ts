@@ -282,24 +282,6 @@ export async function fetchNQDaily(
   fetchFn: FetchFn = fetch,
   sleep: SleepFn = realSleep,
 ): Promise<Envelope> {
-  // TEMPORARY drill kill-switch (D-07, plan 03-01): forces the serve-stale
-  // outcome via a retryable structured error. Placed before the cache lookup
-  // so the flag always wins. A bare throw here could never reach the
-  // warm-cache stale branch inside the task closure below (it precedes it),
-  // so the flag consults the warm entry directly with the same MAX_STALE_MS
-  // semantics, else throws retryable (cold cache fails loudly, no fabricated
-  // candles). Retryable true (no status field) matches the existing stale
-  // discriminator; a non-retryable 4xx would bypass stale. Never inside the
-  // fetchUpstream retry loop (no sleep budget burn). Message is neutral since
-  // UpstreamError text surfaces in the route 502 body. Server-side only.
-  // Deleted in plan 03-04; nothing drill-specific ships to prod.
-  if (process.env.DRILL_FORCE_STALE === '1') {
-    const drillWarm = payloadCache.get(CACHE_KEY);
-    if (drillWarm && now.getTime() - drillWarm.fetchedAt < MAX_STALE_MS) {
-      return { ...drillWarm.payload, candles: drillWarm.payload.candles.map((c) => ({ ...c })), stale: true, source: 'stale' };
-    }
-    throw new UpstreamError('upstream unavailable', { retryable: true });
-  }
   const cached = payloadCache.get(CACHE_KEY);
   if (cached && now.getTime() - cached.fetchedAt < CACHE_TTL_MS) {
     return { ...cached.payload, candles: cached.payload.candles.map((c) => ({ ...c })), source: 'cache' };
