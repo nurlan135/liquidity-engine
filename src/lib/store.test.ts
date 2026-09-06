@@ -209,21 +209,52 @@ describe('store: selectRollover flags rollover-week envelopes (ICT-07a)', () => 
     expect(flag!.proximityWarning).toMatch(/rollover week/i);
   });
 
-  it('boundary-clear: gap exactly equal to 3xATR leaves the flag clear', async () => {
+  it('boundary-clear: gap exactly equal to the full-input 3xATR tripwire leaves the flag clear', async () => {
     const { useDashboard } = await import('@/src/lib/store');
     const { computeRegime } = await import('@/src/lib/ict/regime');
-    // Full-history trend for a finite ATR, then craft the final close so the
-    // close-to-close gap equals exactly 3xATR (strict > tripwire stays clear).
+    const { detectRollover, ROLLOVER_ATR_MULT } = await import('@/src/lib/ict/rollover');
+    // Exact-boundary pin belongs at the pure-function level with an explicit
+    // ATR argument (strict > tripwire stays clear at gap == 3xATR).
+    const probeBase = gappedCandles().slice(0, 2);
+    const probeAtr = computeRegime(gappedCandles().slice(0, -1)).atr;
+    expect(Number.isFinite(probeAtr) && probeAtr > 0).toBe(true);
+    const probeEdge = {
+      ...probeBase[1],
+      close: probeBase[0].close + ROLLOVER_ATR_MULT * probeAtr,
+    };
+    expect(
+      detectRollover([probeBase[0], probeEdge], probeAtr, '2026-01-25', 'NQ=F · CME').rolloverSuspect,
+    ).toBe(false);
+    // Store pass: craft the final close against the same full-input ATR the
+    // selector uses — fixed-point iteration solves gap == 3xATR(full candles)
+    // so the assertion pins the selector wiring, not ATR smoothing internals.
     const candles = gappedCandles();
-    const atr = computeRegime(candles.slice(0, -1)).atr;
-    expect(Number.isFinite(atr) && atr > 0).toBe(true);
     const prev = candles[candles.length - 2];
+    const seedAtr = computeRegime(candles.slice(0, -1)).atr;
+    expect(Number.isFinite(seedAtr) && seedAtr > 0).toBe(true);
+    let gap = ROLLOVER_ATR_MULT * seedAtr;
+    for (let i = 0; i < 50; i++) {
+      const trial = candles.map((c, idx) =>
+        idx === candles.length - 1
+          ? { ...c, high: Math.max(c.high, prev.close + gap), close: prev.close + gap }
+          : c,
+      );
+      const next = ROLLOVER_ATR_MULT * computeRegime(trial).atr;
+      if (Math.abs(next - gap) < 1e-9) {
+        gap = next;
+        break;
+      }
+      gap = next;
+    }
     const last = candles[candles.length - 1];
     candles[candles.length - 1] = {
       ...last,
-      high: Math.max(last.high, prev.close + 3 * atr),
-      close: prev.close + 3 * atr,
+      high: Math.max(last.high, prev.close + gap),
+      close: prev.close + gap,
     };
+    // Sanity: the crafted gap equals the tripwire the selector will compute.
+    const fullAtr = computeRegime(candles).atr;
+    expect(Math.abs(gap - ROLLOVER_ATR_MULT * fullAtr)).toBeLessThan(1e-6);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => Response.json(mockEnvelope(candles))),
