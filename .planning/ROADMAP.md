@@ -43,7 +43,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. Dual-symbol polling staggers load (NQ :00 / ES :30 + jitter) and SMT refuses with a stated reason when either leg is stale — never a merged `stale` boolean
   4. Cross-symbol comparisons operate on timestamp inner-joined rows only; misaligned rows are never compared
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 Plans:
 **Wave 1**
 
@@ -51,7 +51,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md — Intraday parser branch with epoch contract plus bounded ranges
+- [x] 06-02-PLAN.md — Intraday parser branch with epoch contract plus bounded ranges
 - [ ] 06-03-PLAN.md — Pure timestamp inner-join with coverage diagnostics
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -112,7 +112,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 3. Production Deploy & Verification | v1.0 | 4/4 | Complete | 2026-09-06 |
 | 03.1 Close gap ICT-07 banner | v1.0 | 1/1 | Complete | 2026-09-06 |
 | 03.2 Close gap gate + fixes | v1.0 | 4/4 | Complete | 2026-09-06 |
-| 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 1/4 | In Progress|  |
+| 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 2/4 | In Progress|  |
 | 7. SMT + 4H/1H Sequencing Math | v2.0 | 0/TBD | Not started | - |
 | 8. AMD Sessions (Asia Range + Judas) | v2.0 | 0/TBD | Not started | - |
 | 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 0/TBD | Not started | - |
