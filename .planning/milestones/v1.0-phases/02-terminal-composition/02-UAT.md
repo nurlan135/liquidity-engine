@@ -4,6 +4,10 @@ phase: 02-terminal-composition
 source: [02-VERIFICATION.md]
 started: 2026-09-05T19:55:00Z
 updated: 2026-09-05T19:55:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-06
+  gap_snapshot: "passed::scenarios=0"
 ---
 
 ## Current Test
@@ -19,10 +23,12 @@ awaiting: user response
 ## Tests
 
 ### 1. Canvas zone-shading render
+
 expected: premium magenta 8% / discount green 8% fills plus dashed EQ and solid DOL lines on live candles
 result: pass — screenshots confirm zone fills, EQ 29635.13 dashed, DOL 29565.25 solid, MARKET CLOSED ribbon on weekend data
 
 ### 2. Responsive layout
+
 expected: below 1024px the grid collapses to a single left-to-center-to-right stack with 12px gaps and no horizontal overflow
 result: pass — verified at 390px via Playwright: single column, left(y136) → center(y822) → right(y1785), gap 12px, scrollWidth == clientWidth (no horizontal overflow)
 
