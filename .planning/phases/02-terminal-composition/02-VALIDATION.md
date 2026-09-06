@@ -3,10 +3,11 @@ phase: "02"
 slug: "terminal-composition"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-09-05"
+validated: "2026-09-06"
 ---
 
 # Phase 02 — Validation Strategy
@@ -48,10 +49,24 @@ created: "2026-09-05"
 | 02-TBD-05 | TBD | TBD | MOCK-01 | Tampering | True AVG excludes Insta/FiboGroup; crowded flag at ≥60% | unit | `npm run test -- sentiment` | ❌ W0 | ⬜ pending |
 | 02-TBD-06 | TBD | TBD | MOCK-02 | — | Countdown formats via Baku util; pre-news flag inside window | unit (injected clock) | `npm run test -- calendar` | ❌ W0 | ⬜ pending |
 | 02-TBD-07 | TBD | TBD | MOCK-03 | Tampering | Fixture shape guards pass; interpretation prose present per scenario | unit (fixture shape) | `npm run test -- fixtures` | ❌ W0 | ⬜ pending |
-| 02-TBD-08 | TBD | TBD | STATE-01 | Denial of Service | Single store; refresh writes envelope; 60s cadence + singleflight | unit (store, mocked fetch) | `npm run test -- store` | ❌ W0 | ⬜ pending |
+| 02-TBD-08 | TBD | TBD | STATE-01 | Denial of Service | Single store; refresh writes envelope; 60s cadence + singleflight | unit (store, mocked fetch) | `npm run test -- store` | ✅ | ✅ green (5 tests) |
+| 02-UI01-shell | 02-04 | 3 | UI-01 | — | Shell grid + panels + 60s visibility-gated poll + coalesced toast | integration (jsdom, mocked fetch/timers/dynamic) | `npm test -- terminal-shell` | ✅ | ✅ green (6 tests) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-*Task IDs/Plans/Waves are TBD until the planner assigns them — requirement→command mapping is binding.*
+*Task IDs/Plans/Waves are TBD until the planner assigns them — requirement→command mapping is binding. 02-UI01-shell added by validate-phase audit 2026-09-06 (was MISSING automated).*
+
+
+---
+
+## Validation Audit 2026-09-06
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 (UI-01 shell composition — no automated test) |
+| Resolved | 1 (`src/terminal-shell.test.ts`, 6 tests: grid+panels, inFlight disable, 60s poll visibility gate, coalesced toast, skeleton/empty states) |
+| Escalated | 0 |
+
+Full suite: 20 files, 111/111 green (was 19/105). `npx tsc --noEmit` clean, `npm run lint` clean. Env notes: auditor installed `jsdom@29` + `@types/jsdom` devDeps (`--legacy-peer-deps` precedent) and repaired the pruned lockfile `vite` entry with `vite@7` (vitest 5 peer range); no testing-library (react-dom `act` + vi.mock). Debug iterations: 2/3, no impl bugs.
 
 ---
 
