@@ -159,3 +159,54 @@ describe('store: refresh writes envelope in one update', () => {
     expect(range!.high).toBe(20215);
   });
 });
+
+describe('store: selectRollover flags rollover-week envelopes (ICT-07a)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  // 35 closed candles on a 10pt-step trend (closed count clears the
+  // MIN_CANDLES_FULL=34 regime-ATR floor) with the final close lifted by 250.
+  function gappedCandles(): Candle[] {
+    const candles: Candle[] = [];
+    const start = Date.UTC(2026, 0, 5);
+    for (let i = 0; i < 35; i++) {
+      const date = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+      const base = 20000 + i * 10;
+      candles.push({
+        date,
+        open: base,
+        high: base + 15,
+        low: base - 12,
+        close: base + 5,
+      });
+    }
+    const last = candles[candles.length - 1];
+    candles[candles.length - 1] = {
+      ...last,
+      high: last.high + 250,
+      close: last.close + 250,
+    };
+    return candles;
+  }
+
+  it('gapped-flags: gapped fixture returns suspect true with hint and rollover-week warning', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = gappedCandles();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    useDashboard.setState({ asOfBaku: '2026-03-19' });
+
+    const flag = useDashboard.getState().selectRollover();
+    expect(flag).not.toBeNull();
+    expect(flag!.rolloverSuspect).toBe(true);
+    expect(flag!.contractHint).toBe('NQ=F · CME');
+    expect(flag!.proximityWarning).toMatch(/rollover week/i);
+  });
+});
+

@@ -97,6 +97,42 @@ function fixtureCandles(): Candle[] {
   return candles;
 }
 
+// 35 closed candles on a 10pt-step trend (clears the MIN_CANDLES_FULL=34
+// regime-ATR floor) with the final close lifted by 250, so the store
+// selector derives a finite ATR and the tripwire fires.
+function gappedCandles(): Candle[] {
+  const candles: Candle[] = [];
+  const start = Date.UTC(2026, 0, 5);
+  for (let i = 0; i < 35; i++) {
+    const date = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+    const base = 20000 + i * 10;
+    candles.push({
+      date,
+      open: base,
+      high: base + 15,
+      low: base - 12,
+      close: base + 5,
+    });
+  }
+  const last = candles[candles.length - 1];
+  candles[candles.length - 1] = {
+    ...last,
+    high: last.high + 250,
+    close: last.close + 250,
+  };
+  return candles;
+}
+
+function gappedEnvelope() {
+  return {
+    candles: gappedCandles(),
+    contractHint: 'NQ=F · CME',
+    lastUpdatedISO: new Date().toISOString(),
+    stale: false,
+    source: 'live',
+  };
+}
+
 function liveEnvelope() {
   return {
     candles: fixtureCandles(),
@@ -303,6 +339,29 @@ describe('terminal shell fires one coalesced Azerbaijani toast per error value',
       useDashboard.setState({ lastError: 'refresh rejected invalid envelope' });
     });
     expect(toastCalls.calls).toHaveLength(2);
+  });
+});
+
+describe('terminal shell flags rollover weeks with a banner (ICT-07b)', () => {
+  it('banner-renders-with-hint-and-warning: gapped fixture shows the banner while the chart stub still renders', async () => {
+    // Pin the clock to rollover week so the mount refresh stamps
+    // asOfBaku 2026-03-19 (the selector reads store asOfBaku; setting it
+    // post-render alone would not re-render the function-subscription).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-19T12:00:00Z'));
+    const fetchFn = vi.fn(async () => Response.json(gappedEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    const banner = shell!.querySelector('[data-slot="rollover-banner"]');
+    expect(banner).not.toBeNull();
+    expect(banner!.textContent).toContain('NQ=F · CME');
+    expect(banner!.textContent).toMatch(/rollover week/i);
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+    vi.useRealTimers();
   });
 });
 

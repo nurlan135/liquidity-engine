@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import type { BiasOutput, Candle, DealingRange, DOLTarget, RegimeOutput } from '@/src/lib/ict/types';
+import type { BiasOutput, Candle, DealingRange, DOLTarget, RegimeOutput, RolloverFlag } from '@/src/lib/ict/types';
 import { closedOnly } from '@/src/lib/ict/types';
 import { ANCHOR_WINDOW, computePosition, computeRange } from '@/src/lib/ict/range';
 import { computeBias } from '@/src/lib/ict/bias';
 import { computePrimaryDOL } from '@/src/lib/ict/dol';
 import { computeRegime } from '@/src/lib/ict/regime';
+import { detectRollover } from '@/src/lib/ict/rollover';
 import { computeLevels, type LevelsOutput } from '@/src/lib/ict/levels';
 import { getAsOfBakuDate } from '@/src/lib/time';
 
@@ -77,6 +78,7 @@ export interface DashboardState {
   selectDOL: () => DOLTarget | null;
   selectRegime: () => RegimeOutput | null;
   selectLevels: () => LevelsOutput | null;
+  selectRollover: () => RolloverFlag | null;
 }
 
 function closedCount(candles: Candle[]): number {
@@ -180,5 +182,13 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const lastClose = get().selectLastClose();
     if (range === null || lastClose === null) return null;
     return computeLevels(range, lastClose);
+  },
+
+  selectRollover: () => {
+    const { candles, contractHint, asOfBaku } = get();
+    if (candles.length === 0) return null;
+    const { atr } = computeRegime(candles);
+    if (!Number.isFinite(atr) || atr <= 0) return null;
+    return detectRollover(candles, atr, asOfBaku, contractHint);
   },
 }));

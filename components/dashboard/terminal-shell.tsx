@@ -33,9 +33,11 @@ export function TerminalShell() {
   const refresh = useDashboard((s) => s.refresh);
   const selectRange = useDashboard((s) => s.selectRange);
   const selectDOL = useDashboard((s) => s.selectDOL);
+  const selectRollover = useDashboard((s) => s.selectRollover);
 
   const range = selectRange();
   const dol = selectDOL();
+  const rollover = selectRollover();
   // Header clocks tick locally every 10s (StatusStrip precedent); the poll
   // loop stays the single store writer — this state never touches the store.
   const [now, setNow] = useState(() => new Date());
@@ -163,6 +165,14 @@ export function TerminalShell() {
               <CardTitle>CHART — NQ=F D1</CardTitle>
             </CardHeader>
             <CardContent>
+              {rollover !== null && (rollover.rolloverSuspect || rollover.proximityWarning !== null) ? (
+                <div data-slot="rollover-banner" role="status" className="rounded px-3 py-2 font-mono text-[11px] tracking-widest text-muted-foreground">
+                  {rollover.rolloverSuspect
+                    ? `ROLLOVER SUSPECT · ${rollover.contractHint} — range may span a contract roll; levels held on current extremes.`
+                    : `ROLLOVER WATCH · ${rollover.contractHint}`}
+                  {rollover.proximityWarning !== null ? <span>{` ${rollover.proximityWarning}`}</span> : null}
+                </div>
+              ) : null}
               {lastUpdatedISO === null ? (
                 <div data-slot="chart-skeleton" className="min-h-[400px] animate-pulse" />
               ) : candles.length === 0 ? (
