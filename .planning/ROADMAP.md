@@ -32,51 +32,71 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 ## Phase Details
 
 ### Phase 6: Dual-Symbol Proxy + Data Contracts
+
 **Goal**: Terminal serves dual-symbol daily + intraday candles through honest per-symbol stale envelopes
 **Depends on**: Phase 3 (v1.0 NQ proxy is the pattern being parameterized)
 **Requirements**: DATA-04, DATA-05, DATA-06, DATA-07
 **Success Criteria** (what must be TRUE):
+
   1. User receives ES=F daily candles via parameterized `?symbol=&interval=` proxy while the NQ pipe behaves exactly as before
   2. User receives NQ + ES 1H/15M candles with forming candle excluded, incomplete pre-join rows dropped, and coverage diagnostics visible
   3. Dual-symbol polling staggers load (NQ :00 / ES :30 + jitter) and SMT refuses with a stated reason when either leg is stale — never a merged `stale` boolean
   4. Cross-symbol comparisons operate on timestamp inner-joined rows only; misaligned rows are never compared
+
 **Plans**: 4 plans
 Plans:
+**Wave 1**
+
 - [ ] 06-01-PLAN.md — Tracer: live ES=F probe plus parameterized ES=F daily proxy with byte-identical NQ default
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 06-02-PLAN.md — Intraday parser branch with epoch contract plus bounded ranges
 - [ ] 06-03-PLAN.md — Pure timestamp inner-join with coverage diagnostics
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 06-04-PLAN.md — Dual-leg staggered store plus per-leg strip ages plus phase gate
 
 ### Phase 7: SMT + 4H/1H Sequencing Math
+
 **Goal**: Users see SMT divergence status and engineered-liquidity transition state from pure-function math
 **Depends on**: Phase 6
 **Requirements**: ICT-08, ICT-09, ICT-10, ICT-11
 **Success Criteria** (what must be TRUE):
+
   1. User sees SMT divergence status (BULLISH / BEARISH / NO-SIGNAL) with swing references in output, suppressed by the correlation-regime gate when the pair decouples
   2. Rollover-week fake SMT is suppressed when either leg is rollover-suspect
   3. User sees FVG map + ERL/IRL transition state that fires only on sweep-then-reject (never sweep alone), with §2 Delivery Cycle upgraded
   4. User sees 4H structure synthesized from NY-anchored 1H blocks under closed-only discipline
+
 **Plans**: TBD
 
 ### Phase 8: AMD Sessions (Asia Range + Judas)
+
 **Goal**: Users see session-aware AMD timing — Asia range, London Judas, phase classifier
 **Depends on**: Phase 6
 **Requirements**: ICT-12, ICT-13, ICT-14
 **Success Criteria** (what must be TRUE):
+
   1. User sees Asia Range computed on IANA `America/New_York` wall-clock (19:00–00:00 NY) with correct Baku display across March, November, and maintenance-break boundaries
   2. User sees London Judas Swing only on three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement), with candidates hollow vs confirmed solid and ≤25% confirmed sessions over 60 days
   3. User sees AMD phase (accumulation / manipulation / distribution) fusing range + Judas + SMT state, with NY honestly marked Gözlənilir
+
 **Plans**: TBD
 
 ### Phase 9: Composition (§3 Live + Overlays + Verify)
+
 **Goal**: Users read live report §3 and see session overlays on a verified Vercel deploy
 **Depends on**: Phase 7, Phase 8
 **Requirements**: ICT-15, UI-05, UI-06, DEPLOY-02
 **Success Criteria** (what must be TRUE):
+
   1. User sees live report §3 (Engineered Liquidity Path, SMT Divergence Status, Session AMD Timing) where every degraded state renders its reason and missing families keep unavailable markers
   2. User sees Asia Range overlay on the chart (null-autoscale) plus Judas/SMT pins via series markers, with ES off-chart
   3. Highest-conviction setups score higher only when SMT and Judas both confirm — rule-based, no fake precision
   4. v2.0 is verified on the live Vercel URL: ES cold-start drill, intraday payload under `maxDuration`, §3 render check
+
 **Plans**: TBD
 **UI hint**: yes
 
