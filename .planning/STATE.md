@@ -2,20 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 milestone_name: Live Terminal
-current_phase: "03.1"
-current_phase_name: Close gap ICT-07 banner (INSERTED)
-status: verifying
-stopped_at: Completed 03.1-01-PLAN.md
-last_updated: "2026-09-06T10:31:02.539Z"
+current_phase: "03.2"
+status: planning
+stopped_at: Phase 03.2 context gathered
+last_updated: "2026-09-06T11:29:10.970Z"
 last_activity: 2026-09-06
 last_activity_desc: Phase 03.1 execution started
-state_head: 0577e2ef93fd3f058901e0e54c634dd4e5fcbc28
+state_head: 7209e759564cb9397e36a5749b1b0b37dbbfeb44
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 2
   total_plans: 12
   completed_plans: 12
-  percent: 50
+  percent: 40
 ---
 
 # Project State
@@ -29,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-09-04)
 
 ## Current Position
 
-Phase: 03.1 (Close gap ICT-07 banner (INSERTED)) — EXECUTING
+Phase: 03.2
 Plan: 1 of 1
-Status: Phase complete — ready for verification
+Status: planning
 Last activity: 2026-09-06 — Phase 03.1 execution started
 
-Progress: [█████░░░░░] 50%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -93,6 +92,7 @@ None yet.
 ### Roadmap Evolution
 
 - Phase 03.1 inserted after Phase 3: Close gap ICT-07 banner (URGENT)
+- Phase 03.2 inserted after Phase 3: Close gap: Phase 1 retroactive gate + ICT-01 claim + ICT-02 render/descope + W1/W2/F2 fixes (URGENT)
 
 ## Deferred Items
 
@@ -104,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-06T10:31:02.053Z
-Stopped at: Completed 03.1-01-PLAN.md
-Resume file: None
+Last session: 2026-09-06T11:29:10.383Z
+Stopped at: Phase 03.2 context gathered
+Resume file: .planning/phases/03.2-close-gap-phase-1-retroactive-gate-ict-01-claim-ict-02-rende/03.2-CONTEXT.md
