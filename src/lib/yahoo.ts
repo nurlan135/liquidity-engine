@@ -1,5 +1,5 @@
 import { toBakuYMD } from '@/src/lib/time';
-import type { Candle } from '@/src/lib/ict/types';
+import type { Candle, IntradayCandle } from '@/src/lib/ict/types';
 
 export const HOSTS = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
 
@@ -24,6 +24,17 @@ export class UpstreamError extends Error {
 
 export interface Envelope {
   candles: Candle[];
+  contractHint: string;
+  lastUpdatedISO: string;
+  stale: boolean;
+  source: string;
+}
+
+// D-05/D-16: intraday legs ride the same resilient spine but emit epoch rows.
+// D1 Envelope shape is untouched — this companion envelope carries the locked
+// IntradayCandle contract Plan 03 joins.
+export interface IntradayEnvelope {
+  candles: IntradayCandle[];
   contractHint: string;
   lastUpdatedISO: string;
   stale: boolean;
@@ -73,6 +84,91 @@ interface QuoteArrays {
 
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
+}
+
+// D-05/D-15/D-16: the intraday branch emits epoch-seconds IntradayCandle rows
+// with the forming last row flagged at the parser. The daily branch below it
+// is byte-identical to the proven v1.0 path — date strings, null-row drop,
+// last-row close-only forming rule, symbol check, ascending-date enforcement.
+export function parseIntradayChartJson(
+  json: unknown,
+  expectedSymbol: Symbol,
+): { candles: IntradayCandle[]; contractHint: string; symbol: string } {
+  const root = json as {
+    chart?: { error?: unknown; result?: Array<Record<string, unknown>> };
+  };
+  if (root?.chart?.error) {
+    throw new UpstreamError('upstream soft-throttle or error payload');
+  }
+  const r = root?.chart?.result?.[0];
+  if (!r || !Array.isArray(r['timestamp'])) {
+    throw new UpstreamError('missing chart result or timestamp array');
+  }
+  const timestamps = r['timestamp'] as unknown[];
+  if (timestamps.length === 0) {
+    throw new UpstreamError('empty timestamp array');
+  }
+  const quote = (r['indicators'] as { quote?: QuoteArrays[] } | undefined)?.quote?.[0];
+  if (!quote) {
+    throw new UpstreamError('missing quote arrays');
+  }
+  const opens = Array.isArray(quote.open) ? (quote.open as unknown[]) : [];
+  const highs = Array.isArray(quote.high) ? (quote.high as unknown[]) : [];
+  const lows = Array.isArray(quote.low) ? (quote.low as unknown[]) : [];
+  const closes = Array.isArray(quote.close) ? (quote.close as unknown[]) : [];
+
+  const candles: IntradayCandle[] = [];
+  const lastIndex = timestamps.length - 1;
+  for (let i = 0; i < timestamps.length; i++) {
+    const ts = timestamps[i];
+    if (typeof ts !== 'number' || !Number.isFinite(ts) || !Number.isInteger(ts)) {
+      continue;
+    }
+    const o = opens[i];
+    const h = highs[i];
+    const l = lows[i];
+    const c = closes[i];
+    const complete = isFiniteNumber(o) && isFiniteNumber(h) && isFiniteNumber(l) && isFiniteNumber(c);
+    if (complete) {
+      candles.push({
+        time: ts,
+        open: o as number,
+        high: h as number,
+        low: l as number,
+        close: c as number,
+      });
+    } else if (i === lastIndex && isFiniteNumber(c)) {
+      candles.push({
+        time: ts,
+        open: isFiniteNumber(o) ? (o as number) : (c as number),
+        high: isFiniteNumber(h) ? (h as number) : (c as number),
+        low: isFiniteNumber(l) ? (l as number) : (c as number),
+        close: c as number,
+        forming: true,
+      });
+    }
+  }
+
+  if (candles.length === 0) {
+    throw new UpstreamError('no valid candles after null-row filtering');
+  }
+
+  const meta = (r['meta'] as { symbol?: unknown; exchangeName?: unknown } | undefined) ?? {};
+  const symbol = typeof meta.symbol === 'string' ? meta.symbol : '';
+  if (symbol.toLowerCase() !== expectedSymbol.toLowerCase()) {
+    throw new UpstreamError(`symbol mismatch: expected ${expectedSymbol}, got ${symbol || '(missing)'}`);
+  }
+
+  for (let i = 1; i < candles.length; i++) {
+    const prev = candles[i - 1].time;
+    const curr = candles[i].time;
+    if (curr <= prev) {
+      throw new UpstreamError(`candles out of order or duplicated at index ${i}: ${prev} -> ${curr}`);
+    }
+  }
+
+  const exchangeName = typeof meta.exchangeName === 'string' ? meta.exchangeName : 'CME';
+  return { candles, contractHint: `${expectedSymbol} · ${exchangeName}`, symbol };
 }
 
 export function parseChartJson(
@@ -156,6 +252,20 @@ export function parseChartJson(
   return { candles, contractHint: `${expectedSymbol} · ${exchangeName}`, symbol };
 }
 
+export function buildIntradayEnvelope(
+  candles: IntradayCandle[],
+  now: Date = new Date(),
+  contractHint = 'NQ=F · CME',
+): IntradayEnvelope {
+  return {
+    candles,
+    contractHint,
+    lastUpdatedISO: now.toISOString(),
+    stale: false,
+    source: 'live',
+  };
+}
+
 export function buildEnvelope(candles: Candle[], now: Date = new Date(), contractHint = 'NQ=F · CME'): Envelope {
   return {
     candles,
@@ -187,10 +297,20 @@ interface CacheEntry {
 const payloadCache = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<Envelope>>();
 
+interface IntradayCacheEntry {
+  payload: IntradayEnvelope;
+  fetchedAt: number;
+}
+
+const intradayPayloadCache = new Map<string, IntradayCacheEntry>();
+const intradayInFlight = new Map<string, Promise<IntradayEnvelope>>();
+
 /** Test-only reset for the module-level cache and singleflight maps. */
 export function __resetYahooCacheForTests(): void {
   payloadCache.clear();
   inFlight.clear();
+  intradayPayloadCache.clear();
+  intradayInFlight.clear();
 }
 
 function jitteredDelay(baseMs: number): number {
@@ -210,6 +330,24 @@ function retryAfterMs(header: string | null, nowMs: number): number | null {
     return Math.min(Math.max(dateMs - nowMs, 0), MAX_RETRY_AFTER_MS);
   }
   return null;
+}
+
+// T-06-02: per-leg intraday shape guard — symbol match, min rows, finite
+// OHLC on every row, strictly ascending epoch time. Runs before any cache
+// write; errors never cache.
+export function isValidIntradayPayload(candles: IntradayCandle[], expectedSymbol: string): boolean {
+  if (!isAllowlistedSymbol(expectedSymbol)) return false;
+  if (candles.length < 5) return false;
+  for (const c of candles) {
+    if (!Number.isInteger(c.time) || !Number.isFinite(c.time)) return false;
+    if (!Number.isFinite(c.open) || !Number.isFinite(c.high) || !Number.isFinite(c.low) || !Number.isFinite(c.close)) {
+      return false;
+    }
+  }
+  for (let i = 1; i < candles.length; i++) {
+    if (candles[i].time <= candles[i - 1].time) return false;
+  }
+  return true;
 }
 
 function isValidPayload(candles: Candle[], expectedSymbol: string): boolean {
@@ -318,6 +456,132 @@ async function fetchUpstream(
   }
 
   throw lastError instanceof Error ? lastError : new UpstreamError('upstream fetch failed');
+}
+
+async function fetchIntradayUpstream(
+  now: Date,
+  fetchFn: FetchFn,
+  sleep: SleepFn,
+  symbol: Symbol,
+  interval: Interval,
+): Promise<IntradayEnvelope> {
+  // D-02/D-04: intraday legs travel the range-style path built from the
+  // server-derived RANGE_FOR_INTERVAL map — never range=max on a looped
+  // fetch. Failover, 4s timeout, jittered backoff with the Retry-After cap,
+  // and validate-then-cache semantics mirror the daily machinery legibly.
+  const path = buildPath(symbol, interval, now);
+
+  let lastError: unknown = null;
+  let failedOver = false;
+
+  for (let attempt = 0; attempt <= BASE_DELAYS_MS.length; attempt++) {
+    const host = HOSTS[attempt % HOSTS.length];
+    try {
+      const res = await fetchWithTimeout(fetchFn, `${host}${path}`);
+      if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
+        lastError = new UpstreamError(`upstream status ${res.status}`, { retryable: true, status: res.status });
+        if (attempt < BASE_DELAYS_MS.length) {
+          const retryMs = retryAfterMs(res.headers.get('Retry-After'), now.getTime());
+          await sleep(retryMs ?? jitteredDelay(BASE_DELAYS_MS[attempt]));
+        }
+        continue;
+      }
+      if (!res.ok) {
+        if (!failedOver && attempt === 0) {
+          failedOver = true;
+          lastError = new UpstreamError(`upstream status ${res.status}`, { retryable: true, status: res.status });
+          continue;
+        }
+        throw new UpstreamError(`upstream status ${res.status}`, { retryable: false, status: res.status });
+      }
+      const json: unknown = await res.json();
+      let candles: IntradayCandle[];
+      let contractHint = `${symbol} · CME`;
+      try {
+        const parsed = parseIntradayChartJson(json, symbol);
+        candles = parsed.candles;
+        contractHint = parsed.contractHint;
+      } catch {
+        lastError = new UpstreamError('upstream chart error payload', { retryable: true });
+        if (attempt < BASE_DELAYS_MS.length) {
+          await sleep(jitteredDelay(BASE_DELAYS_MS[attempt]));
+        }
+        continue;
+      }
+      if (!isValidIntradayPayload(candles, symbol)) {
+        throw new UpstreamError('upstream payload failed validation', { retryable: false });
+      }
+      return buildIntradayEnvelope(candles, now, contractHint);
+    } catch (err) {
+      if (err instanceof UpstreamError) {
+        // WR-11: branch on the structured discriminator, never message text.
+        if (!err.retryable) {
+          throw err;
+        }
+        lastError = err;
+        continue;
+      }
+      lastError = err;
+      if (attempt < BASE_DELAYS_MS.length) {
+        await sleep(jitteredDelay(BASE_DELAYS_MS[attempt]));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new UpstreamError('upstream fetch failed');
+}
+
+// D-05: the intraday leg entry point — same composite-key cache, 60s TTL,
+// 30-minute stale ceiling, per-key singleflight, and serve-only-this-leg
+// stale semantics as the daily path. Never cross-substitutes the other leg.
+export async function fetchIntraday(
+  symbol: Symbol,
+  interval: Interval,
+  now: Date,
+  fetchFn: FetchFn = fetch,
+  sleep: SleepFn = realSleep,
+): Promise<IntradayEnvelope> {
+  if (!isAllowlistedSymbol(symbol) || !isAllowlistedInterval(interval)) {
+    throw new UpstreamError(`unsupported symbol or interval: ${String(symbol)}/${String(interval)}`, {
+      retryable: false,
+    });
+  }
+  if (interval === '1d') {
+    throw new UpstreamError(`intraday leg rejects daily interval: ${String(interval)}`, { retryable: false });
+  }
+  const key = cacheKey(symbol, interval, RANGE_FOR_INTERVAL[interval]);
+
+  const cached = intradayPayloadCache.get(key);
+  if (cached && now.getTime() - cached.fetchedAt < CACHE_TTL_MS) {
+    return { ...cached.payload, candles: cached.payload.candles.map((c) => ({ ...c })), source: 'cache' };
+  }
+
+  const pending = intradayInFlight.get(key);
+  if (pending) {
+    return pending.then((env) => ({ ...env, candles: env.candles.map((c) => ({ ...c })) }));
+  }
+
+  const task = (async (): Promise<IntradayEnvelope> => {
+    try {
+      const envelope = await fetchIntradayUpstream(now, fetchFn, sleep, symbol, interval);
+      intradayPayloadCache.set(key, { payload: envelope, fetchedAt: now.getTime() });
+      return { ...envelope, candles: envelope.candles.map((c) => ({ ...c })) };
+    } catch (err) {
+      // D-06: serve only THIS leg's last-good within the ceiling; never
+      // cross-substitute the other leg's entry.
+      const warm = intradayPayloadCache.get(key);
+      const nonRetryable4xx = err instanceof UpstreamError && err.retryable === false && err.status !== undefined && err.status >= 400 && err.status < 500;
+      if (warm && !nonRetryable4xx && now.getTime() - warm.fetchedAt < MAX_STALE_MS) {
+        return { ...warm.payload, candles: warm.payload.candles.map((c) => ({ ...c })), stale: true, source: 'stale' };
+      }
+      throw err;
+    } finally {
+      intradayInFlight.delete(key);
+    }
+  })();
+
+  intradayInFlight.set(key, task);
+  return task;
 }
 
 export async function fetchSymbol(

@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetYahooCacheForTests, fetchNQDaily, fetchSymbol, parseChartJson } from '@/src/lib/yahoo';
+import {
+  __resetYahooCacheForTests,
+  fetchIntraday,
+  fetchNQDaily,
+  fetchSymbol,
+  parseChartJson,
+  parseIntradayChartJson,
+} from '@/src/lib/yahoo';
 import nullFixture from '@/src/lib/__fixtures__/yahoo-null.json';
 import esDailyFixture from '@/src/lib/__fixtures__/es-daily.json';
+import intraday1hFixture from '@/src/lib/__fixtures__/intraday-1h.json';
 import nqBaseline from '@/src/lib/__fixtures__/nq-daily-baseline.json';
 
 const DAY = 86400;
@@ -410,6 +418,92 @@ describe('yahoo resilience', () => {
     const envelope = await fetchSymbol('ES=F', '1d', now, recovery as unknown as typeof fetch, noSleep);
     expect(envelope.source).toBe('live');
     expect(envelope.candles).toHaveLength(10);
+  });
+
+  it('intraday: 1h fixture yields 30 epoch rows with forming tail and gap rows absent', () => {
+    const { candles, contractHint } = parseIntradayChartJson(intraday1hFixture, 'ES=F');
+    expect(candles).toHaveLength(30);
+    expect(contractHint).toContain('ES=F');
+    for (const c of candles) {
+      expect(Number.isInteger(c.time)).toBe(true);
+      expect(Number.isFinite(c.open)).toBe(true);
+      expect(Number.isFinite(c.high)).toBe(true);
+      expect(Number.isFinite(c.low)).toBe(true);
+      expect(Number.isFinite(c.close)).toBe(true);
+    }
+    for (let i = 1; i < candles.length; i++) {
+      expect(candles[i].time - candles[i - 1].time).toBeGreaterThanOrEqual(3600);
+    }
+    // Rows 10-11 were full nulls upstream: the surviving row after the gap
+    // must jump three hourly steps (a 2-row hole), proving the gap rows
+    // were dropped.
+    const gapJump = candles.some((c, i) => i > 0 && c.time - candles[i - 1].time === 10800);
+    expect(gapJump).toBe(true);
+    const tail = candles[candles.length - 1];
+    expect(tail.forming).toBe(true);
+    expect(candles.slice(0, -1).some((c) => c.forming)).toBe(false);
+  });
+
+  it('intraday: ES 1h envelope arrives live with ES contractHint and 30 candles', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const fetchFn = vi.fn(async () => okResponse(intraday1hFixture));
+    const envelope = await fetchIntraday('ES=F', '1h', now, fetchFn as unknown as typeof fetch, noSleep);
+    expect(envelope.source).toBe('live');
+    expect(envelope.candles).toHaveLength(30);
+    expect(envelope.contractHint).toContain('ES=F');
+    expect(envelope.stale).toBe(false);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('intraday: symbol mismatch between payload meta and request rejects', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const fetchFn = vi.fn(async () => okResponse(intraday1hFixture));
+    await expect(
+      fetchIntraday('NQ=F', '1h', now, fetchFn as unknown as typeof fetch, noSleep),
+    ).rejects.toMatchObject({ name: 'UpstreamError' });
+  });
+
+  it('intraday: out-of-order timestamps throw UpstreamError', () => {
+    const q = intraday1hFixture.chart.result[0].indicators.quote[0];
+    const shuffled = {
+      chart: {
+        error: null,
+        result: [
+          {
+            timestamp: [...intraday1hFixture.chart.result[0].timestamp],
+            meta: { symbol: 'ES=F', exchangeName: 'CME' },
+            indicators: {
+              quote: [
+                {
+                  open: [...(q.open as unknown[])],
+                  high: [...(q.high as unknown[])],
+                  low: [...(q.low as unknown[])],
+                  close: [...(q.close as unknown[])],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+    const ts = shuffled.chart.result[0].timestamp as number[];
+    const tmp = ts[5];
+    ts[5] = ts[6];
+    ts[6] = tmp;
+    expect(() => parseIntradayChartJson(shuffled, 'ES=F')).toThrowError(
+      expect.objectContaining({ name: 'UpstreamError' }),
+    );
+  });
+
+  it('intraday: NQ daily output still deep-equals the baseline after intraday legs', async () => {
+    const now = new Date('2026-02-09T12:00:00Z');
+    const json = mockYahooJson(10, 20000);
+    const fetchFn = vi.fn(async () => okResponse(json));
+    const envelope = await fetchNQDaily(now, fetchFn as unknown as typeof fetch, noSleep);
+    expect(Object.keys(envelope).sort()).toEqual(Object.keys(nqBaseline).sort());
+    expect(envelope.contractHint).toContain('NQ=F');
+    expect(envelope.candles).toHaveLength(10);
+    expect(envelope.candles.every((c) => typeof c.date === 'string')).toBe(true);
   });
 
   it('resilience: expired TTL refetches upstream', async () => {
