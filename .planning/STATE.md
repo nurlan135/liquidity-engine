@@ -1,19 +1,20 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v2.0
-milestone_name: Modul 3
+milestone_name: Modul 3 (Liquidity Sequencing & SMT)
 current_phase: 06
 current_phase_name: Dual-Symbol Proxy + Data Contracts
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-09-06T16:49:52.997Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-09-06T17:11:43.562Z"
 last_activity: 2026-09-06
 last_activity_desc: Phase 06 execution started
+state_head: 23512439592169398ccdf17b289e6d57be9cd4c4
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -29,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-06)
 ## Current Position
 
 Phase: 06 (Dual-Symbol Proxy + Data Contracts) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-09-06 — Phase 06 execution started
 
@@ -60,6 +61,11 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 06 P01 | ~25 min | 3 tasks | 7 files |
 | Phase 06 P02 | ~20 min | 2 tasks | 3 files |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 06 P03 | ~9 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -74,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 06-01: RANGE_FOR_INTERVAL pinned from live probe (1d 182d window, 1h 3mo, 15m 1mo); ES=F 1h 1800 rows, 15m 2419 rows, no truncation
 - [Phase ?]: 06-01: fetchSymbol parameterized proxy with composite cache keys and per-key singleflight; NQ default byte-identical via delegation
 - [Phase ?]: [06-02] Intraday path is a separate parse/fetch/cache lane, not a branch inside daily functions — D1 stays byte-identical
+- [Phase 06]: [06-03] Join re-validates at its own boundary (forming + non-finite OHLC dropped pre-join) rather than trusting parser flags
 
 ### Pending Todos
 
@@ -95,8 +102,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-06T16:49:52.981Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-09-06T17:11:43.518Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
