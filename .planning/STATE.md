@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 milestone_name: Live Terminal
-current_phase: 1
-current_phase_name: Data Foundation & ICT Core
-status: planning
-stopped_at: Phase 03 complete, ready to plan Phase 1
-last_updated: "2026-09-06T08:44:51.725Z"
+current_phase: "03.1"
+current_phase_name: Close gap ICT-07 banner
+status: executing
+stopped_at: Phase 03.1 inserted after Phase 3, ready to plan
+last_updated: "2026-09-06T10:07:25.343Z"
 last_activity: 2026-09-06
 last_activity_desc: Phase 03 complete, transitioned to Phase 1
-state_head: a24c1ceca47bbe5e8f95c6e814fe2f1cbf1d9adf
+state_head: af9a38cb114e72949d5035fffb9d4ce638820dc8
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 2
-  total_plans: 11
+  total_plans: 12
   completed_plans: 11
-  percent: 67
+  percent: 50
 ---
 
 # Project State
@@ -29,12 +29,12 @@ See: .planning/PROJECT.md (updated 2026-09-04)
 
 ## Current Position
 
-Phase: 1 — Data Foundation & ICT Core
+Phase: 03.1 (Close gap ICT-07 banner) — READY TO EXECUTE
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-09-06 — Phase 03 complete, transitioned to Phase 1
 
-Progress: [███████░░░] 67%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -86,6 +86,10 @@ None yet.
 
 - Yahoo v8 endpoint behavior is unofficial/unverified (MEDIUM confidence) — Phase 1 plans for UA/header set + backoff + stale-serve; see research Implications flags
 - lightweight-charts v5 zone-fill primitive unspiked — Phase 2 time-boxes a spike; fallback is bounded box overlays with null autoscale
+
+### Roadmap Evolution
+
+- Phase 03.1 inserted after Phase 3: Close gap ICT-07 banner (URGENT)
 
 ## Deferred Items
 
