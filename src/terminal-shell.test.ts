@@ -393,6 +393,52 @@ describe('terminal shell flags rollover weeks with a banner (ICT-07b)', () => {
   });
 });
 
+describe('terminal shell passes selectLevels output to the chart (ICT-02 render)', () => {
+  it('levels-prop-clean: chart stub levels prop deep-equals the selector output on the clean envelope', async () => {
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+    const props = chartCapture.props as unknown as { levels: unknown };
+    const expected = useDashboard.getState().selectLevels();
+    expect(expected).not.toBeNull();
+    expect(props.levels).toEqual(expected);
+    const finite = expected as unknown as {
+      q1: number;
+      q3: number;
+      bullOTE: { lo: number; hi: number };
+      bearOTE: { lo: number; hi: number };
+    };
+    expect(Number.isFinite(finite.q1)).toBe(true);
+    expect(Number.isFinite(finite.q3)).toBe(true);
+    expect(Number.isFinite(finite.bullOTE.lo)).toBe(true);
+    expect(Number.isFinite(finite.bullOTE.hi)).toBe(true);
+    expect(Number.isFinite(finite.bearOTE.lo)).toBe(true);
+    expect(Number.isFinite(finite.bearOTE.hi)).toBe(true);
+  });
+
+  it('levels-prop-gapped-co-render: gapped envelope keeps the banner while the stub levels prop matches the selector', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-19T12:00:00Z'));
+    const fetchFn = vi.fn(async () => Response.json(gappedEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="rollover-banner"]')).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+    const props = chartCapture.props as unknown as { levels: unknown };
+    expect(props.levels).toEqual(useDashboard.getState().selectLevels());
+    vi.useRealTimers();
+  });
+});
+
 describe('terminal shell degrades honestly without data', () => {
   it('shows the chart skeleton before the first envelope lands', async () => {
     const fetchFn = vi.fn(async () => new Promise<Response>(() => {}));

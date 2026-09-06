@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';import type { Candle } from '@/src/lib/ict/types';
-import { mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
+import type { LevelsOutput } from '@/src/lib/ict/levels';
+import { levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
 
@@ -16,6 +17,7 @@ export interface NqChartProps {
   dolName: string;
   status: NqChartStatus;
   forming: boolean;
+  levels?: LevelsOutput | null;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).
@@ -29,7 +31,7 @@ function readVar(name: string, fallback: string): string {
   return value === '' ? fallback : value;
 }
 
-export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming }: NqChartProps) {
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -37,12 +39,16 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const seriesRef = useRef<unknown>(null);
   const eqLineRef = useRef<unknown>(null);
   const dolLineRef = useRef<unknown>(null);
+  const q1LineRef = useRef<unknown>(null);
+  const q3LineRef = useRef<unknown>(null);
+  const oteBullLineRef = useRef<unknown>(null);
+  const oteBearLineRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
-  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming });
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels });
   // Sync the latest props outside render so the zone-fill getter reads live
   // values without violating the react-hooks/refs render-phase rule.
   useEffect(() => {
-    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming };
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels };
   });
 
   // Create the chart once per container; lightweight-charts loads lazily so
@@ -92,6 +98,46 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         lineStyle: LineStyle.Solid,
         title: props.dolName,
       });
+      // Quadrant/OTE lines annotate the proven selector path; null levels (or
+      // a guard throw) render no new lines and never block the chart.
+      if (props.levels !== null && props.levels !== undefined) {
+        try {
+          const levelInputs = levelLineInputs(props.levels);
+          q1LineRef.current = typed.createPriceLine({
+            price: levelInputs.q1,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Q1 0.25',
+          });
+          q3LineRef.current = typed.createPriceLine({
+            price: levelInputs.q3,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Q3 0.75',
+          });
+          oteBullLineRef.current = typed.createPriceLine({
+            price: levelInputs.oteBull,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'OTE-B 0.62-0.79',
+          });
+          oteBearLineRef.current = typed.createPriceLine({
+            price: levelInputs.oteBear,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'OTE-S 0.62-0.79',
+          });
+        } catch {
+          q1LineRef.current = null;
+          q3LineRef.current = null;
+          oteBullLineRef.current = null;
+          oteBearLineRef.current = null;
+        }
+      }
       // Attach the zone fill once; the getter always reads the latest props so
       // pan and zoom recompute from live scale coordinates on every draw.
       zoneRef.current = attachZoneFill(
@@ -135,6 +181,10 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       seriesRef.current = null;
       eqLineRef.current = null;
       dolLineRef.current = null;
+      q1LineRef.current = null;
+      q3LineRef.current = null;
+      oteBullLineRef.current = null;
+      oteBearLineRef.current = null;
     };
   }, []);
 
@@ -155,6 +205,14 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       if (live === null) return;
       if (eqLineRef.current !== null) live.removePriceLine(eqLineRef.current);
       if (dolLineRef.current !== null) live.removePriceLine(dolLineRef.current);
+      if (q1LineRef.current !== null) live.removePriceLine(q1LineRef.current);
+      if (q3LineRef.current !== null) live.removePriceLine(q3LineRef.current);
+      if (oteBullLineRef.current !== null) live.removePriceLine(oteBullLineRef.current);
+      if (oteBearLineRef.current !== null) live.removePriceLine(oteBearLineRef.current);
+      q1LineRef.current = null;
+      q3LineRef.current = null;
+      oteBullLineRef.current = null;
+      oteBearLineRef.current = null;
       const accent = readVar(VAR_ACCENT, '#00D9FF');
       const inputs = priceLineInputs(eq, dolPrice);
       eqLineRef.current = live.createPriceLine({
@@ -171,13 +229,51 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         lineStyle: LineStyle.Solid,
         title: dolName,
       });
+      if (levels !== null && levels !== undefined) {
+        try {
+          const levelInputs = levelLineInputs(levels);
+          q1LineRef.current = live.createPriceLine({
+            price: levelInputs.q1,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Q1 0.25',
+          });
+          q3LineRef.current = live.createPriceLine({
+            price: levelInputs.q3,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Q3 0.75',
+          });
+          oteBullLineRef.current = live.createPriceLine({
+            price: levelInputs.oteBull,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'OTE-B 0.62-0.79',
+          });
+          oteBearLineRef.current = live.createPriceLine({
+            price: levelInputs.oteBear,
+            color: accent,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'OTE-S 0.62-0.79',
+          });
+        } catch {
+          q1LineRef.current = null;
+          q3LineRef.current = null;
+          oteBullLineRef.current = null;
+          oteBearLineRef.current = null;
+        }
+      }
     })();
     // Recompute zone geometry on range change; stale desaturates fills.
     if (zoneRef.current !== null) {
       zoneRef.current.opacityScale = status === 'stale' ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
-  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status]);
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels]);
 
   const latest = candles.length > 0 ? candles[candles.length - 1] : null;
 

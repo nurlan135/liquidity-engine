@@ -39,6 +39,14 @@ export function TerminalShell() {
   const range = useDashboard(useShallow((s) => s.selectRange()));
   const dol = useDashboard(useShallow((s) => s.selectDOL()));
   const rollover = useDashboard(useShallow((s) => s.selectRollover()));
+  // Levels carry nested OTE pocket objects, so a useShallow subscription
+  // never settles (fresh pocket identity per call retriggers the update
+  // loop). Subscribe to the stable selector function and derive during
+  // render instead; the range/dol/rollover subscriptions above already
+  // re-render on every selectLevels input change (candles/asOfBaku move
+  // together in refresh), so the derived value never goes stale.
+  const selectLevels = useDashboard((s) => s.selectLevels);
+  const levels = selectLevels();
   // Header clocks tick locally every 10s (StatusStrip precedent); the poll
   // loop stays the single store writer — this state never touches the store.
   const [now, setNow] = useState(() => new Date());
@@ -194,6 +202,7 @@ export function TerminalShell() {
                   dolName={dol.name}
                   status={chartStatus}
                   forming={forming}
+                  levels={levels}
                 />
               ) : (
                 <div data-slot="chart-empty">
