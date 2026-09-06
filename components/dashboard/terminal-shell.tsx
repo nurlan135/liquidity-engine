@@ -12,6 +12,7 @@ import { Report } from '@/components/dashboard/report';
 import { toast } from '@/components/ui/toast';
 import { deriveStatus } from '@/src/lib/freshness';
 import { formatSessionLine } from '@/src/lib/session-line';
+import { useShallow } from 'zustand/react/shallow';
 import { useDashboard } from '@/src/lib/store';
 
 // Chart loads only on the client via the use client shell (never page.tsx).
@@ -31,13 +32,13 @@ export function TerminalShell() {
   const inFlight = useDashboard((s) => s.inFlight);
   const lastError = useDashboard((s) => s.lastError);
   const refresh = useDashboard((s) => s.refresh);
-  const selectRange = useDashboard((s) => s.selectRange);
-  const selectDOL = useDashboard((s) => s.selectDOL);
-  const selectRollover = useDashboard((s) => s.selectRollover);
-
-  const range = selectRange();
-  const dol = selectDOL();
-  const rollover = selectRollover();
+  // Derived-value subscriptions (StatusStrip useShallow precedent): re-render
+  // on any input change (candles / contractHint / asOfBaku), not just on
+  // selector-function identity. useShallow keeps the per-render fresh
+  // objects from retriggering an update loop.
+  const range = useDashboard(useShallow((s) => s.selectRange()));
+  const dol = useDashboard(useShallow((s) => s.selectDOL()));
+  const rollover = useDashboard(useShallow((s) => s.selectRollover()));
   // Header clocks tick locally every 10s (StatusStrip precedent); the poll
   // loop stays the single store writer — this state never touches the store.
   const [now, setNow] = useState(() => new Date());
