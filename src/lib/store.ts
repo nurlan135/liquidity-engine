@@ -139,8 +139,9 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
 
   selectLastClose: () => {
     const { candles } = get();
-    if (candles.length === 0) return null;
-    return candles[candles.length - 1].close;
+    const closed = closedOnly(candles);
+    if (closed.length === 0) return null;
+    return closed[closed.length - 1].close;
   },
 
   selectPosition: () => {
