@@ -86,27 +86,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-04 | TBD | Pending |
-| DATA-05 | TBD | Pending |
-| DATA-06 | TBD | Pending |
-| DATA-07 | TBD | Pending |
-| ICT-08 | TBD | Pending |
-| ICT-09 | TBD | Pending |
-| ICT-10 | TBD | Pending |
-| ICT-11 | TBD | Pending |
-| ICT-12 | TBD | Pending |
-| ICT-13 | TBD | Pending |
-| ICT-14 | TBD | Pending |
-| ICT-15 | TBD | Pending |
-| UI-05 | TBD | Pending |
-| UI-06 | TBD | Pending |
-| DEPLOY-02 | TBD | Pending |
+| DATA-04 | Phase 6 | Pending |
+| DATA-05 | Phase 6 | Pending |
+| DATA-06 | Phase 6 | Pending |
+| DATA-07 | Phase 6 | Pending |
+| ICT-08 | Phase 7 | Pending |
+| ICT-09 | Phase 7 | Pending |
+| ICT-10 | Phase 7 | Pending |
+| ICT-11 | Phase 7 | Pending |
+| ICT-12 | Phase 8 | Pending |
+| ICT-13 | Phase 8 | Pending |
+| ICT-14 | Phase 8 | Pending |
+| ICT-15 | Phase 9 | Pending |
+| UI-05 | Phase 9 | Pending |
+| UI-06 | Phase 9 | Pending |
+| DEPLOY-02 | Phase 9 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-09-06*
-*Last updated: 2026-09-06 after initial definition*
+*Last updated: 2026-09-06 after roadmap creation (Phases 6–9)*
