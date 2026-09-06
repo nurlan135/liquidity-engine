@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: Live Terminal
 current_phase: "03.1"
 current_phase_name: Close gap ICT-07 banner (INSERTED)
-status: executing
-stopped_at: Phase 03.1 inserted after Phase 3, ready to plan
-last_updated: "2026-09-06T10:08:47.643Z"
+status: verifying
+stopped_at: Completed 03.1-01-PLAN.md
+last_updated: "2026-09-06T10:31:02.539Z"
 last_activity: 2026-09-06
 last_activity_desc: Phase 03.1 execution started
-state_head: 117a5ad696ef8891e401249b28396f387c575991
+state_head: 0577e2ef93fd3f058901e0e54c634dd4e5fcbc28
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
   percent: 50
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-09-04)
 
 Phase: 03.1 (Close gap ICT-07 banner (INSERTED)) — EXECUTING
 Plan: 1 of 1
-Status: Executing Phase 03.1
+Status: Phase complete — ready for verification
 Last activity: 2026-09-06 — Phase 03.1 execution started
 
 Progress: [█████░░░░░] 50%
@@ -64,6 +64,7 @@ Progress: [█████░░░░░] 50%
 |------|----------|-------|-------|
 | Phase 01 P02 | ~35 min | 3 tasks | 11 files |
 | Phase 01 P03 | ~40 min | 3 tasks | 5 files |
+| Phase 03.1 P01 | 45 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [01-01 2026-09-05]: vitest 5.0.0 via --legacy-peer-deps (types-only @types/node peer conflict); date-fns/date-fns-tz/vite kept on disk via --no-save so manifests carry only the approved vitest addition
 - [01-01 2026-09-05]: Tracer slice green — mocked 25-candle fixture (24 valid rows) proves fetch→shape-guard→envelope→20-candle range; full ICT core + proxy resilience owned by 01-02/01-03
 - [Phase 01]: 01-02 ICT math core green: levels/bias/DOL/regime/rollover plus re-anchor table, 43/43 tests
+- [Phase 03.1]: [03.1-01] selectRollover guards atr<=0 to null (honest degrade) so thin history never false-flags
+- [Phase 03.1]: [03.1-01] Rollover banner is an inline conditional block in the chart card; NqChart props untouched
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-06T05:46:26.836Z
-Stopped at: Phase 03 complete, ready to plan Phase 1
-Resume file: .planning/phases/03-production-deploy-verification/03-CONTEXT.md
+Last session: 2026-09-06T10:31:02.053Z
+Stopped at: Completed 03.1-01-PLAN.md
+Resume file: None
