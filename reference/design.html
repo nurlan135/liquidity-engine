@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIQUIDITY ENGINE - Reference Design</title>
+<style>
+:root{--bg:#0A0A0F;--panel:#14141E;--border:rgba(255,255,255,0.08);--cyan:#00D9FF;--magenta:#FF00FF;--green:#00FF88;--text:#E4E4E7;--muted:#71717A}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;padding:16px}
+.mono{font-family:JetBrains Mono,monospace}
+.header{border:1px solid var(--border);background:var(--panel);border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.logo{color:var(--cyan);font-weight:800;letter-spacing:0.1em}
+.grid{display:grid;grid-template-columns:280px 1fr 320px;gap:12px;margin-top:12px;height:calc(100vh - 100px)}
+.panel{border:1px solid var(--border);background:var(--panel);border-radius:12px;padding:12px;overflow:auto}
+.title{font-size:11px;letter-spacing:0.1em;color:var(--muted);margin-bottom:12px}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;border:1px solid}
+.badge-cyan{border-color:var(--cyan);color:var(--cyan);background:rgba(0,217,255,0.1)}
+.badge-green{border-color:var(--green);color:var(--green);background:rgba(0,255,136,0.1)}
+.chart{height:400px;background:#0E0E12;border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="header">
+<div class="logo mono">LIQUIDITY ENGINE // NQ=F</div>
+<div class="mono" style="font-size:11px;color:var(--muted)">Baku 16:30 • NY OPEN • Confidence 82%</div>
+</div>
+<div class="grid">
+<div class="panel">
+<div class="title mono">LIQUIDITY MAP</div>
+<div class="row"><span>BSL</span><span class="mono" style="color:var(--cyan)">22120</span></div>
+<div class="row"><span>SSL</span><span class="mono" style="color:var(--magenta)">21810</span></div>
+<div class="row"><span>Dealing Range</span><span class="badge badge-cyan">PREMIUM 87%</span></div>
+<div class="row"><span>SMT NQ vs ES</span><span class="badge badge-green">BEARISH 87%</span></div>
+<div class="title mono" style="margin-top:16px">SENTIMENT</div>
+<div class="row"><span>Retail BUY</span><span>72%</span></div>
+<div class="row"><span>True AVG (ex Insta/Fibo)</span><span>BUY 72 / SELL 28</span></div>
+</div>
+<div class="panel">
+<div class="title mono">CHART - NQ=F 15M - Dealing Range + FVG + SMT Zones</div>
+<div class="chart">lightweight-charts will render here<br/>FVG boxes, OB, Dealing Range 50%</div>
+<div class="title mono" style="margin-top:12px">EXECUTION PROTOCOL</div>
+<div class="row"><span>Kill Zone</span><span class="badge badge-cyan">NY 16:30-19:00 ACTIVE</span></div>
+<div class="row"><span>Why Now?</span><span>Timing YES, Purge YES, Urgency YES</span></div>
+<div class="row"><span>OTE Zone</span><span class="mono">22030-22050 (62-79%)</span></div>
+</div>
+<div class="panel">
+<div class="title mono">INSTITUTIONAL TICKET</div>
+<div class="row"><span>Decision</span><span class="badge badge-green">EXECUTE SHORT</span></div>
+<div class="row"><span>Entry</span><span class="mono">22045</span></div>
+<div class="row"><span>SL</span><span class="mono">22125 (BSL)</span></div>
+<div class="row"><span>TP1</span><span class="mono">21920 BPR</span></div>
+<div class="row"><span>TP2</span><span class="mono">21810 SSL</span></div>
+<div class="row"><span>R/R</span><span class="mono">1:4.2</span></div>
+<div class="row"><span>Confidence</span><span class="mono" style="color:var(--cyan)">82%</span></div>
+<div class="title mono" style="margin-top:16px">FATAL FLAW</div>
+<div style="font-size:11px;color:var(--muted);line-height:1.5">Əgər 22120 BSL təmizlənməzsə bu analiz səhvdir, çünki DOL hələ alınmayıb.</div>
+</div>
+</div>
+</body>
+</html>
