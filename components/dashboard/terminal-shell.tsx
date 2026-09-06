@@ -10,7 +10,7 @@ import { SentimentPanel } from '@/components/dashboard/sentiment-panel';
 import { CalendarPanel } from '@/components/dashboard/calendar-panel';
 import { Report } from '@/components/dashboard/report';
 import { toast } from '@/components/ui/toast';
-import { deriveStatus } from '@/src/lib/freshness';
+import { deriveStatus, formatStripAge } from '@/src/lib/freshness';
 import { formatSessionLine } from '@/src/lib/session-line';
 import { useShallow } from 'zustand/react/shallow';
 import { useDashboard } from '@/src/lib/store';
@@ -64,6 +64,25 @@ export function TerminalShell() {
       chartStatus = derived === 'CLOSED' ? 'closed' : derived === 'STALE' ? 'stale' : 'live';
     } catch {
       chartStatus = 'stale';
+    }
+  }
+  // Header freshness copy derives from the same envelope truth as the strip
+  // (D-06): deriveStatus + formatStripAge against the shared 10s now tick —
+  // never a second interval, never bespoke staleness math. Falls back to the
+  // strip's loading/stale copy when the envelope is absent or unparseable.
+  let headerCopy: string;
+  let headerFreshness: 'live' | 'stale' | 'closed' | 'loading';
+  if (lastUpdatedISO === null) {
+    headerCopy = 'Yüklənir…';
+    headerFreshness = 'loading';
+  } else {
+    try {
+      const { state, ageSec } = deriveStatus({ stale, lastUpdatedISO }, now);
+      headerCopy = formatStripAge(state, ageSec);
+      headerFreshness = state.toLowerCase() as 'live' | 'stale' | 'closed';
+    } catch {
+      headerCopy = 'Canlı məlumat əlçatan deyil — son keş göstərilir.';
+      headerFreshness = 'stale';
     }
   }
 
@@ -170,8 +189,18 @@ export function TerminalShell() {
 
         <div className="overflow-auto">
           <Card data-slot="panel-center">
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between gap-3">
               <CardTitle>CHART — NQ=F D1</CardTitle>
+              <span
+                data-slot="chart-freshness"
+                data-freshness={headerFreshness}
+                className="font-mono text-[11px] tracking-widest text-muted-foreground tabular-nums"
+              >
+                {headerFreshness === 'live' ? (
+                  <span data-slot="live-dot" aria-hidden="true" className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--terminal-accent)]" />
+                ) : null}
+                {headerCopy}
+              </span>
             </CardHeader>
             <CardContent>
               {rollover !== null && (rollover.rolloverSuspect || rollover.proximityWarning !== null) ? (

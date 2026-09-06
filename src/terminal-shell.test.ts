@@ -439,6 +439,91 @@ describe('terminal shell passes selectLevels output to the chart (ICT-02 render)
   });
 });
 
+describe('terminal shell shows chart-header freshness matching the strip (W2)', () => {
+  async function headerAndStrip(container: HTMLElement) {
+    const header = container.querySelector('[data-slot="chart-freshness"]');
+    expect(header).not.toBeNull();
+    const strip = container.querySelector('[data-slot="status-strip"]');
+    expect(strip).not.toBeNull();
+    return { header: header!, strip: strip! };
+  }
+
+  // ASCII-fold so the assertion is encoding-stable: the locked Azerbaijani
+  // copy renders BAĞLIDIR with Ğ (U+011E); folding NFD mark U+0306 yields
+  // the ASCII-safe BAZAR BAGLIDIR substring the plan requires.
+  function asciiFold(s: string | null): string {
+    return (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  // deriveStatus weekend-wins on Baku Sat/Sun, so the LIVE/STALE cases pin
+  // the clock to Baku Friday noon (2026-09-04 12:00 +04:00 == 08:00Z) and
+  // stamp the envelope at the same instant (age 0).
+  function pinBakuFridayNoon() {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-04T08:00:00Z'));
+  }
+
+  it('header-freshness-live: fresh envelope shows LIVE in the header and the strip', async () => {
+    pinBakuFridayNoon();
+    const freshEnv = {
+      ...liveEnvelope(),
+      lastUpdatedISO: new Date('2026-09-04T08:00:00Z').toISOString(),
+      stale: false,
+    };
+    const fetchFn = vi.fn(async () => Response.json(freshEnv));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const { header, strip } = await headerAndStrip(container);
+    expect(header.textContent).toContain('LIVE');
+    expect(strip.textContent).toContain('LIVE');
+    expect(header.getAttribute('data-freshness')).toBe('live');
+    expect(header.querySelector('[data-slot="live-dot"]')).not.toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('header-freshness-stale: stale envelope shows STALE in the header and the strip', async () => {
+    pinBakuFridayNoon();
+    const staleEnv = {
+      ...liveEnvelope(),
+      lastUpdatedISO: new Date('2026-09-04T08:00:00Z').toISOString(),
+      stale: true,
+    };
+    const fetchFn = vi.fn(async () => Response.json(staleEnv));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const { header, strip } = await headerAndStrip(container);
+    expect(header.textContent).toContain('STALE');
+    expect(strip.textContent).toContain('STALE');
+    expect(header.getAttribute('data-freshness')).toBe('stale');
+    vi.useRealTimers();
+  });
+
+  it('header-freshness-closed: Baku Saturday noon shows BAZAR BAGLIDIR in the header and the strip', async () => {
+    vi.useFakeTimers();
+    // 2026-09-05 12:00 +04:00 (Baku Saturday noon) == 08:00Z.
+    vi.setSystemTime(new Date('2026-09-05T08:00:00Z'));
+    const closedEnv = {
+      ...liveEnvelope(),
+      lastUpdatedISO: '2026-09-04T12:00:00.000Z',
+      stale: false,
+    };
+    const fetchFn = vi.fn(async () => Response.json(closedEnv));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const { header, strip } = await headerAndStrip(container);
+    expect(asciiFold(header.textContent)).toContain('BAZAR BAGLIDIR');
+    expect(asciiFold(strip.textContent)).toContain('BAZAR BAGLIDIR');
+    expect(header.getAttribute('data-freshness')).toBe('closed');
+    vi.useRealTimers();
+  });
+});
+
 describe('terminal shell degrades honestly without data', () => {
   it('shows the chart skeleton before the first envelope lands', async () => {
     const fetchFn = vi.fn(async () => new Promise<Response>(() => {}));
