@@ -363,6 +363,34 @@ describe('terminal shell flags rollover weeks with a banner (ICT-07b)', () => {
     expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
     vi.useRealTimers();
   });
+
+  it('banner-absent-on-clean: clean 20-candle fixture renders no rollover-banner element', async () => {
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="rollover-banner"]')).toBeNull();
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+  });
+
+  it('flag-and-continue-co-render: gapped fixture shows banner plus chart stub plus report in one render', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-19T12:00:00Z'));
+    const fetchFn = vi.fn(async () => Response.json(gappedEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="rollover-banner"]')).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="nq-chart-stub"]')).not.toBeNull();
+    expect(shell!.querySelector('[data-slot="report"]')).not.toBeNull();
+    vi.useRealTimers();
+  });
 });
 
 describe('terminal shell degrades honestly without data', () => {

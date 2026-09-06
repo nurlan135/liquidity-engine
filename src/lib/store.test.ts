@@ -208,5 +208,107 @@ describe('store: selectRollover flags rollover-week envelopes (ICT-07a)', () => 
     expect(flag!.contractHint).toBe('NQ=F · CME');
     expect(flag!.proximityWarning).toMatch(/rollover week/i);
   });
+
+  it('boundary-clear: gap exactly equal to 3xATR leaves the flag clear', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const { computeRegime } = await import('@/src/lib/ict/regime');
+    // Full-history trend for a finite ATR, then craft the final close so the
+    // close-to-close gap equals exactly 3xATR (strict > tripwire stays clear).
+    const candles = gappedCandles();
+    const atr = computeRegime(candles.slice(0, -1)).atr;
+    expect(Number.isFinite(atr) && atr > 0).toBe(true);
+    const prev = candles[candles.length - 2];
+    const last = candles[candles.length - 1];
+    candles[candles.length - 1] = {
+      ...last,
+      high: Math.max(last.high, prev.close + 3 * atr),
+      close: prev.close + 3 * atr,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    useDashboard.setState({ asOfBaku: '2026-01-25' });
+
+    const flag = useDashboard.getState().selectRollover();
+    expect(flag).not.toBeNull();
+    expect(flag!.rolloverSuspect).toBe(false);
+  });
+
+  it('thin-history-null: about 5 closed candles degrade to null without throwing', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = fixtureCandles().filter((c) => !c.forming).slice(0, 5);
+    expect(candles).toHaveLength(5);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    let flag: unknown = 'unset';
+    expect(() => {
+      flag = useDashboard.getState().selectRollover();
+    }).not.toThrow();
+    expect(flag).toBeNull();
+  });
+
+  it('empty-null: empty candles return null without throwing', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    useDashboard.setState({ candles: [], contractHint: 'NQ=F · CME', asOfBaku: '2026-03-19' });
+
+    let flag: unknown = 'unset';
+    expect(() => {
+      flag = useDashboard.getState().selectRollover();
+    }).not.toThrow();
+    expect(flag).toBeNull();
+  });
+
+  it('hint-passthrough: returned hint equals the seeded envelope hint exactly', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = gappedCandles();
+    const envelope = { ...mockEnvelope(candles), contractHint: 'NQ=F · CME CUSTOM' };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(envelope)),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    useDashboard.setState({ asOfBaku: '2026-01-25' });
+
+    const flag = useDashboard.getState().selectRollover();
+    expect(flag).not.toBeNull();
+    expect(flag!.contractHint).toBe('NQ=F · CME CUSTOM');
+  });
+
+  it('proximity-pair: near date warns while far date stays null', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+
+    const seed = async () => {
+      const candles = gappedCandles();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => Response.json(mockEnvelope(candles))),
+      );
+      await useDashboard.getState().refresh();
+      vi.unstubAllGlobals();
+    };
+
+    await seed();
+    useDashboard.setState({ asOfBaku: '2026-03-19' });
+    const near = useDashboard.getState().selectRollover();
+    expect(near).not.toBeNull();
+    expect(near!.proximityWarning).toMatch(/rollover week/i);
+
+    await seed();
+    useDashboard.setState({ asOfBaku: '2026-01-25' });
+    const far = useDashboard.getState().selectRollover();
+    expect(far).not.toBeNull();
+    expect(far!.proximityWarning).toBeNull();
+  });
 });
 
