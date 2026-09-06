@@ -40,10 +40,20 @@ pass "WARMUP"
 headers=$(curl -sSI "$API" || true)
 cc_line=$(printf '%s\n' "$headers" | grep -i '^cache-control:' | tail -1 || true)
 cc_value=$(printf '%s' "$cc_line" | sed 's/^[Cc]ache-[Cc]ontrol:[[:space:]]*//')
-echo "$cc_value" | grep -qi 's-maxage=60' \
-  || fail "HEADERS" "cache-control missing s-maxage=60 (got: '$cc_value')"
-echo "$cc_value" | grep -qi 'stale-while-revalidate=30' \
-  || fail "HEADERS" "cache-control missing stale-while-revalidate=30 (got: '$cc_value')"
+# CDN fingerprint first: Vercel consumes s-maxage/SWR at the edge and forwards
+# only `public` to the browser by design, so the raw-value assertions below can
+# only hold on non-Vercel origins (local `next start`). When x-vercel-cache is
+# present the edge proof is MISS-to-HIT progression plus the Age header instead.
+vcache_probe=$(printf '%s\n' "$headers" | grep -i '^x-vercel-cache:' | tail -1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r' || true)
+age_probe=$(printf '%s\n' "$headers" | grep -i '^age:' | tail -1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r' || true)
+if [ -n "$vcache_probe" ]; then
+  echo "SKIP HEADERS-RAW (Vercel strips s-maxage/SWR at the edge by design; asserting CDN progression instead)"
+else
+  echo "$cc_value" | grep -qi 's-maxage=60' \
+    || fail "HEADERS" "cache-control missing s-maxage=60 (got: '$cc_value')"
+  echo "$cc_value" | grep -qi 'stale-while-revalidate=30' \
+    || fail "HEADERS" "cache-control missing stale-while-revalidate=30 (got: '$cc_value')"
+fi
 # Fresh and stale/502 branches must disagree (route.ts branch-split contract):
 # fresh serves s-maxage+SWR, stale/502 serve no-store. The live fresh body
 # below asserts stale strictly false, so this header pair belongs to fresh.
@@ -61,6 +71,15 @@ else
     HIT|STALE) ;;
     *) fail "HEADERS" "expected x-vercel-cache MISS-then-HIT-or-STALE, got first='$vcache1' second='$vcache2'" ;;
   esac
+  # Edge proof part two: a cache HIT/STALE must carry an Age header.
+  age2=$(printf '%s\n' "$headers2" | grep -i '^age:' | tail -1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r' || true)
+  if [ -z "$age2" ]; then
+    # First response may be a MISS with no Age yet; re-check against the warm edge.
+    headers3=$(curl -sSI "$API" || true)
+    age2=$(printf '%s\n' "$headers3" | grep -i '^age:' | tail -1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r' || true)
+    [ -n "$age2" ] || fail "HEADERS" "x-vercel-cache present but no Age header on the warm edge"
+  fi
+  echo "edge progression: first='$vcache1' second='$vcache2' age='$age2' (raw cc='$cc_value')"
 fi
 pass "HEADERS"
 
