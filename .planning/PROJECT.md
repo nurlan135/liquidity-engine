@@ -24,7 +24,10 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 
 ### Active
 
-- [ ] v2 scope to be defined via `/gsd-new-milestone` (candidates: Modules 3–4 structure/execution, real sentiment/calendar APIs, intraday LTF, multi-symbol)
+- [ ] Modul 3 SMT divergence (NQ vs ES): swing müqayisəsi, divergence siqnalı — v2.0
+- [ ] Modul 3 internal/external keçid məntiqi (4H/1H) — v2.0
+- [ ] Modul 3 tam AMD: Asia Range + London/NY Judas Swing — v2.0
+- [ ] Hesabat §3 canlı (Modul 3 nəticələri ilə) — v2.0
 
 ### Out of Scope
 
@@ -77,17 +80,17 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [03.2] Pre-existing tsc LayoutProps error left untouched | From commit 3a3a1cb in app/layout.tsx, outside every 03.2 plan's files and scope | ⚠ Noted residual for a later phase |
 | [03.2] UAT visual glance passes: Q1/OTE lines legible | Canvas legibility judged by human per plan coverage D3 | ✓ 03.2-UAT 1/1 pass |
 
-## Current Milestone: v1.0 Live Terminal
+## Current Milestone: v2.0 Modul 3
 
-**Goal:** Live dark-terminal dashboard proving correct D1 Premium/Discount positioning on real NQ data.
+**Goal:** NQ vs ES SMT divergence və tam AMD (Asia Range + London/NY Judas) ilə 4H/1H likvidlik sekvensiyası — hesabat §3 canlı.
 
 **Target features:**
-- Yahoo Finance proxy with 60s cache + 429 backoff
-- D1 Dealing Range pure-function core in `src/lib/ict`
-- Candlestick chart with zone overlays
-- 3-panel terminal shell + rule-based report shell
-- Sentiment/calendar fixtures, Zustand store, Baku timezone
-- Vercel deployment with cache/backoff/timezone verified
+- ES=F proxy genişlənməsi (NQ ilə eyni Yahoo proxy-dən, 60s cache + serve-stale)
+- 4H/1H internal/external keçid məntiqi (`src/lib/ict` pure functions)
+- SMT divergence: NQ vs ES swing müqayisəsi + accumulation/distribution siqnalı
+- Tam AMD: Asia Range + London/NY Judas Swing detection (Baku-aware sessiya saatları)
+- Hesabat §3 canlı (Modul 3 nəticələri ilə), chart-da Asia Range overlay
+- Vercel deploy + verify (cache, timezone, §3 render)
 
 ## Evolution
 
@@ -107,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-06 after Phase 03.2*
+*Last updated: 2026-09-06 after v2.0 milestone start*
