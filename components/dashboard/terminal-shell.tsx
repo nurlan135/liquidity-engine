@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { CalendarPanel } from '@/components/dashboard/calendar-panel';
 import { Report } from '@/components/dashboard/report';
 import { toast } from '@/components/ui/toast';
 import { deriveStatus } from '@/src/lib/freshness';
+import { formatSessionLine } from '@/src/lib/session-line';
 import { useDashboard } from '@/src/lib/store';
 
 // Chart loads only on the client via the use client shell (never page.tsx).
@@ -35,6 +36,13 @@ export function TerminalShell() {
 
   const range = selectRange();
   const dol = selectDOL();
+  // Header clocks tick locally every 10s (StatusStrip precedent); the poll
+  // loop stays the single store writer — this state never touches the store.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 10_000);
+    return () => clearInterval(id);
+  }, []);
   const forming = candles.length > 0 && candles[candles.length - 1].forming === true;
   // Chart overlay state derives from the same envelope truth as the strip:
   // weekend envelopes keep last closed candles with the closed ribbon.
@@ -78,6 +86,9 @@ export function TerminalShell() {
     <div data-slot="terminal-shell" className="flex min-h-full flex-col gap-3 p-4">
       <header data-slot="terminal-header" className="flex items-center justify-between rounded-xl px-4 py-3">
         <span className="font-mono text-sm font-semibold tracking-widest">LIQUIDITY ENGINE // NQ=F</span>
+        <span data-slot="session-line" className="font-mono text-[11px] text-muted-foreground tabular-nums">
+          {formatSessionLine(now)}
+        </span>
         <Button onClick={() => void refresh()} disabled={inFlight} data-slot="refresh-button">
           {inFlight ? <RefreshCw aria-hidden="true" className="animate-spin" /> : <RefreshCw aria-hidden="true" />}
           Yenilə
