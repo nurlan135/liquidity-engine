@@ -9,7 +9,7 @@ Requirements for milestone v2.0 Modul 3 (Liquidity Sequencing & SMT). Each maps 
 
 ### Data Feed (dual-symbol + intraday)
 
-- [ ] **DATA-04**: User receives ES=F daily candles via parameterized `GET /api/yahoo?symbol=&interval=` proxy with per-combo cache keys, allowlists, singleflight (NQ pipe untouched)
+- [x] **DATA-04**: User receives ES=F daily candles via parameterized `GET /api/yahoo?symbol=&interval=` proxy with per-combo cache keys, allowlists, singleflight (NQ pipe untouched)
 - [ ] **DATA-05**: User receives NQ + ES intraday candles (1H and 15M) with intraday epoch contract — forming candle excluded, pre-join incomplete rows dropped, coverage diagnostics surfaced
 - [ ] **DATA-06**: Dual-symbol polling is staggered (NQ :00 / ES :30 + jitter) with per-symbol stale envelopes — SMT refuses when either leg is stale, never merged `stale` boolean
 - [ ] **DATA-07**: NQ/ES candles are timestamp inner-joined before any cross-symbol comparison — no index-zipped alignment, misaligned rows never compared
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-04 | Phase 6 | Pending |
+| DATA-04 | Phase 6 | Complete |
 | DATA-05 | Phase 6 | Pending |
 | DATA-06 | Phase 6 | Pending |
 | DATA-07 | Phase 6 | Pending |
@@ -103,6 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-02 | Phase 9 | Pending |
 
 **Coverage:**
+
 - v2.0 requirements: 15 total
 - Mapped to phases: 15
 - Unmapped: 0
