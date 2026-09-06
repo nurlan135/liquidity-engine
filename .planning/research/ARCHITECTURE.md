@@ -1,334 +1,272 @@
-# Architecture Patterns: ICT Liquidity Execution Terminal
+# Architecture Research: v2.0 Modul 3 (Liquidity Sequencing & SMT)
 
-**Domain:** Next.js trading-dashboard (NQ futures, ICT dealing-range terminal)
-**Researched:** 2026-09-04
-**Overall confidence:** HIGH for framework patterns (Context7 official docs), MEDIUM for Yahoo-proxy specifics (upstream rate-limits unverified, Firecrawl throttled)
+**Domain:** Brownfield extension — dual-symbol intraday ICT analytics on an existing single-symbol daily terminal
+**Researched:** 2026-09-06
+**Confidence:** HIGH (codebase read directly: store, proxy, chart, report, time, freshness; Yahoo interval semantics + ICT killzone windows verified via web)
 
-## Recommended Architecture
+## Standard Architecture (existing v1.0 — do not redesign)
 
-Single Next.js 16 App Router app. Thin server proxy layer, fat pure-math core, single client terminal island. No backend, no DB, no auth in Phase 1.
+### System Overview
 
 ```
-                          ┌─────────────────────────────────┐
-                          │  Yahoo Finance (upstream)        │
-                          │  query1.finance.yahoo.com/v8    │
-                          └───────────────┬─────────────────┘
-                                          │ HTTPS, server-only
-              ┌───────────────────────────▼───────────────────────────┐
-              │  Route Handlers (server, Node runtime)                 │
-              │  app/api/yahoo/route.ts   60s TTL + 429 backoff        │
-              │  app/api/sentiment/route.ts  fixture-backed contract   │
-              │  app/api/calendar/route.ts   fixture-backed contract   │
-              └───────┬───────────────────────────┬───────────────────┘
-                      │ JSON (Cache-Control:      │ JSON fixtures
-                      │ s-maxage=60, SWR)         │ (replaceable later)
-      ┌───────────────▼────────────┐  ┌───────────▼────────────┐
-      │  RSC shell                  │  │  Client terminal island │
-      │  app/page.tsx + layout.tsx  │  │  'use client'           │
-      │  static header/panels frame │  │  polling + Zustand      │
-      └───────────────┬────────────┘  └───────────┬────────────┘
-                      │ props/initial data        │ selectors
-      ┌───────────────▼───────────────────────────▼────────────┐
-      │  Zustand store (client only)                            │
-      │  src/store/useTerminalStore.ts                          │
-      └───────────────┬─────────────────────────────────────────┘
-                      │ raw state in, derived data via selectors
-      ┌───────────────▼─────────────────────────────────────────┐
-      │  Pure core (no I/O, no Date.now, importable anywhere)    │
-      │  src/lib/ict/*  +  src/lib/time.ts  +  src/fixtures/*    │
-      └─────────────────────────────────────────────────────────┘
-                      │
-      ┌───────────────▼─────────────────────────────────────────┐
-      │  Chart island (dynamic, ssr:false, canvas)               │
-      │  components/chart/CandleChart.tsx (lightweight-charts v5)│
-      └─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  CLIENT (Next.js 16 App Router, 'use client' TerminalShell)      │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐  │
+│  │ StatusStrip /│  │ NqChart      │  │ Report (§2 live,      │  │
+│  │ Sentiment /  │  │ (lightweight │  │  §3 UNAVAILABLE) +    │  │
+│  │ Calendar     │  │  charts v5,  │  │ module-3 / smt-row    │  │
+│  │ panels       │  │  ZoneFill    │  │ UNAVAILABLE cards     │  │
+│  │              │  │  Primitive)  │  │                       │  │
+│  └──────┬───────┘  └──────┬───────┘  └───────────┬───────────┘  │
+│         │                 │                      │               │
+│         └─────────────────┴──────────────────────┘               │
+│                           │ subscribe (selectors)                │
+├───────────────────────────┴──────────────────────────────────────┤
+│  STATE — src/lib/store.ts (Zustand 5, single store)              │
+│  candles[] · contractHint · stale · scenario · asOfBaku          │
+│  selectRange/selectBias/selectDOL/selectRegime/selectLevels/     │
+│  selectRollover → all delegate to src/lib/ict pure functions    │
+├──────────────────────────────────────────────────────────────────┤
+│  LOGIC — src/lib/ict/* (pure: no I/O, no Date.now, inject time)  │
+│  range · bias · dol · regime · rollover · levels · types         │
+│  MAPPERS — chart-mapper.ts · zone-bands.ts · freshness.ts ·      │
+│  session-line.ts · report.ts (constants) · time.ts (Baku/CME tz) │
+├──────────────────────────────────────────────────────────────────┤
+│  SERVER — app/api/yahoo/route.ts → src/lib/yahoo.ts              │
+│  NQ=F hardcoded · query1→query2 failover · backoff · serve-stale │
+│  60s CDN TTL · 15s maxDuration · per-instance Map cache          │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Opinionated rule: all ICT math lives in `src/lib/ict` and never touches `fetch`, `Date.now()`, `Intl`, or Zustand.** Everything else is a replaceable adapter around that core. This is what makes the dealing-range logic testable and monorepo-extractable later.
+Poll loop: `TerminalShell` owns the single 60s visibility-gated interval, calls `refresh()` (client singleflight via `inFlight`), which GETs `/api/yahoo` with `cache: no-store` and lets the server/CDN cache absorb the cost.
 
-### Component Boundaries
+### Component Responsibilities
 
-| Component | Path | Responsibility | Communicates With |
-|-----------|------|----------------|-------------------|
-| Yahoo proxy route | `app/api/yahoo/route.ts` | Upstream fetch, 60s in-memory TTL, 429 exponential backoff, response shaping to `Candle[]` | Yahoo upstream (out); client fetcher (in). Nothing else imports it |
-| Sentiment/calendar routes | `app/api/sentiment/route.ts`, `app/api/calendar/route.ts` | Serve fixture JSON behind the same contract real APIs will use later | Fixtures (read); client fetcher (serve) |
-| RSC page shell | `app/page.tsx` | Static 3-panel frame, header, unavailable-state markers; embeds client island | Layout, TerminalShell |
-| Terminal island | `components/terminal/TerminalShell.tsx` (`'use client'`) | Polling loop, store hydration, panel composition, Baku clock | Store, fetcher, 3 panels |
-| Liquidity panel (left) | `components/terminal/LiquidityPanel.tsx` | BSL/SSL, dealing-range badge, sentiment rows; pure render from store selectors | Store only |
-| Chart panel (center) | `components/terminal/ChartPanel.tsx` | Owns dynamic chart import, zone overlay props, execution-protocol strip | Store + CandleChart |
-| Ticket panel (right) | `components/terminal/TicketPanel.tsx` | Decision, entry/SL/TP, R/R, confidence, fatal-flaw | Store only |
-| Report shell | `components/terminal/ReportShell.tsx` | 6-section institutional report; sections 1,3–6 render unavailable markers in Phase 1 | Store (Module 2 section live) |
-| Candle chart | `components/chart/CandleChart.tsx` | lightweight-charts lifecycle only: create, setData, price lines, destroy | Receives `candles + levels` props; emits nothing (no store import) |
-| Chart loader | `components/chart/CandleChart.dynamic.ts` or inline `dynamic()` | `ssr:false` boundary + loading skeleton | Next dynamic boundary |
-| Zustand store | `src/store/useTerminalStore.ts` | Raw client state: symbol, timeframe, candles, status, sentiment, dealing-range inputs | Fetcher (writes), panels/chart (reads via selectors) |
-| ICT pure core | `src/lib/ict/*` | Dealing-range math, sentiment True AVG, DOL/bias, confidence inputs | Called by selectors and report builder; imports types + fixtures types only |
-| Time helper | `src/lib/time.ts` | `Asia/Baku` formatting via date-fns-tz; session/kill-zone checks take injected `nowMs` | Called by components and ict callers, never inside ict core |
-| Fixtures | `src/fixtures/sentiment.json`, `calendar.json` | ForexFactory + Myfxbook mocks; broker-exclusion flags | Imported by sentiment route and unit tests |
-| Fetcher | `src/lib/fetcher.ts` | Single `fetchYahooCandles()` + `fetchSentiment()` with `cache:'no-store'` (server TTL owns caching) | Routes (calls), store hydration (feeds) |
+| Component | Responsibility | Modul 3 impact |
+|-----------|----------------|----------------|
+| `app/api/yahoo/route.ts` | Upstream fetch, cache headers | MODIFY — parameterize by symbol+interval |
+| `src/lib/yahoo.ts` | Failover/backoff/stale/cache, NQ-hardcoded | MODIFY — multi-symbol, multi-interval, per-key cache |
+| `src/lib/store.ts` | Candles + derived selectors | MODIFY — ES + intraday slices, new selectors |
+| `src/lib/ict/*` | Pure domain math | EXTEND — new files, touch nothing existing |
+| `src/lib/chart-mapper.ts` | Proxy → chart row mapping | EXTEND — intraday epoch mapping |
+| `components/charts/nq-chart.tsx` | Candles + zone/level lines | MODIFY — Asia overlay primitive, second series (ES swing markers optional) |
+| `components/charts/zone-primitive.ts` | Zone fill pattern | EXTEND — sibling session-overlay primitive, same pattern |
+| `components/dashboard/terminal-shell.tsx` | Poll loop, panel wiring | MODIFY — parallel fetch, un-dim module-3/smt cards |
+| `components/dashboard/report.tsx` | §2 live, §3 unavailable | MODIFY — §3 live block, §2 delivery-cycle line dynamic |
+| `src/lib/report.ts` | Section-state constants | MODIFY — one flag flip (`index: 3 → live`) |
+| `src/lib/time.ts` | Baku/CME tz helpers | EXTEND — add `America/New_York` tz (see Pitfall 1) |
 
-### Data Flow
-
-One direction, no cycles:
-
-1. **Upstream → proxy:** Route handler `GET /api/yahoo?symbol=NQ=F&range=6mo&interval=1d` checks module-level `Map<string,{data,expiresAt}>`. Cache hit (<60s) → return immediately with `X-Cache: HIT`. Miss → `fetch` Yahoo with `cache:'no-store'`, 3 retries on 429/5xx with backoff (600ms → 1200ms → 2400ms + jitter), then shape to `Candle[] {time, open, high, low, close}` and store with `expiresAt = now + 60_000`. Exhausted → `429 + {error, retryAfter}` so the client shows stale-data state instead of crashing.
-2. **Proxy → client:** `TerminalShell` polls with `setInterval(60_000)` + `visibilitychange` guard (no poll when tab hidden). Fetch uses `cache:'no-store'` so the browser never double-caches; the 60s TTL lives in exactly one place (the route). Response sets `store.setCandles()` / `store.setStatus()`.
-3. **Store → derived math:** Nothing stores computed Premium/Discount. Selectors call pure functions at render: `selectDealingRange = (s) => computeDealingRange(s.candles)` and `selectReportModule2 = (s) => buildModule2Report(...)`. Raw candles in, derived levels out, every render deterministic.
-4. **Derived → chart:** `ChartPanel` maps `dealingRange {rangeHigh, rangeLow, equilibrium, premiumBoundary, discountBoundary}` to `createPriceLine` overlays + shaded premium/discount zones (two histogram/area helper series or lightweight-charts v5 primitives). Chart never fetches and never imports the store — props in, canvas out.
-5. **Fixtures → sentiment:** `/api/sentiment` returns fixture rows; `computeTrueAverage(rows)` (pure, in `src/lib/ict/sentiment.ts`) drops Insta/FiboGroup unless symbol is XAUUSD, computes BUY/SELL, sets `crowdedSide` flag at >60%. Same function runs in unit tests against the same fixture file.
-
-Polling, cache TTL, and backoff constants live in one place each: `POLL_MS` in the island, `CACHE_TTL_MS` in the route, `BACKOFF_MS[]` in the route. Duplicating any of them across client and server is the fastest way to get stampeding Yahoo 429s.
-
-## Patterns to Follow
-
-### Pattern 1: Route proxy with module-level TTL + backoff (not fetch-cache)
-
-**What:** Keep Yahoo caching in a module-scoped `Map`, not in Next's `fetch` cache or `revalidate`. Yahoo 429s need retry semantics Next's cache does not provide.
-
-**When:** Every upstream-proxied GET in this project.
-
-**Example:**
-
-```typescript
-// app/api/yahoo/route.ts
-export const dynamic = 'force-dynamic'; // never prerender; query params make it dynamic anyway
-export const runtime = 'nodejs'; // module-level Map persists per warm instance
-
-const TTL_MS = 60_000;
-const cache = new Map<string, { data: Candle[]; expiresAt: number }>();
-
-export async function GET(req: NextRequest) {
-  const symbol = req.nextUrl.searchParams.get('symbol') ?? 'NQ=F';
-  const key = `d1:${symbol}`;
-  const hit = cache.get(key);
-  if (hit && hit.expiresAt > Date.now()) {
-    return Response.json({ symbol, candles: hit.data, cached: true },
-      { headers: { 'X-Cache': 'HIT', 'Cache-Control': 's-maxage=60, stale-while-revalidate=30' } });
-  }
-  const candles = await fetchYahooWithBackoff(symbol); // throws on exhausted 429
-  cache.set(key, { data: candles, expiresAt: Date.now() + TTL_MS });
-  return Response.json({ symbol, candles, cached: false },
-    { headers: { 'X-Cache': 'MISS', 'Cache-Control': 's-maxage=60, stale-while-revalidate=30' } });
-}
-
-async function fetchYahooWithBackoff(symbol: string, attempt = 0): Promise<Candle[]> {
-  const res = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=6mo&interval=1d`,
-    { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0' } }
-  );
-  if (res.status === 429 && attempt < 3) {
-    await sleep(600 * 2 ** attempt + Math.random() * 250);
-    return fetchYahooWithBackoff(symbol, attempt + 1);
-  }
-  if (!res.ok) throw new UpstreamError(res.status);
-  return shapeYahooResponse(await res.json());
-}
-```
-
-Note on `force-dynamic`: reading `request.nextUrl` already forces dynamic rendering; the explicit export documents intent (this route must never be statically optimized) per Next docs. Do not use `force-static` here — that is for cacheable GETs without request data, the opposite of this proxy.
-
-### Pattern 2: Dynamic chart island with hard client boundary
-
-**What:** `CandleChart` is a plain `'use client'` component imported via `next/dynamic` with `ssr:false` and a skeleton fallback. The parent `ChartPanel` stays SSR-safe and only passes serializable props.
-
-**When:** Always for lightweight-charts (it touches `window`, canvas, ResizeObserver at construction).
-
-**Example:**
-
-```typescript
-// components/terminal/ChartPanel.tsx
-'use client';
-import dynamic from 'next/dynamic';
-const CandleChart = dynamic(() => import('@/components/chart/CandleChart'), {
-  ssr: false,
-  loading: () => <div className="chart-skeleton">Loading chart…</div>,
-});
-// <CandleChart candles={candles} levels={dealingRange} />
-```
-
-```typescript
-// components/chart/CandleChart.tsx  (v5 API — addSeries, not addCandlestickSeries)
-'use client';
-import { useEffect, useRef } from 'react';
-import { createChart, CandlestickSeries, LineStyle } from 'lightweight-charts';
-
-export default function CandleChart({ candles, levels }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const chart = createChart(ref.current!, { layout: { background: { color: '#0E0E12' } } });
-    const series = chart.addSeries(CandlestickSeries, { upColor: '#00FF88', downColor: '#FF00FF' });
-    series.setData(candles);
-    const lines = [levels.rangeHigh, levels.equilibrium, levels.rangeLow].map((price) =>
-      series.createPriceLine({ price, color: '#00D9FF', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '' })
-    );
-    const ro = new ResizeObserver(([e]) => chart.applyOptions({ width: e.contentRect.width }));
-    ro.observe(ref.current!);
-    return () => { ro.disconnect(); chart.remove(); }; // non-negotiable cleanup
-  }, [candles, levels]);
-  return <div ref={ref} className="h-[400px] w-full" />;
-}
-```
-
-v5 breaking change to respect: `chart.addCandlestickSeries()` is gone; it is `chart.addSeries(CandlestickSeries, opts)`. Any v4 tutorial code must be migrated.
-
-### Pattern 3: Zustand single store, thin state + selector-derived math
-
-**What:** One `create<TerminalState>()` store holding only raw inputs. All ICT outputs are selectors, not stored fields. Components subscribe to single slices so the 60s candle refresh does not re-render all three panels.
-
-**When:** All dashboard state. No Context, no Redux, no per-panel stores (project constraint).
-
-**Example:**
-
-```typescript
-// src/store/useTerminalStore.ts
-import { create } from 'zustand';
-
-interface TerminalState {
-  symbol: string; timeframe: 'D1';
-  candles: Candle[]; status: 'live' | 'stale' | 'error'; lastUpdatedMs: number | null;
-  sentiment: SentimentRow[] | null;
-  setCandles: (c: Candle[]) => void;
-  setStatus: (s: TerminalState['status']) => void;
-}
-
-export const useTerminalStore = create<TerminalState>()((set) => ({
-  symbol: 'NQ=F', timeframe: 'D1',
-  candles: [], status: 'live', lastUpdatedMs: null, sentiment: null,
-  setCandles: (candles) => set({ candles, lastUpdatedMs: Date.now(), status: 'live' }),
-  setStatus: (status) => set({ status }),
-}));
-
-// selectors (colocated in src/store/selectors.ts):
-export const selectCandles = (s: TerminalState) => s.candles;
-export const selectDealingRange = (s: TerminalState) =>
-  s.candles.length ? computeDealingRange(s.candles) : null; // pure call, not stored
-```
-
-Usage discipline: `useTerminalStore(selectCandles)` per component — never `useTerminalStore()` bare (that subscribes to everything). Zustand v5 + React 19 needs no middleware for this shape; skip `subscribeWithSelector`/persist until a proven need.
-
-### Pattern 4: Pure ICT core with injected time
-
-**What:** `src/lib/ict/` exports deterministic functions. Current time, timezone, and locale formatting are parameters, never internals.
-
-**When:** Every line of dealing-range, sentiment, and report logic.
-
-**Layout:**
+## Recommended Project Structure (new files only)
 
 ```
 src/lib/ict/
-  types.ts          Candle, DealingRange, Bias, SentimentRow, DOL
-  dealing-range.ts  computeDealingRange(candles): swingHigh/Low, equilibrium, premium/discount %, position
-  sentiment.ts      computeTrueAverage(rows, { excludeBrokers }): TrueAvg + crowdedSide flag
-  report.ts         buildModule2Section(dealingRange, sentiment, nowMs): report section 2 content
-  index.ts          barrel re-exports only
-src/lib/time.ts     formatBaku(ms), isKillZone(nowMs, zone), sessionOfDay(nowMs)  (date-fns-tz, Asia/Baku)
-src/fixtures/
-  sentiment.json    { source, brokers: [{name, buyPct, sellPct}] }
-  calendar.json     [{ event, impact, startsAt }]
+├── range.ts bias.ts dol.ts regime.ts rollover.ts levels.ts types.ts  # UNTOUCHED
+├── swings.ts        # NEW — fractal swing detection findSwings(candles, k)
+├── smt.ts           # NEW — detectSMT(nqSwings, esSwings) → divergence signal
+├── transition.ts    # NEW — classifyTransition(h4, h1, d1Range) → internal/external state
+├── sessions.ts      # NEW — Asia Range + Judas Swing detection (NY-anchored, tz-injected)
+└── aggregate.ts     # NEW — aggregateTo4H(h1Candles, tz) 60m→4H synthesis
+src/lib/
+├── yahoo.ts         # MODIFY — SYMBOLS allowlist, interval param, per-key cache
+├── store.ts         # MODIFY — esCandles, nqH1, nqM15, esH1 slices + selectors
+├── chart-mapper.ts  # EXTEND — mapIntradayToSeries (epoch passthrough)
+├── session-overlay.ts # NEW — Asia high/low band builder (zone-bands.ts sibling)
+└── time.ts          # EXTEND — NY_TZ constant + session helpers
+components/charts/
+├── nq-chart.tsx       # MODIFY — props + Asia primitive attach
+└── asia-primitive.ts  # NEW — clone of ZoneFillPrimitive geometry, time-window bands
 ```
 
+### Structure Rationale
+
+- **`ict/` stays append-only.** Existing selectors are proven on live data; Modul 3 adds files, never edits `range.ts`/`bias.ts`/`dol.ts`. A regression in D1 math would silently corrupt §2 — the one thing v1.0 guarantees.
+- **One pure function per ICT concept.** `swings` → `smt`, `aggregate` → `transition`, `sessions` → AMD. Each is independently unit-testable with fixture candles, same as the v1.0 `*.test.ts` precedent (133/133 green).
+- **Overlay primitives mirror, don't fork.** `asia-primitive.ts` copies the `ZoneFillPrimitive` attach/detach/`updateBands` skeleton; the sanctioned `buildZoneOverlayFallback` LineSeries-pair pattern in `zone-primitive.ts` is the time-boxed fallback if the primitive spikes.
+
+## Architectural Patterns
+
+### Pattern 1: Parameterized proxy, per-(symbol, interval) cache keys
+
+**What:** `GET /api/yahoo?symbol=NQ=F|ES=F&interval=1d|60m|15m` (default `NQ=F,1d` = backward compatible). `yahoo.ts` replaces the single `CACHE_KEY = 'NQ=F:D1'` with `` `${symbol}:${interval}` `` keys in both `payloadCache` and `inFlight` maps; `SYMBOL`/`ENCODED_SYMBOL` constants become an allowlist `{ 'NQ=F': 'NQ%3DF', 'ES=F': 'ES%3DF' }` with symbol-mismatch guard per key.
+
+**When to use:** This is the only sane shape — one route, uniform failover/backoff/stale logic, independent TTLs per slice.
+
+**Trade-offs:** 4 upstream fetches per poll cycle (NQ-D1, ES-D1, NQ-60m, NQ-15m; ES-60m added only if intraday SMT makes the cut — see Data Flow). Yahoo throttle risk is absorbed by the existing per-key serve-stale + `stale-while-revalidate`. Route `maxDuration: 15` still holds because slices fetch in parallel with the existing 4s timeout budget.
+
+**Example:**
 ```typescript
-// dealing-range.ts — sketch of the purity contract
-export function computeDealingRange(candles: Candle[]): DealingRange {
-  const highs = candles.map((c) => c.high), lows = candles.map((c) => c.low);
-  const rangeHigh = Math.max(...highs), rangeLow = Math.min(...lows);
-  const equilibrium = (rangeHigh + rangeLow) / 2;
-  const last = candles[candles.length - 1].close;
-  const positionPct = ((last - rangeLow) / (rangeHigh - rangeLow)) * 100;
-  return { rangeHigh, rangeLow, equilibrium, positionPct,
-    zone: positionPct >= 50 ? 'premium' : 'discount',
-    bias: positionPct >= 50 ? 'bearish' : 'bullish' }; // premium→expect draw to discount, per ICT
-}
+// yahoo.ts — generalize, keep every resilience behavior identical per key
+const SYMBOLS = { 'NQ=F': 'NQ%3DF', 'ES=F': 'ES%3DF' } as const;
+type Symbol = keyof typeof SYMBOLS;
+type Interval = '1d' | '60m' | '15m';
+
+export async function fetchSlice(
+  symbol: Symbol, interval: Interval, now: Date,
+  fetchFn = fetch, sleep = realSleep,
+): Promise<Envelope> { /* same body as fetchNQDaily, key = `${symbol}:${interval}` */ }
+
+// fetchNQDaily becomes a thin wrapper → zero breakage for existing callers/tests
+export const fetchNQDaily = (now: Date, f = fetch, s = realSleep) =>
+  fetchSlice('NQ=F', '1d', now, f, s);
 ```
 
-Kill-zone/session logic takes `nowMs: number` from the caller (`Date.now()` at the island, fixed epoch in tests). A function that calls `Date.now()` or `new Date()` internally is rejected in review — it is untestable by construction.
+### Pattern 2: Synthesize 4H from 60m — never ask Yahoo for 4H
 
-### Pattern 5: Fixture-backed routes with forward-compatible contracts
+**What:** Yahoo's interval vocabulary is `[1m,2m,5m,15m,30m,60m,90m,1h,1d,…]` — there is **no 4H interval** (verified HIGH). `aggregateTo4H(h1, tz)` groups 60m candles into 00/04/08/12/16/20 NY-anchored blocks (open=first open, high/low=extremes, close=last close). 1H = `60m` verbatim.
 
-**What:** `/api/sentiment` and `/api/calendar` return the exact JSON shape the future real APIs will return, read today from `src/fixtures/*.json`. Client code never knows fixtures exist.
+**When to use:** Always for H4; the grouping boundary must be NY-local (ICT session semantics), so the function takes a `timeZone` param and uses `date-fns-tz` — no `Date.now`, Baku/NY now injected like `computeRange(candles, asOf)`.
 
-**When:** Phase 1 mocks; later phases swap the route internals to real fetches without touching any component.
+**Trade-offs:** Partial current block (only 2 of 4 hours elapsed) is a *forming* 4H candle — mark `forming: true` and exclude via the existing `closedOnly()` helper. Lookback cost: 4H × 20-block window needs ~80 × 60m rows ≈ 2 weeks; request `period1 = now − 30d` for 60m (Yahoo caps minute-interval ranges; 30d is safely inside the documented limit, MEDIUM confidence — verify in build with a live probe test).
 
-**Example:** route reads `src/fixtures/sentiment.json` and returns `{ asOf, rows }`; client `fetchSentiment()` parses the same Zod/type as the future live payload. Fixture files are versioned test vectors — unit tests import them directly to assert `computeTrueAverage` (e.g., 72/28 BUY-heavy → crowded-long flag).
+### Pattern 3: Dual-envelope store with partial degrade (NQ required, ES optional)
 
-### Pattern 6: 3-panel terminal composition (matches reference/design.html)
+**What:** Store holds independent slices — `candles` (NQ-D1, existing), `esCandles`, `nqH1`, `nqM15` (+ `esH1` only if intraday SMT is built) — each with its own `stale`/`lastUpdatedISO`. `refresh()` fires all slice fetches via `Promise.allSettled`: NQ-D1 failure keeps the v1.0 error path; ES/intraday failure sets only its slice stale and forces the dependent selectors (`selectSMT`, `selectAMD`) to `null` → existing UNAVAILABLE/empty copy renders. SMT/AMD must **never** take down §2 or the chart.
 
-**What:** Fixed dark grid `280px 1fr 320px` (`#0A0A0F` bg, `#14141E` panels, `#00D9FF` accent). RSC page renders the frame; client island fills it.
+**When to use:** Every dual-symbol fetch. Failure domains stay decoupled.
+
+**Trade-offs:** More store fields, but each slice reuses the proven `isValidEnvelope` guard parameterized by symbol. Intraday envelopes need a second guard (epoch timestamps, not Baku YMD strings) — see Anti-Pattern 2.
+
+**Example:**
+```typescript
+// store.ts — new selectors delegate, same as v1.0 precedent
+selectSMT: () => {
+  const { candles, esCandles } = get();
+  if (candles.length === 0 || esCandles.length === 0) return null;
+  return detectSMT(findSwings(closedOnly(candles)), findSwings(closedOnly(esCandles)));
+},
+selectTransition: () => {
+  const range = get().selectRange();
+  const { nqH1 } = get();
+  if (range === null || nqH1.length === 0) return null;
+  return classifyTransition(range, aggregateTo4H(closedOnly(nqH1), NY_TZ), nqH1);
+},
+```
+
+### Pattern 4: NY-anchored session detection, Baku-rendered display
+
+**What:** `sessions.ts` defines killzones in **NY local** (`America/New_York`): Asia 19:00–00:00, London 02:00–05:00, NY 07:00–09:00/08:30–11:00 indices (verified MEDIUM — sources agree within 1h on Asia open; pin 19:00–00:00 NY and note the 20:00 variant in code comment). All window math via `formatInTimeZone(ts, NY_TZ, …)`. Asia Range = high/low of 15m rows inside the window; Judas Swing = wick beyond Asia high/low followed by close back inside during the subsequent London/NY window. Baku display (`Asia 04:00–09:00 Bakı` in winter) is derived at render, never stored.
+
+**When to use:** All AMD logic. DST correctness falls out of `date-fns-tz` because NY observance is in the tz database — this is exactly why the v1.0 March/November Baku-DST tests exist; add NY-DST session fixtures the same way.
+
+## Data Flow
+
+### Request Flow (modified poll)
 
 ```
-app/page.tsx (RSC)
-└─ TerminalShell ('use client': polling + store hydration)
-   ├─ <header> LIQUIDITY ENGINE // NQ=F | Baku clock | NY session | confidence
-   ├─ grid
-   │  ├─ LiquidityPanel  (BSL/SSL, dealing-range badge, sentiment True AVG)
-   │  ├─ ChartPanel → CandleChart (dynamic) + ExecutionProtocolStrip (kill zone, WHY NOW, OTE)
-   │  └─ TicketPanel (decision, entry/SL/TP1-3, R/R, confidence, fatal flaw)
-   └─ ReportShell (sections 1–6; non-Module-2 marked UNAVAILABLE)
+TerminalShell 60s visibility-gated tick (UNCHANGED cadence — zero budget)
+    ↓ refresh()
+Promise.allSettled([
+  GET /api/yahoo?symbol=NQ=F&interval=1d   (existing pipe, REQUIRED),
+  GET /api/yahoo?symbol=ES=F&interval=1d   (NEW, optional-degrade),
+  GET /api/yahoo?symbol=NQ=F&interval=60m  (NEW, optional-degrade),
+  GET /api/yahoo?symbol=NQ=F&interval=15m  (NEW, optional-degrade),
+]) — server per-key cache (60s) + CDN absorb repeat cost
+    ↓ per-slice isValidEnvelope guard
+Zustand slices → pure selectors → chart / panels / report §3
 ```
 
-**When:** This exact composition is the Phase 1 UI target. Later phases fill unavailable sections without rearranging the grid.
+- **Daily SMT first, intraday SMT as stretch.** Daily NQ-vs-ES swing comparison ships on the two D1 slices (2 extra upstream calls: ES-D1 only). Intraday SMT needs ES-60m too; defer unless §3 needs it — the spec's SMT clause does not fix a timeframe, daily divergence is a legitimate accumulation/distribution read.
+- **15m Judas detection lags by design.** 60s poll on 15m candles means a Judas print is seen up to one bar late; the UI must say `Gözlənilir` (pending), never imply tick precision. No WebSocket, no shorter poll — Hobby + Yahoo throttle forbid it.
+- **Chart data flow unchanged for D1** (date-string BusinessDay passthrough). Intraday rows carry **epoch seconds** (`UTCTimestamp`) straight from Yahoo `timestamp[]` — no Baku conversion on the time axis (conversion would bucket-shift bars across the NY-midnight boundary). Asia overlay bands are *prices* (high/low), so Baku never enters geometry.
 
-## Anti-Patterns to Avoid
+### State Management
 
-### Anti-Pattern 1: Caching in two places (fetch-cache + manual TTL)
-**What:** Setting `cache:'force-cache'` or `next.revalidate` on the Yahoo upstream fetch while also keeping a manual TTL.
-**Why bad:** Two TTLs drift; stale data blamed on the wrong layer; 429 retries bypass the framework cache and stampede anyway.
-**Instead:** Upstream fetch is always `cache:'no-store'`; the route's `Map` + `Cache-Control: s-maxage=60` is the single TTL owner.
+```
+refresh() writes raw slices only (candles, esCandles, nqH1, nqM15)
+    ↓ subscribe
+stable selector-function subscription + derive-during-render
+    ↓ (the selectLevels precedent — see Anti-Pattern 3)
+NqChart props · module-3/smt-row cards · Report §3
+```
 
-### Anti-Pattern 2: Chart component that fetches or reads the store
-**What:** `CandleChart` calling `fetch()` or `useTerminalStore()` internally.
-**Why bad:** Couples canvas lifecycle to network timing; double-subscribes; makes the chart untestable and un-reusable for later timeframes.
-**Instead:** Props in (`candles`, `levels`), canvas out. Data orchestration belongs to `ChartPanel`/`TerminalShell`.
+New selectors (`selectSMT`, `selectTransition`, `selectAMD`, `selectAsiaRange`) return fresh nested objects → components must use the **stable selector-function pattern** (`const sel = useDashboard(s => s.selectSMT); const smt = sel();`), exactly as `selectLevels` does today.
 
-### Anti-Pattern 3: Missing chart cleanup
-**What:** `useEffect` creating a chart without `chart.remove()` + `ResizeObserver.disconnect()` in the return.
-**Why bad:** Every poll/remount leaks a canvas + observer; tab slows to a crawl within minutes on a 60s refresh loop.
-**Instead:** The cleanup return shown in Pattern 2 is mandatory, not stylistic.
+### Key Data Flows
 
-### Anti-Pattern 4: Storing derived ICT outputs in Zustand
-**What:** `setDealingRange()`, `setBias()` actions called after each fetch.
-**Why bad:** Raw and derived state desync (update one, forget the other); premium/discount bugs hide in action ordering instead of in one pure function.
-**Instead:** Store raw candles; derive via selectors calling `src/lib/ict` at render.
+1. **SMT divergence:** NQ-D1 + ES-D1 → `findSwings(k=2)` each → `detectSMT` compares the two most recent swing highs/lows (higher-high vs lower-high = bearish divergence, etc.) → `smt-row` card + §3 `SMT Divergence Status` line. Date-alignment guard: inner-join on `date`; both are CME so holidays align, but the join makes it assumption-free.
+2. **Internal/external transition:** NQ-D1 range (existing `selectRange`) + NQ-60m → `aggregateTo4H` → `classifyTransition`: price inside D1 range interacting with HTF structure = Internal; break + displacement into new 4H swing = External. Output feeds §2 `Delivery Cycle` (replaces hardcoded `Çatdırılma dövrü: D1`) and §3 `Engineered Liquidity Path`.
+3. **Session AMD:** NQ-15m → Asia high/low → Judas check in London/NY windows → `selectAMD { asiaHigh, asiaLow, swept, judasSide }` → Asia overlay primitive (price band) + §3 `Session AMD Timing` line (`Təmizlənib/Təmizlənməyib`, `Baş verib/Gözlənilir`).
 
-### Anti-Pattern 5: Time calls inside pure modules
-**What:** `Date.now()`, `new Date()`, `Intl.DateTimeFormat` with implicit local zone inside `src/lib/ict`.
-**Why bad:** Baku vs Vercel-UTC vs trader-local differences become unreproducible; tests become time-bombs.
-**Instead:** Inject `nowMs`; format in `src/lib/time.ts` with explicit `Asia/Baku`.
+## Scaling Considerations
 
-### Anti-Pattern 6: v4 lightweight-charts API copy-paste
-**What:** `chart.addCandlestickSeries(...)`, `chart.addLineSeries(...)` from old tutorials.
-**Why bad:** Removed in v5 — runtime TypeError on first render.
-**Instead:** `chart.addSeries(CandlestickSeries, opts)` / `chart.addSeries(LineSeries, opts)`.
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| Current (Hobby, 1 operator) | 4 parallel slice fetches per 60s tick; per-instance Map cache + CDN 60s. No change needed. |
+| +N viewers | Same as v1.0: proxy cache absorbs it; Yahoo sees ~4 req/min/instance regardless of viewers. |
+| Intraday history growth | 60m/30d ≈ 500 rows, 15m/14d ≈ 1300 rows — trivial for Zustand + lightweight-charts. Cap `period1` windows, never `period1=0`. |
 
-## Scalability Considerations
+### Scaling Priorities
 
-| Concern | Phase 1 (1 user, D1, Vercel free) | 10 users / intraday later | 1K+ users |
-|---------|-----------------------------------|---------------------------|-------------|
-| Yahoo rate limits | In-memory 60s TTL + backoff suffices; one warm instance | Move TTL to Vercel KV/Upstash; stagger polls per session | Dedicated market-data provider (paid); Yahoo proxy retired |
-| Polling fan-out | 60s client interval, hidden-tab guard | Consider SWR dedup + `stale-while-revalidate` header tuning | WebSocket/SSE push; routes become pub/sub edge |
-| Chart perf | D1 ~150 candles, trivial | Intraday 5M = thousands of points; downsample + `setData` diffing | Virtualized series, worker-side aggregation |
-| Store growth | Single flat store fine | Split into slices (`createCandlesSlice`, `createReportSlice`) via Zustand slices pattern | Persist + subscribeWithSelector for cross-tab sync |
-| Fixtures | Static JSON imports | Route-level `export const revalidate = 300` for calendar | Real sentiment/calendar adapters behind same route contracts |
+1. **First bottleneck:** Yahoo 429s on 4-slice fan-out. Mitigation already designed: per-key serve-stale (30-min `MAX_STALE_MS`), jittered backoff, `allSettled` partial degrade. If throttled in prod, drop NQ-15m cadence to 120s (separate interval in `TerminalShell`) before touching anything else.
+2. **Second bottleneck:** Route `maxDuration` 15s under parallel 4s-timeout retries. Slices fetch concurrently; worst case ≈ single-slice worst case. No action unless Vercel logs show 504s.
 
-## Suggested Build Order (dependencies between components)
+## Anti-Patterns
 
-Build in this order — each step is independently verifiable and later steps assume earlier contracts:
+### Anti-Pattern 1: Reusing `CME_TZ` (America/Chicago) for killzones
 
-1. **`src/lib/ict` pure core + unit tests** — types, dealing-range, sentiment True AVG. No UI, no network. This is the core value; if the math is wrong nothing else matters. Verifiable with fixtures alone.
-2. **Fixtures + sentiment/calendar route contracts** — `src/fixtures/*.json`, `computeTrueAverage` green, routes serving the future-stable shape. Unblocks panels without Yahoo.
-3. **Yahoo proxy route** — TTL + backoff + `Candle[]` shaping, verified with curl (HIT/MISS headers, 429 path). Unblocks all live data.
-4. **Zustand store + fetcher + selectors** — raw state, polling-ready actions, derived dealing-range selector. Verifiable with mocked fetch.
-5. **CandleChart island (dynamic boundary)** — static candles → rendered chart with price lines + cleanup. Verifiable in isolation via Storybook-style test page.
-6. **3-panel shell + panels** — TerminalShell, Liquidity/Chart/Ticket panels against live store. Matches `reference/design.html` grid and tokens.
-7. **`app/page.tsx` composition + Baku clock** — RSC frame, header session logic, report shell with unavailable markers. Final visual pass.
-8. **Deploy + verify** — Vercel free tier; assert cache headers, backoff behavior under throttling, and Baku-time correctness in production (UTC-default server vs Asia/Baku display).
+**What people do:** `time.ts` exports `CME_TZ = 'America/Chicago'` and the header labels it "NY". Reuse it for session windows.
+**Why it's wrong:** Chicago is CT (UTC−6/−5), New York is ET (UTC−5/−4) — every killzone lands 1h off, and Judas detection silently checks the wrong bars.
+**Do this instead:** Add `NY_TZ = 'America/New_York'`; `sessions.ts` imports only `NY_TZ`. Leave `CME_TZ` for the header clock.
 
-Skipping ahead (e.g., panels before the pure core) produces UI wired to placeholder math that later gets ripped out — the most expensive rework in this codebase shape.
+### Anti-Pattern 2: Baku-YMD strings for intraday bars
+
+**What people do:** Reuse `toBakuYMD(ts)` in the intraday parser so all candles share the `Candle` shape.
+**Why it's wrong:** 96 × 15m bars/day collapse onto one date string → ascending-date guard throws, chart shows one bar. Time-of-day is the entire content of intraday data.
+**Do this instead:** New `IntradayCandle { t: number /* epoch sec */, open, high, low, close, forming? }` with epoch passthrough; separate `isValidIntradayEnvelope` (ascending `t`, finite OHLC). Daily `Candle` untouched.
+
+### Anti-Pattern 3: `useShallow` on the new nested selectors
+
+**What people do:** `useDashboard(useShallow(s => s.selectSMT()))` following the range/dol precedent.
+**Why it's wrong:** `selectSMT`/`selectAMD` return fresh nested objects per call — the exact `selectLevels` infinite-loop failure documented in PROJECT.md decisions [03.2].
+**Do this instead:** Stable selector-function subscription + derive during render (`const sel = useDashboard(s => s.selectSMT); const smt = sel();`).
+
+### Anti-Pattern 4: One combined NQ+ES envelope
+
+**What people do:** Single `/api/yahoo?symbols=NQ,ES` returning both series to "save a round trip."
+**Why it's wrong:** Couples failure domains — an ES throttle takes down the NQ chart path; doubles payload; breaks the per-key stale contract (NQ fresh + ES stale can't be expressed in one `stale` flag).
+**Do this instead:** One slice per request, `allSettled`, per-slice `stale` flags (Pattern 3).
+
+### Anti-Pattern 5: SMT/AMD math inside components or the store
+
+**What people do:** Swing comparison inline in `report.tsx` or inside `refresh()`.
+**Why it's wrong:** Violates the `src/lib/ict` purity constraint (testability + monorepo extraction), untestable without a DOM, duplicates across cards.
+**Do this instead:** Pure `swings.ts`/`smt.ts`/`sessions.ts` + thin selectors, mirroring `computeRange`/`computeBias` exactly.
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Yahoo chart API (new intervals) | Same `HOSTS` failover path, `interval=60m/15m` + explicit `period1` windows (30d/14d) | 60m-range caps are the shakiest assumption (MEDIUM) — probe live in build; `90m` is NOT a substitute |
+| lightweight-charts v5 | Epoch `UTCTimestamp` rows for intraday; new `AsiaRangePrimitive` (clone of `ZoneFillPrimitive`); ES stays off-chart (markers optional stretch) | Primitives already proven; autoscale `null` precedent holds |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| proxy ↔ store | 4 parallel GETs, `allSettled`, per-slice guards | NQ-D1 keeps v1.0 error/toast path; ES/intraday degrade silently to stale |
+| store ↔ ict | New selectors → new pure fns, time injected | `closedOnly()` reuse for forming-bar exclusion; `asOfBaku`/`NY_TZ` injected, never `Date.now()` |
+| store ↔ chart | New optional props (`asiaHigh/Low`, `smtMarkers?`) — existing props untouched | `[03.1]` precedent: smallest blast radius, conditional blocks only |
+| store ↔ report | `REPORT_SECTIONS[3] → live`; §3 block reads `selectSMT/selectAMD/selectTransition` | §2 delivery-cycle line becomes dynamic from `selectTransition`; everything else byte-identical |
+| TerminalShell ↔ panels | Un-dim `module-3` + `smt-row` cards (remove `pointer-events-none opacity-45` + UNAVAILABLE chip), wire live copy | Same dimming-pattern removal for each card; no layout change |
+
+## Suggested Build Order (dependency-respecting)
+
+1. **ES-D1 vertical slice** — `yahoo.ts` parameterization + route query params + `esCandles` slice + `selectSMT` (daily). Proves the entire dual-symbol pipe; §3 gets its first live line. No intraday, no chart change.
+2. **`swings.ts` + `smt.ts` pure core** — fractal swings, divergence classification, date-join alignment; fixture tests incl. crafted divergence/non-divergence pairs. (Parallelizable with 1.)
+3. **Intraday fetch** — NQ-60m + NQ-15m slices, `IntradayCandle` + guard, live probe test for range caps. Store-only; no consumers yet.
+4. **`aggregate.ts` + `transition.ts`** — 4H synthesis (NY-anchored, forming-block handling) + internal/external classifier; §2 delivery-cycle line goes dynamic.
+5. **`sessions.ts` + NY tz** — Asia Range + Judas detection, NY-DST fixture tests (March + November, mirroring the Baku-DST precedent).
+6. **Chart overlays** — `asia-primitive.ts` + `NqChart` props + `mapIntradayToSeries`; Asia band on D1 chart (prices are timeframe-agnostic). Time-box the primitive; fallback is the sanctioned LineSeries pair.
+7. **Report §3 + panel go-live** — flip `REPORT_SECTIONS`, §3 block, un-dim module-3/smt-row cards, Azerbaijani copy lock. Deploy + verify (cache, NY-timezone, §3 render).
 
 ## Sources
 
-- Next.js docs via Context7 `/vercel/next.js` — Route Handler `dynamic = 'force-static'` vs dynamic-request behavior, `cache:'force-cache'` + `revalidateTag` semantics, `next/dynamic` with `ssr:false` client-component lazy loading, `use cache: remote` streaming patterns. Confidence: HIGH.
-- Zustand docs via Context7 `/pmndrs/zustand` — slices composition pattern, `subscribeWithSelector` API, selector-based consumption and derived-state-via-selectors guidance. Confidence: HIGH.
-- lightweight-charts docs via Context7 `/tradingview/lightweight-charts` — v4→v5 `addSeries` migration, `createPriceLine` API, React component tutorial structure. Confidence: HIGH.
-- Scaffold reads (package.json: next 16.3.4, react 19, lightweight-charts ^5.2.1, zustand ^5.0.15, date-fns-tz installed; app/ has only placeholder page; no `src/` yet; `lib/utils.ts` re-exports `cn`). Confidence: HIGH.
-- Domain inputs (`reference/design.html` 3-panel grid + tokens; `reference/institutional_rules.md` Module 2 + report sections). Confidence: HIGH.
-- Web/secondary search for Yahoo-proxy backoff patterns and trading-dashboard structures — Firecrawl throttled (429), WebSearch returned no usable results. Proxy retry constants are engineering judgment, not verified upstream. Confidence: MEDIUM — flag for phase-level verification against live Yahoo behavior.
+- Codebase (HIGH): `src/lib/store.ts`, `src/lib/yahoo.ts`, `app/api/yahoo/route.ts`, `src/lib/ict/{types,range}.ts`, `src/lib/time.ts`, `src/lib/{freshness,session-line,report,chart-mapper}.ts`, `components/{charts/nq-chart,charts/zone-primitive,dashboard/terminal-shell,dashboard/report}.tsx`, `reference/institutional_rules.md` (Modul 3 spec, §3 format), `.planning/PROJECT.md` (v2.0 scope, [03.x] precedents)
+- Web (MEDIUM, cross-checked where load-bearing): Yahoo v8 `interval=[1m…1d]` vocabulary + minute-range limits (StackOverflow, Observable, Scrapfly 2026 guide); ICT killzone windows Asia 19/20:00–00:00 / London 02:00–05:00 / NY 07:00–09:00 (indices 08:30–11:00) NY-local (innercircletrader.net, tradingrage.com)
+- Open verification items for build phase: Yahoo 60m/15m max lookback probe; Asia-open 19:00 vs 20:00 NY pin (documented variant, either is defensible — pick one, comment the other)
+
+---
+*Architecture research for: v2.0 Modul 3 (Liquidity Sequencing & SMT, NQ vs ES, full AMD)*
+*Researched: 2026-09-06*

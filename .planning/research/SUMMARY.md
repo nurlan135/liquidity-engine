@@ -1,150 +1,148 @@
-# Project Research Summary
+# Project Research Summary — v2.0 Modul 3 (Liquidity Sequencing & SMT)
 
-**Project:** liquidity-engine — ICT Liquidity Execution Terminal (NQ futures)
-**Domain:** Trading dashboard / execution terminal (Next.js, single-symbol NQ=F daily)
-**Researched:** 2026-09-04
-**Confidence:** HIGH (framework/charting), MEDIUM (Yahoo upstream, futures rollover)
+**Project:** liquidity-engine v2.0 Modul 3
+**Domain:** ICT liquidity-engineering terminal (NQ vs ES SMT + 4H/1H internal/external + session AMD)
+**Researched:** 2026-09-06
+**Confidence:** HIGH overall (stack/arch/pitfalls grounded in repo reads; ICT semantics corroborated across sources)
 
 ## Executive Summary
 
-This is an institutional-style ICT execution terminal for NQ futures: a read-only daily (D1) dashboard that computes a Dealing Range (Premium/Discount vs Equilibrium), derives a rule-based bias plus a single Draw-on-Liquidity target, and presents everything in a deterministic 6-section institutional report. Experts build this shape as a thin server proxy over market data, a fat pure-math core with zero I/O, and a single client terminal island with a canvas candlestick chart.
+Modul 3 turns the v1.0 single-symbol daily terminal into a dual-symbol, multi-timeframe ICT execution aid: ES=F second-symbol fetch enables mandatory NQ-vs-ES SMT divergence; intraday (1H first, 15M where cheap) candles unlock the FVG-based internal-liquidity map, the ERL/IRL transition state machine, and the full session AMD chain (Baku-aware Asia Range → London/NY Judas Swing → phase classifier); all three detector families feed a live, rule-based report §3. The headline finding is that no new dependencies are needed — Next.js 16 route handler, `src/lib/yahoo.ts`, `src/lib/ict` pure functions, date-fns-tz, lightweight-charts v5, Zustand 5 slices, and vitest already cover everything.
 
-The recommended approach: keep the existing Next.js 16 + React 19 + TypeScript scaffold, add no new dependencies (Zustand, lightweight-charts v5, date-fns + date-fns-tz already installed), and build Phase 1 as Module 2 (D1 dealing range) live with sentiment/calendar as typed fixtures behind future-proof API contracts. All ICT math lives in `src/lib/ict` as pure functions with injected time — never fetching, never calling `Date.now()` — so every output is reproducible, unit-testable, and monorepo-extractable. The chart is a `ssr:false` dynamic island using the v5 `addSeries(CandlestickSeries)` API, with price-lines for Equilibrium and bounded primitives for premium/discount zones.
-
-Key risks are all upstream/platform-shaped, not feature-shaped: Yahoo's unofficial v8 endpoint 429-bans scripted clients (mitigate with server-only proxy, browser User-Agent, query1→query2 failover, backoff, 60s TTL, stale-serve); NQ=F quarterly rollover gaps corrupt range anchors (mitigate with raw OHLC never adjclose, rollover-suspect flag, synthetic-gap test); a triple timezone collision between Yahoo UTC, chart UTC, and Asia/Baku display (mitigate with business-day date strings end-to-end, one TZ util module, March+November DST tests); and Vercel Hobby limits of daily-only cron plus per-instance cache (mitigate with client-side 60s polling as the refresh mechanism, CDN s-maxage+SWR headers, visible staleness badges).
+The recommended approach is strictly ordered: data contracts first (parameterized proxy with per-symbol/per-interval envelopes, timestamp inner-join, intraday contract with forming-candle exclusion), pure math second (time-anchored swing matching + SMT comparator with rollover suppression, 4H synthesis from 1H, FVG/IRL + transition state), session logic third (IANA-resolved Asia/Killzone windows with DST gates, three-gate Judas with displacement proof, false-positive budget), composition last (Asia overlay, §3 honest-degrade prose, Vercel verify). The key risks are phantom SMT from index-zipped swings, dual-symbol 429 storms from lockstep polling, DST-shifted Killzones, and Judas over-firing on bare pierces — each has a concrete gate (matched-pair fixtures + choppy no-signal test, staggered polling + per-symbol stale, March/November/maintenance-break tests, killzone+sweep+displacement conjunction with ≤25% session budget).
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies for Phase 1. Next.js App Router Route Handlers proxy Yahoo (`query1` primary, `query2` fallback) with native fetch, a hand-rolled 60s module-level Map cache with stale-on-429 fallback, and explicit `force-dynamic`. lightweight-charts v5 renders candles plus `createPriceLine` levels and series-primitive zone fills. Zustand holds only raw state (symbol, candles, status) while selectors derive all ICT output; date-fns + date-fns-tz v3 handle Asia/Baku logic with epoch-ms canonical in state and formatting at the display edge. Full detail in STACK.md.
+No new dependencies. Generalize the proven v1.0 pieces: parameterize `/api/yahoo` + `src/lib/yahoo.ts` to `fetchCandles(symbol, interval)`, add pure `src/lib/ict` modules (`swings.ts`, `smt.ts`, `transition.ts`, `sessions.ts`, `aggregate.ts`), resolve sessions on the ET clock via date-fns-tz, draw Asia bands with an inline lightweight-charts v5 primitive + `createSeriesMarkers`, and hold ES/intraday slices in Zustand with SMT/AMD as derived selectors. Full detail: `STACK.md`.
 
 **Core technologies:**
-- Next.js 16.3.4 App Router + React 19 — Route Handler proxy keeps unofficial Yahoo endpoint server-side with caching; chart loads via `next/dynamic ssr:false` in a Client Component.
-- lightweight-charts ^5.2.1 — canvas candlesticks; v5 breaking change `chart.addSeries(CandlestickSeries, opts)` plus native `createPriceLine` for EQ/high/low; zone fills via `ISeriesPrimitive`.
-- Zustand ^5.0.15 — single `create<T>()` store with `useShallow` selectors; async polling stays in component/route layer, math in selectors.
-- date-fns ^4.4.0 + date-fns-tz ^3.2.0 — matched pair; `formatInTimeZone(date, 'Asia/Baku', ...)`; canonical epoch-ms, business-day strings for D1.
-- Pure TypeScript `src/lib/ict/` (no library) — Premium/Discount/EQ, DOL, bias; no I/O, injected `now`, fully unit-testable.
+- Next.js 16.3.4 route handler (extended) — serve ES=F + 1H/15M through existing proxy pattern (failover, backoff, singleflight, 60s TTL reused)
+- `src/lib/yahoo.ts` generalized fetcher — one parameterized fetcher with symbol/interval allowlists and per-key cache isolation
+- `src/lib/ict` pure functions (extended) — deterministic candle arithmetic, no library, injected time, fixture-tested
+- date-fns-tz ^3.2.0 — DST-correct session bucketing on `America/New_York`, display in `Asia/Baku`
+- lightweight-charts ^5.2.1 primitives — Asia bands (`attachPrimitive`) + Judas/SMT pins (`createSeriesMarkers`), no drawing plugin
+- Zustand ^5.0.15 slices — per-symbol slices, SMT/AMD/§3 as derived selectors, never stored state
 
 ### Expected Features
 
-Phase 1 is Module 2 (D1 Dealing Range) live; sentiment/calendar are mocks; report sections 1,3–6 render unavailable markers. Table stakes are the range display itself (EQ midpoint, position >/\< 0.5, re-anchor rule), OTE/quadrant levels, zone-overlaid candles, cached Yahoo feed with visible age, bias with mandatory rationale string, single named Primary DOL, expansion/compression regime badge, high-impact calendar filter with pre-news flag, True-AVG sentiment table with 60% crowded flag, the 6-section report shell, Baku timezone core, and staleness honesty everywhere. Full detail in FEATURES.md.
+Report §3's three prescribed lines (Engineered Liquidity Path, SMT Divergence Status, Session AMD Timing) dictate the scope: every table-stakes feature maps 1:1 onto a §3 line, and anything missing keeps its v1.0 unavailable marker. Full detail: `FEATURES.md`.
 
 **Must have (table stakes):**
-- D1 Dealing Range Premium/Discount + Equilibrium/quadrants/OTE — the product's correctness core.
-- Candlestick chart with shaded premium/discount + EQ line + freshness label.
-- Bias readout (BULLISH/BEARISH/COMPRESSION) with rationale + Primary DOL named level + regime badge.
-- 6-section report shell (section 2 live, rest unavailable) + sentiment/calendar fixtures (True AVG excl. Insta/FiboGroup, 60% flag, high-impact filter).
-- Asia/Baku timezone core + Zustand wiring.
+- ES=F fetch via existing proxy — SMT impossible without it (LOW cost)
+- Intraday candles (1H first, 15M if cheap) — blocks FVG, Asia, Judas (MEDIUM, critical path)
+- Swing detection shared primitive (NQ+ES, closed candles only) — three consumers (LOW)
+- SMT comparator with swing references in output — mandatory per spec (MEDIUM)
+- FVG map + ERL/IRL transition state (FVG-only IRL) — §3 line 1 + §2 Delivery Cycle upgrade (MEDIUM)
+- Asia Range (Baku-aware) + London Judas + AMD classifier — §3 line 3 core (MEDIUM)
+- §3 live rule-based prose + Asia Range chart overlay — milestone definition of done (LOW)
+- Correlation-regime gate — the one differentiator; un-gated SMT is a false-signal machine (LOW)
 
-**Should have (competitive):**
-- Pre-news liquidity-engineering interpretation flag — Phase-1-able fusion of calendar + regime + position, strong early differentiator.
-- Struck-through blocked-side display (longs only in discount, shorts only in premium) — cheap, teaches methodology.
-- Deterministic rule-based engine posture (no LLM) — anti-hallucination as brand.
+**Should have (competitive, pick at most one more or defer):**
+- SMT + Judas confluence boost in confidence score — highest-conviction setup scoring (LOW)
+- Equal-highs/lows + inducement pools — engineered-liquidity marking (MEDIUM, P2)
 
-**Defer (v2+):**
-- WHY NOW 3-gate trigger, SMT divergence, engineered-liquidity path viz, FVG quality grading (Module 3/4 program — reserve slots, build zero logic).
-- Pain-threshold mapping, automated invalidation level, backtester, screener, auth, broker execution, alerts/mobile, real sentiment/calendar APIs.
+**Defer (v2.x / v3+):**
+- NY-open Judas (P2, after London confirmed on live data), AMD history, NY-afternoon distinction (P2–P3)
+- Full IRL taxonomy (OB/breaker/BPR), displacement/MSS linkage, §5 ticket, auto-execution (Modul 4 scope or never)
 
 ### Architecture Approach
 
-Single Next.js 16 app: thin server proxy layer, fat pure-math core, one client terminal island. No backend, no DB, no auth. Data flows one direction with no cycles: Yahoo → proxy (60s TTL + backoff) → TerminalShell polling (60s + visibility guard + jitter) → Zustand raw state → selector-derived ICT math → chart props (props in, canvas out). Fixture routes for sentiment/calendar sit behind the same contracts real APIs will use. Opinionated rule: `src/lib/ict` never touches fetch, `Date.now()`, Intl, or Zustand. Full detail in ARCHITECTURE.md.
+Brownfield append-only extension: proxy parameterized by `(symbol, interval)` with per-key cache; 4H synthesized from 60m NY-anchored blocks (Yahoo has no 4H interval); store holds independent raw slices with `Promise.allSettled` partial degrade (NQ required, ES/intraday optional); all session math in NY-local with Baku rendering at the edge. Full detail: `ARCHITECTURE.md`.
 
 **Major components:**
-1. Proxy routes (`app/api/yahoo|sentiment|calendar/route.ts`) — upstream fetch, TTL, backoff, validation, fixture contracts.
-2. Terminal island (`TerminalShell` + Liquidity/Chart/Ticket panels + ReportShell) — polling, hydration, composition; chart owns lifecycle only, never the store.
-3. Pure core (`src/lib/ict/*`, `src/lib/time.ts`, `src/fixtures/*`) + Zustand raw-state store — derived math via memoized selectors, Baku utils with injected time.
+1. Parameterized proxy (`app/api/yahoo/route.ts` + `src/lib/yahoo.ts`) — `?symbol=&interval=` with allowlists, per-combo cache/stale/singleflight
+2. Pure ICT math (`src/lib/ict/swings.ts`, `smt.ts`, `transition.ts`, `sessions.ts`, `aggregate.ts`) — untouched D1 files, injected time, `closedOnly` discipline
+3. Dual-envelope store + derived selectors (`store.ts`) — raw slices only; `selectSMT/selectTransition/selectAMD/selectSection3` derive, stable selector-function subscription
+4. Session overlay + §3 composition (`asia-primitive.ts`, `nq-chart.tsx`, `report.tsx`) — price bands with null-autoscale, candidate-vs-confirmed markers, honest-degrade §3 model
 
 ### Critical Pitfalls
 
-Full catalogue of 6 critical + 5 moderate + 3 minor in PITFALLS.md. Top 5:
+Top risks when adding a second symbol, intraday sessions, and divergence logic to the live terminal. Full detail: `PITFALLS.md`.
 
-1. **Yahoo 429/IP ban (missing UA, no failover, fan-out)** — server-only proxy, browser UA + Accept/Referer headers, query1→query2 failover, backoff with jitter honoring Retry-After, 60s TTL, singleflight dedupe, serve-stale on failure, never cache errors.
-2. **NQ=F rollover gap corrupts range** — raw OHLC never adjclose, `contractHint` + roll-proximity warning, `rolloverSuspect` flag on N×ATR close-to-close jumps, keep gap visible, explicit window + asOf in range function.
-3. **Timezone triple-shift (Yahoo UTC × chart UTC × Baku)** — D1 as `YYYY-MM-DD` strings proxy→store→chart (no TZ adjustment needed per lightweight-charts docs), single `Asia/Baku` rule via date-fns-tz, IANA `America/Chicago` for CME DST, injected `asOfBakuDate`, Baku-stamped `lastUpdated`.
-4. **lightweight-charts v5 API + SSR + autoscale traps** — dynamic `ssr:false` island, `addSeries` not `addLineSeries`, `chart.remove()` cleanup, price-lines/bounded primitives with null autoscale, sorted-deduped business-day `setData`, ResizeObserver sizing.
-5. **Vercel Hobby limits (daily-only cron, per-instance cache, hard caps)** — no sub-daily cron (client polling IS refresh), CDN `s-maxage=60, SWR=30` so edge absorbs fan-out, correctness state never in function memory, `maxDuration` + size caps, visible cache-age badge.
+1. **Phantom SMT from index-zipped swings** — compare time-anchored matched pairs with one shared strength param and bps tolerance; gate on bull/bear/no-signal (choppy ±1-bar) fixtures before UI wiring.
+2. **Second symbol halves 429 headroom** — per-symbol envelopes (never one merged `stale`), per-key cache, staggered NQ :00 / ES :30 polling with jitter, 20-client 429 drill; SMT refuses when either leg is stale.
+3. **NQ/ES timestamp misalignment** — inner-join on timestamp before any comparison, drop incomplete rows pre-join, exclude forming candle, surface coverage diagnostics.
+4. **DST moves the Killzone** — resolve all windows via IANA `America/New_York` wall-clock at call time, inject `asOf`, gate on March + November + maintenance-break tests.
+5. **Judas flags every wick** — three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement in ATR/Asia-height multiples); candidates hollow vs confirmed solid; ≤25% confirmed sessions over 60 days.
+6. **Honesty/purity contract breakage** — zero `Date.now` in `src/lib/ict`, store holds inputs only, selector-boundary freshness gate, every degraded §3 state renders its reason.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, suggested phase structure (data contracts → math → sessions → composition):
 
-### Phase 1: Proxy + ICT core + fixtures (backend-first, no UI chart yet)
-**Rationale:** Everything depends on validated candles and correct math; pitfalls 1–3 and 6–9 must be closed before any pixel renders or the chart will display confidently-wrong levels.
-**Delivers:** `GET /api/yahoo` with UA/failover/backoff/TTL/stale-serve envelope (`{candles, lastUpdatedISO, stale, source}`), null-row validation, poll jitter + singleflight; `src/lib/ict` pure functions (range, EQ, quadrants/OTE, position, regime, DOL, bias+rationale, True AVG, 60% flag) with injected time; rollover-suspect flag + synthetic-gap test; March/November DST tests; fixture routes + shared contracts behind future API shapes; unit suite green.
-**Addresses:** Daily OHLC feed, dealing-range math, EQ/quadrants/OTE, bias+DOL rules, regime heuristic, True AVG + threshold, calendar filter shapes, timezone core.
-**Avoids:** Pitfalls 1, 2, 3, 6, 7, 8, 9, 10.
+### Phase 1: Dual-symbol proxy + data contracts
+**Rationale:** Intraday candles are the critical-path dependency (FVG, Asia, Judas all block on it); dual-symbol load and timestamp join are the highest deployment risks.
+**Delivers:** `?symbol=&interval=` proxy, per-symbol envelopes, staggered polling, intraday epoch contract, timestamp join, bounded windows.
+**Addresses:** ES=F fetch, intraday candles (FEATURES P1 foundation).
+**Avoids:** P2 (429 storm), P3 (misalignment), P6 (intraday-as-D1), P8 (store/purity), security allowlist + validate-then-cache.
 
-### Phase 2: Terminal shell + chart + report shell (UI composition)
-**Rationale:** Once data and math are trusted, composition is mechanical: RSC frame, client island, three panels, dynamic chart, report shell with unavailable markers. Chart overlays added one at a time with autoscale checks.
-**Delivers:** RSC 3-panel frame + `TerminalShell` (polling, hydration, Baku clock); Liquidity/Chart/Ticket panels reading selectors; `CandleChart` island (candle-only first, then EQ price-line, then zone primitives with null autoscale); `ReportShell` sections 1–6 with section 2 live; freshness/stale/fixture badges; weekend-closed state (never synthesize candles).
-**Uses:** lightweight-charts v5 `addSeries` + `createPriceLine` + primitives; `next/dynamic ssr:false`; Zustand selectors; shadcn-allowed components only.
-**Implements:** RSC shell, terminal island, chart island, store wiring, report shell.
-**Avoids:** Pitfalls 4, 8, 11, 13.
+### Phase 2: SMT + 4H/1H sequencing math
+**Rationale:** Pure functions are independently testable once the data contract is stable; swing matching must be pinned before any badge or §3 prose consumes it.
+**Delivers:** `swings.ts` + `smt.ts` (matched pairs, bps tolerance, correlation gate, rollover suppression) + `aggregate.ts` + FVG/IRL + transition state.
+**Uses:** `src/lib/ict` purity, vitest fixture density, derived selectors.
+**Implements:** SMT Divergence Status + Engineered Liquidity Path detector outputs; §2 Delivery Cycle upgrade.
+**Avoids:** P1 (phantom SMT), P7 (roll-week fake SMT), P8 (purity).
 
-### Phase 3: Deploy + verify on Vercel Hobby (prove it live)
-**Rationale:** Per-instance cache, cold starts, and egress-IP reputation only manifest in production; localhost success proves nothing about 429 resilience or staleness honesty.
-**Delivers:** Hobby deploy with no sub-daily cron, CDN cache headers verified, cold-start + stale-serve drill (kill upstream, confirm stale badge), bounded 6mo D1 window, usage-dashboard sanity, live-URL checklist (cache age, DST dates, rollover banner path).
-**Avoids:** Pitfalls 5, 12.
+### Phase 3: AMD sessions (Asia Range + Judas)
+**Rationale:** Session logic depends on intraday contract (Phase 1) but is independent of SMT math (Phase 2); London-first de-risks NY to a parameter set.
+**Delivers:** `sessions.ts` (NY-anchored windows, Asia Range, three-gate London Judas, AMD classifier); NY shown as Gözlənilir until its detector lands.
+**Addresses:** Asia Range, London Judas + AMD classifier, correlation-gated §3 line 3.
+**Avoids:** P4 (DST), P5 (Judas over-fire).
+
+### Phase 4: Composition (§3 live + overlays + verify)
+**Rationale:** Presentation only after detectors are gated; autoscale, degraded-state, and deploy checks are cheapest as a final composition pass.
+**Delivers:** Asia overlay primitive + markers, rule-based §3 prose with all degraded branches, layer toggles, Baku dual-stamp labels, Vercel per-leg verify.
+**Avoids:** Chart autoscale squash, §3 confident-on-stale, cold-start blind spots.
 
 ### Phase Ordering Rationale
 
-- Proxy and pure math come first because every downstream output (zones, bias, DOL, report) is a deterministic function of validated candles plus an explicit asOf date; building UI first risks cementing wrong levels.
-- Fixtures parallelize with math (no dependency to build, only to fuse) but share Phase 1 so contracts are locked before panels consume them — preventing fixture drift.
-- Chart overlays sequence candle-only → price-lines → zone fills so autoscale regressions are caught per-overlay, and weekend gaps are never filled.
-- Deploy verification is its own phase because Hobby's daily-cron limit, per-region cache skew, and shared-egress 429s cannot be tested locally.
+- Data contracts before math before presentation — nothing downstream starts until per-symbol stale envelopes + join + forming-exclusion are verified on the live URL.
+- SMT math and AMD sessions fan out in parallel after Phase 1 (no cross-dependency); composition merges them into §3.
+- London-before-NY and daily-SMT-before-intraday-SMT keep each phase shippable partial-honest (unavailable markers, never faked signals).
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 1 (proxy resilience):** Yahoo is unofficial and unverified live (research rate-limited during this pass) — plan a `/gsd-plan-phase --research-phase` for exact UA/header set, `Retry-After` semantics, and schema-validation rules against the installed fetch runtime.
-- **Phase 2 (zone-fill primitive):** v5 `ISeriesPrimitive` path is doc-verified but implementation effort unspiked — time-box a spike; fallback is bounded box overlays with null autoscale.
-- **Phase 3 (Hobby verification):** cron/cache/egress behavior needs live-URL confirmation — research current Hobby cron + `maxDuration` + cache semantics at plan time.
+- **Phase 1:** Yahoo ES=F 1H row density / intraday lookback caps are LOW/MEDIUM confidence web claims — spike-verify with a live probe test in the first implementation phase.
+- **Phase 3:** Judas/AMD ICT semantics are MEDIUM (trading-education sources, no official spec) — pin Asia 19:00–00:00 NY variant + displacement multiples during planning.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 2 shell/panels/store wiring:** RSC + Zustand selector + `ssr:false` island are HIGH-confidence documented patterns — standard build, no extra research.
-- **Sentiment True-AVG + 60% flag logic:** settled arithmetic on fixtures — unit tests suffice.
+- **Phase 2 (SMT core):** matched-pair comparator shape is settled in-repo; standard pure-function work.
+- **Phase 4 (composition):** v5 primitive + markers + §3 template pattern already proven by v1.0 §2.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | lightweight-charts v5, Next dynamic/proxy, Zustand patterns verified in current official docs via Context7; date-fns-tz pairing MEDIUM (signature not re-verified — check installed types). |
-| Features | HIGH | Module 2 math formula-verified via LuxAlgo + ICT canon; sentiment/calendar live API shapes MEDIUM (surfaces confirmed, fixtures-first mitigates). |
-| Architecture | HIGH | Framework patterns from official docs; Yahoo-proxy specifics MEDIUM (upstream unverified). |
-| Pitfalls | HIGH | Proxy/rate-limit, Hobby cron, chart-TZ verified multi-source; NQ=F rollover MEDIUM (general futures mechanics applied to NQ=F). |
+| Stack | MEDIUM | Installed-package mapping verified via Context7; Yahoo intraday caps are web-sourced, need live probe |
+| Features | HIGH | ICT methodology stable; spec Modul 3 + §3 prescriptive; consensus across ICT sources |
+| Architecture | HIGH | Codebase read directly (store, proxy, chart, report, time, freshness); Yahoo 4H absence verified |
+| Pitfalls | HIGH for proxy/session/chart mechanics; MEDIUM for SMT/Judas semantics | Dual-symbol load + DST + overlay behavior grounded; signal semantics from education sources |
 
-**Overall confidence:** HIGH for what to build and how to structure it; MEDIUM for Yahoo upstream behavior — which the architecture (validation + backoff + stale-serve + visible age) is explicitly designed to survive regardless.
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- Yahoo v8 exact rate-limit numbers (~2000/hr, LOW, anecdotal): design is robust regardless; validate with backoff + stale-serve test in Phase 1, never by probing limits.
-- Yahoo response-schema drift: ship validation with loud failure + stale fallback; fail visibly, never silently.
-- `formatInTimeZone` / TZ-helper signatures: confirm against installed `date-fns-tz` package types during Phase 1; wrap in `toBakuDate`/`formatBaku` utils.
-- Zone-primitive implementation cost: time-boxed spike in Phase 2; fallback documented.
-- `America/Chicago`↔`Asia/Baku` DST-offset behavior: cover with March + November unit tests, not assumptions.
+- ES=F 1H row density / Yahoo intraday lookback caps: validate with live probe in Phase 1; clamp `period1` windows with margin.
+- Asia session open variant (19:00 vs 20:00 NY): pin 19:00–00:00 with code comment noting the variant; revisit only if live Asia ranges look systematically off.
+- NY-open Judas parameters: London skeleton first; NY window/anchor tuned after London confirms on live data.
+- SMT tolerance (bps) + Judas displacement multiples: tune against 60-day false-positive budget during implementation, not now.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- lightweight-charts v5 docs via Context7 (`/tradingview/lightweight-charts`) — `addSeries`, price-lines, primitives, UTC/business-day TZ guidance.
-- Next.js docs via Context7 (`/vercel/next.js`) — Route Handlers caching, `force-dynamic`, `next/dynamic ssr:false`.
-- Zustand docs via Context7 (`/pmndrs/zustand`) — `create<T>()` typed pattern, `useShallow`.
-- LuxAlgo Premium & Discount + Institutional Order Flow concept library — EQ/position/quadrant/OTE formulas, DOL framing.
-- `reference/institutional_rules.md` — normative 4-module, 6-section, True-AVG/60% spec.
-- Vercel cron usage/pricing + Functions limits docs — Hobby daily-cron limit, duration/usage caps.
-- Myfxbook Community Outlook — sentiment table reference UX.
+- Repo reads: `app/api/yahoo/route.ts`, `src/lib/yahoo.ts`, `src/lib/ict/types.ts`, `src/lib/store.ts`, `src/lib/time.ts`, v1.0 research PITFALLS P1–P6
+- CME session reality: Tastytrade futures hours, CrossTrade CME table, CME Group trading hours
 
 ### Secondary (MEDIUM confidence)
-- date-fns-tz docs — `toZonedTime`/`fromZonedTime`/offset semantics; v4-pairing confirmed, signature to re-verify.
-- Scrapfly Yahoo Finance API guide + yfinance/429 community consensus — v8 shape, UA requirement, query1/query2 fallback.
-- Sierra Chart / EBC rollover explainers — continuous-futures gap mechanics applied to NQ=F.
-- FXSSI 60% threshold, ForexFactory/Myfxbook calendar surfaces, ICT daily-bias guides.
+- ICT semantics (5+ corroborating education sources): innercircletrader.net (SMT, IRL/ERL, Judas), LuxAlgo (SMT, IRL/ERL, Judas), FXNX Asian Range + Judas, TradingStrategyGuides London Judas, Flux Charts SMT, Medium SMT manipulated-markets
+- Library docs via Context7: date-fns-tz, lightweight-charts v5 (markers + session-highlight primitive), Zustand v5 slices
 
 ### Tertiary (LOW confidence)
-- r/Daytrading + r/FuturesTrading practitioner threads — directional support; anecdotal.
-- Yahoo ~2000/hr limit figure — anecdotal; needs no validation given resilient design.
+- Yahoo intraday specifics (needs live validation): v8 `interval=60m/1h` support, 15m ~60d / 1m ~7d caps, futures-symbol path parity; exact 429 numeric limits (unofficial, variable)
 
 ---
-*Research completed: 2026-09-04*
+*Research completed: 2026-09-06*
 *Ready for roadmap: yes*

@@ -1,95 +1,106 @@
-# Technology Stack: ICT Liquidity Execution Terminal (NQ)
+# Stack Research: v2.0 Modul 3 (Liquidity Sequencing, SMT, AMD)
 
-**Project:** liquidity-engine — institutional execution terminal for NQ futures
-**Researched:** 2026-09-04
-**Scope:** Stack dimension only (Yahoo proxy, charting, state, timezone, ICT math placement)
+**Domain:** ICT liquidity-sequencing extension on existing NQ terminal (second symbol, intraday structure, session logic)
+**Researched:** 2026-09-06
+**Confidence:** MEDIUM
 
 ## Recommended Stack
 
-### Core Framework
+### Core Technologies
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Next.js App Router | 16.3.4 (pinned, already scaffolded) | Full-stack framework, Route Handlers for Yahoo proxy | Already installed; Route Handlers give a server-side proxy that hides fetch origin, adds caching, and keeps Yahoo's unofficial endpoint off the client. Verify breaking-change notes in `node_modules/next/dist/docs/` before writing route code — v16 conventions may differ from training data. |
-| React | 19.2.8 | UI runtime | Pinned by Next 16 scaffold. Note: `next/dynamic` with `ssr: false` must be used inside a Client Component for the chart (verified in current Next docs, HIGH confidence). |
-| TypeScript | ^5 (strict) | Type safety for ICT math + API contracts | Strict mode is non-negotiable for dealing-range math — price-level errors must be compile-time, not runtime. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Next.js App Router route handler (extended) | 16.3.4 (installed, no change) | Serve ES=F + 1h intraday through the existing Yahoo proxy pattern | Zero new infra: the v1.0 `fetchNQDaily` already owns failover, backoff, singleflight, 60s TTL, serve-stale. Generalizing it to `(symbol, interval)` reuses every proven resilience behavior instead of building a second fetcher that can drift |
+| `src/lib/yahoo.ts` generalized fetcher | no version (own code) | One parameterized fetcher for NQ=F / ES=F × 1d / 1h | Yahoo v8 chart path is identical for futures symbols — only the symbol segment and `interval` param change. A single `fetchCandles(symbol, interval, now)` with allowlisted inputs keeps the symbol-mismatch guard, ordering guard, and validation contract in one place |
+| `src/lib/ict` pure functions (extended) | no version (own code) | 4H/1H internal/external transitions, SMT divergence, Asia Range / Judas Swing detectors | Purity constraint (no I/O, inject time) is what made v1.0 testable; all Modul 3 math is deterministic candle arithmetic, so no library is needed — new modules (`sessions.ts`, `smt.ts`, `internal.ts`, `amd.ts`) follow the existing `range.ts`/`bias.ts` shape |
+| date-fns-tz | ^3.2.0 (installed, no change) | Baku-aware Asia/London/NY session bucketing | `formatInTimeZone(ts, 'America/New_York', 'HH:mm')` buckets any candle into a killzone with DST-correct offsets via Intl; `getTimezoneOffset(tz, date)` gives the per-date offset so March/November DST shifts need no manual tables. The v1.0 March+Novermber DST proof transfers directly |
+| lightweight-charts v5 primitives | ^5.2.1 (installed, no change) | Asia Range background bands + Judas/SMT pins on the chart | v5's `series.attachPrimitive()` session-highlighting pattern (official plugin-examples: `timeToCoordinate` pane view + canvas `fillRect`, `zOrder: 'bottom'`) shades session bands with no new dependency; `createSeriesMarkers()` pins Judas swings and SMT signals. Copy the ~60-line primitive inline — do not depend on a third-party drawing plugin |
+| Zustand slices pattern | ^5.0.15 (installed, no change) | NQ slice + ES slice + derived SMT/AMD selectors in one store | Official slices pattern: one `StateCreator` per symbol domain, spread into a single `create()` store. SMT divergence and §3 report data stay **derived selectors** over both candle arrays (like `selectBias` today), never stored state — so the two symbols cannot desync |
 
-### Data: Yahoo Finance Proxy
+### Supporting Libraries
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Next.js Route Handler (`app/api/yahoo/route.ts`) + native `fetch` | No extra dependency | NQ=F daily candles via `https://query1.finance.yahoo.com/v8/finance/chart/NQ=F?interval=1d` | The v8 chart endpoint needs no auth token/crumb (unlike v7 download) but **requires a browser-like `User-Agent` header** — default Node/Next fetch UA gets 429'd aggressively. Native fetch keeps the serverless bundle lean on Vercel free tier. |
-| Module-level in-memory cache (Map + timestamp, 60s TTL) with stale-on-429 fallback | Hand-rolled (~30 lines) | 60s cache + 429 resilience | Vercel free-tier serverless has no shared KV; a module-level Map is per-instance but sufficient for a single-user terminal. On 429, serve stale cache instead of erroring — a trading terminal showing last-known-good candles beats a blank screen. Honor `Retry-After` when present; otherwise exponential backoff (1s → 2s → 4s, max 3 retries). |
-| `export const dynamic = 'force-dynamic'` on the route | Next.js route config | Prevent static optimization of the proxy | Route Handlers are not cached by default, but being explicit guards against build-time prerender freezing a quote snapshot into the deploy (verified pattern in current Next docs, HIGH confidence). |
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| (none) | — | — | **No new dependencies.** Every Modul 3 capability maps onto an installed package or pure own-code. This is the headline finding: the v1.0 stack already covers the milestone |
 
-**Rate-limit facts (MEDIUM confidence — unofficial API, limits undocumented, verified via community consensus not official docs):**
-- ~2,000 req/hr per IP before 429s begin; a 60s poll cadence (~60 req/hr) is far under the limit — 429s in practice come from missing `User-Agent`, not volume.
-- `query1` vs `query2` subdomains: use `query1` primary, fall back to `query2` on 5xx/429 (community-standard resilience trick).
-- Response shape: `chart.result[0]` → `timestamp[]` + `indicators.quote[0]` (`open/high/low/close/volume`) + `meta` (exchangeTimezoneName, regularMarketPrice). Validate with `meta.exchangeTimezoneName === 'America/New_York'`-ish guard; fail loudly if Yahoo changes schema.
+### Development Tools
 
-### Charting
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| lightweight-charts | ^5.2.1 (installed) | Candlestick chart + zone overlays | SOTA for canvas-rendered financial charts; tiny bundle, no D3 overhead. **v5 breaking change verified (HIGH):** series are created via `chart.addSeries(CandlestickSeries, opts)` — NOT `chart.addCandlestickSeries()` (v4 API, removed). Import `CandlestickSeries` as a value import. |
-| `series.createPriceLine()` | Built into lightweight-charts v5 | Equilibrium / high / low horizontal levels | Native API, zero custom code: `{ price, color, lineWidth, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title }`. Use for Equilibrium (cyan #00D9FF), Range High/Low. Verified in v5 docs (HIGH). |
-| Series primitives (`series.attachPrimitive()`) or overlay Histogram series | Built into lightweight-charts v5 | Premium/Discount shaded zones | Price lines are lines, not fills. For shaded Premium (above equilibrium) / Discount (below) zones, attach a lightweight custom primitive (rectangle between two prices across visible time range) — the v5 plugin API (`ISeriesPrimitive`) is the sanctioned path. Simpler alternative if primitives prove fiddly: a second overlay series is overkill — prefer the primitive; flag for phase-level spike. (MEDIUM — API verified, implementation effort unspiked.) |
-| `next/dynamic` with `{ ssr: false }` inside a `'use client'` wrapper | Next.js built-in | Client-only chart loading | lightweight-charts touches `window`/canvas at construction — SSR-prerendering it crashes the build. Verified current pattern (HIGH). Show a skeleton panel as `loading` fallback to keep the 3-panel shell stable. |
-
-### State + Time
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Zustand | ^5.0.15 (installed) | Dashboard state: symbol, timeframe, dealing-range result, confidence | Zero-boilerplate, works cleanly with React 19, no Provider tree. Use `create<State>()((set) => ...)` typed pattern + `useShallow` for multi-field selectors to avoid re-rendering the whole terminal on every tick (both verified in current Zustand docs, HIGH). Single store file (`src/store/useTerminalStore.ts`); async Yahoo polling lives in the component/route layer, not in the store — store holds data + `setCandles`/`setRange` actions only. |
-| date-fns + date-fns-tz | ^4.4.0 + ^3.2.0 (installed, matched pair) | Asia/Baku session/date logic + display formatting | date-fns-tz v3 is the correct companion for date-fns v4 (`formatInTimeZone(date, 'Asia/Baku', ...)`). Correct because: immutable, tree-shakeable, no 200KB moment-timezone payload on a free-tier deploy. Yahoo timestamps are seconds-since-epoch UTC — convert at the display edge; keep epoch ms as canonical in state and ICT math. |
-| Pure TypeScript functions in `src/lib/ict/` (no library) | — | Dealing Range math: Premium/Discount/Equilibrium, DOL target, bias | ICT math is arithmetic on high/low/close arrays — any dependency here is accidental complexity and a testability liability. Constraint stands: no I/O, no `Date.now()` inside (inject `now` as an argument) so every function is unit-testable and monorepo-extractable. |
-
-### Styling / UI (locked by PROJECT.md, not re-researched)
-
-Tailwind v4 + shadcn restricted to button, dropdown-menu, dialog, toast, calendar, card. Dark terminal palette #0A0A0F / #14141E / #00D9FF per `reference/design.html`.
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Yahoo client | Native fetch in Route Handler | `yahoo-finance2` npm package | Heavy dependency on an unofficial API that breaks on Yahoo schema changes anyway; adds cold-start weight on serverless; hand-rolled fetch + Zod-lite validation is ~50 lines and fully owned. |
-| Yahoo client | Native fetch | Direct client-side fetch to Yahoo | CORS-blocked by Yahoo; leaks no key but exposes the app to client IP rate limits and removes the caching layer. Proxy is mandatory. |
-| Cache | In-memory Map, 60s TTL | Vercel KV / Upstash Redis | Paid or free-tier-limited; single-user terminal doesn't need shared cache. Revisit only if multi-instance staleness is observed. |
-| Cache | In-memory Map | `fetch` with `next: { revalidate: 60 }` alone | Next fetch-cache doesn't give stale-on-429 fallback control; combine is fine, but the Map is the source of truth for fallback semantics. |
-| Charting | lightweight-charts v5 | Recharts / Chart.js / D3 | Recharts/Chart.js have no first-class candlestick + financial scale semantics; D3 is a months-long build for what lightweight-charts gives in an afternoon. |
-| Charting zones | Series primitive + price lines | `lightweight-charts-drawing` community plugin | 68 drawing tools for an interactive-drawing use case Phase 1 doesn't have; zones are programmatic, not user-drawn. Don't pay for interactivity you won't wire up. |
-| State | Zustand | Redux Toolkit / Jotai / Context | Redux is ceremony for one store; Context re-renders the tree on every candle tick; Jotai is fine but Zustand is already installed and the team constraint locks it. |
-| Polling | `setInterval` + `fetch` in client component (60s) | SWR / React Query | One endpoint, one cadence, manual `staleTime` needs — SWR/RQ add a dependency for cache semantics the server already owns. Revisit if endpoints multiply (sentiment/calendar live APIs in later phases). |
-| Timezone | date-fns + date-fns-tz | moment-timezone / Luxon / raw Intl | moment is legacy + huge; Luxon is excellent but an extra idiom when date-fns is installed; raw Intl is fine for one-offs but `formatInTimeZone` reads cleaner across the codebase. |
-| ICT math | Hand-rolled pure functions | Any TA indicator library (tulind, technicalindicators) | Retail indicator libraries compute RSI/MACD, not ICT dealing ranges; the math is project-specific by definition. |
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| vitest | ^5.0.0 (installed) | Pin session-boundary DST cases (March + November Sundays), SMT fixture pairs, 4H aggregation from 1h rows — same pure-function test style as `range.test.ts` |
+| Existing Yahoo proxy test harness | own code (`yahoo.test.ts`) | Extend with ES=F symbol-mismatch, `interval=1h` path building, and per-key (`SYMBOL:INTERVAL`) cache isolation cases |
 
 ## Installation
 
 ```bash
-# Already installed — no new dependencies for Phase 1.
-# If the lockfile drifts, restore exactly:
-npm install zustand@^5.0.15 lightweight-charts@^5.2.1 date-fns@^4.4.0 date-fns-tz@^3.2.0
+# No installs required — all capabilities are covered by installed packages:
+# next 16.3.4, zustand ^5.0.15, lightweight-charts ^5.2.1,
+# date-fns ^4.4.0, date-fns-tz ^3.2.0
 ```
 
-No `npm install` of yahoo-finance2, swr, @tanstack/react-query, moment-timezone, or drawing plugins.
+## Alternatives Considered
 
-## Confidence Levels
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Generalize `src/lib/yahoo.ts` with `(symbol, interval)` params | Separate `/api/es` route + separate fetcher module | Never for this milestone — a second fetcher duplicates failover/backoff/stale logic and the two copies will drift. If a third venue (e.g. XAUUSD per spec exception) arrives, revisit |
+| `?symbol=&interval=` query params on existing `/api/yahoo` | New route per symbol/interval | Only if Vercel cache-hit rates suffer from query-string variance — unlikely with `force-dynamic` + 60s `s-maxage` already in place |
+| Aggregate 4H candles from 1h rows in `src/lib/ict` | Fetch `interval=4h` from Yahoo | Yahoo does not offer a 4h interval; 4H structure **must** be folded from 1h rows (6 rows per 4H block on the ET clock). This is pure grouping code, not a stack decision |
+| Inline session-highlighting primitive (~60 lines, copied from official plugin-examples) | `lightweight-charts-drawing` / `line-tools-core` third-party plugin | Only if interactive drawing (drag/resize) is later required — Modul 3 needs static bands + markers, and third-party drawing deps add API-surface risk on a Hobby budget |
+| ET (`America/New_York`) as session-definition clock | Chicago (`America/Chicago`, existing `CME_TZ`) as session clock | Keep canonical ICT killzones in ET (Asia 20:00–00:00, London 02:00–05:00, NY 07:00–10:00 ET) and convert display to Baku; use Chicago only for the existing header clock. Mixing definition clocks is the classic off-by-one source |
 
-| Recommendation | Confidence | Basis |
-|----------------|------------|-------|
-| lightweight-charts v5 `addSeries(CandlestickSeries)` + `createPriceLine` | HIGH | Current official docs via Context7, breaking change explicitly documented |
-| `next/dynamic ssr:false` in Client Component | HIGH | Current Next.js docs via Context7 |
-| Route Handler `force-dynamic` + native fetch proxy | HIGH | Current Next.js docs via Context7 |
-| Zustand `create<T>()` + `useShallow` pattern | HIGH | Current Zustand docs via Context7 |
-| date-fns v4 + date-fns-tz v3 pairing | MEDIUM | Installed versions are the documented matched pair; `formatInTimeZone` signature not re-verified this pass — confirm against installed package types during Phase 1 |
-| Yahoo v8 endpoint shape, UA requirement, query1/query2 fallback | MEDIUM | Community consensus; unofficial API with no contract — schema validation + loud failure required in code |
-| Yahoo rate-limit numbers (~2000/hr) | LOW | Undocumented, anecdotal; design (60s cache, backoff, stale fallback) is robust regardless of exact limit |
-| Zone-fill via series primitive effort | MEDIUM | API path verified in v5 docs; implementation complexity unspiked — allow a time-boxed spike in the chart phase |
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| React Query / SWR / any server-state lib | Second caching layer fights the proven 60s CDN TTL + module singleflight; adds bundle + invalidation semantics for zero gain | Existing `refresh()` + per-key cache entries |
+| luxon / moment / dayjs for sessions | date-fns-tz already proven DST-correct here (March + November cases green); a second date lib doubles DST-edge risk | `formatInTimeZone` + `getTimezoneOffset` (installed) |
+| `yfinance` (Python) or any scraper service | No Python runtime on Vercel Hobby; paid scrapers violate zero budget; direct v8 chart fetch already works | Extended `/api/yahoo` route |
+| TradingView widget / charting lib swap | v5 dynamic-import chart with overlays is shipped and green; migration cost with no Modul 3 payoff | lightweight-charts v5 primitives |
+| LLM calls for SMT/AMD signals | Determinism is a project constraint; swing comparison and session bucketing are codifiable rules | Pure `src/lib/ict` functions + rule-based §3 |
+| WebSocket / streaming intraday feed | Vercel Hobby has no cheap socket story; 60s-poll 1h candles are sufficient for session-range structure | Poll the generalized proxy at the existing cadence |
+| Third-party drawing-tools plugin for lightweight-charts | Unneeded API surface for static bands/markers; version skew risk against pinned v5.2.1 | Inline primitive copied from official plugin-examples |
+
+## Stack Patterns by Variant
+
+**If Yahoo 1h row count for ES=F comes back sparse (futures overnight gaps, holiday sessions):**
+- Bucket sessions defensively: Asia Range = max/min of rows present in the window, require minimum 3 rows, else mark session `thinHistory`-style unavailable — same honest-degrade contract as D1
+- Because futures trade near-24h, Yahoo 1h rows include overnight action; gaps are real market closures, not fetch bugs
+
+**If 4 upstream combos (2 symbols × 2 intervals) strain the 15s `maxDuration`:**
+- Fetch combos with `Promise.all` server-side (or two parallel client `refresh` calls into the per-key singleflight), keep 4s per-fetch timeout; worst case stays under budget the same way v1.0's 4-attempt budget did
+- Because each combo has its own cache key + TTL, steady-state cost is one upstream fetch per combo per minute
+
+**If NQ and ES timestamps misalign on 1h rows:**
+- Align SMT swing comparison on daily closes (date-string keys, already Baku-normalized) and use 1h only for per-symbol internal structure — never compare cross-symbol intraday bar-to-bar
+- Because cross-symbol bar alignment is the top false-signal source in SMT implementations
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| lightweight-charts ^5.2.1 | `attachPrimitive` + `createSeriesMarkers` plugin API | Both APIs are v5-native; the session-highlighting example targets the v5 plugin-examples tree — no version bump needed |
+| date-fns-tz ^3.2.0 | date-fns ^4.4.0, `America/New_York` + `Asia/Baku` IANA zones | Already jointly proven in `time.ts` / `session-line.ts`; adding a third zone uses the same Intl path |
+| zustand ^5.0.15 | React 19.2.8, slices `StateCreator` generics | Slices pattern is documented for v5; no middleware types change unless `persist`/`devtools` is added (it should not be) |
+| Next 16.3.4 route handler | `force-dynamic` + `maxDuration = 15` + searchParams allowlist | Query-param extension needs no config change; validate `symbol`/`interval` against an allowlist and 502 otherwise (same `UpstreamError` shape) |
+
+## Integration Points with Existing Code
+
+| Existing piece | Modul 3 touchpoint | Change shape |
+|----------------|--------------------|--------------|
+| `src/lib/yahoo.ts` (`SYMBOL`, `ENCODED_SYMBOL`, `CACHE_KEY`, `fetchNQDaily`) | ES=F + `interval=1h` | Parameterize to `fetchCandles(symbol, interval, now)`; symbol allowlist `{NQ=F, ES=F}`, interval allowlist `{1d, 1h}`; cache key `${symbol}:${interval}`; keep mismatch/ordering guards per response |
+| `app/api/yahoo/route.ts` | `?symbol=&interval=` | Parse + allowlist-validate searchParams, default to `NQ=F`/`1d` (backward compatible); per-combo `Cache-Control` identical to today |
+| `src/lib/ict/*` (+ `types.ts` `Candle`) | `sessions.ts`, `smt.ts`, `internal.ts`, `amd.ts` | New pure modules reusing `Candle`/`closedOnly`; 4H folder groups 1h rows; SMT compares aligned daily swings; sessions bucket on ET clock with injected timestamps |
+| `src/lib/store.ts` (`useDashboard`) | ES candles + SMT/§3 selectors | Add `esCandles` + `esMeta` via slice or parallel fields; `selectSMT`, `selectAMD`, `selectSection3` as derived selectors calling new ict modules |
+| `src/lib/time.ts` + `session-line.ts` | Session clocks | Add `AMERICA_NEW_YORK` export alongside `BAKU_TZ`/`CME_TZ`; header line untouched |
+| Chart component (lightweight-charts v5, dynamic import) | Asia Range bands + markers | Attach inline session-highlight primitive + `createSeriesMarkers` for Judas/SMT pins; existing zone overlays untouched |
 
 ## Sources
 
-- lightweight-charts v5 migration + series/price-line/primitive docs (Context7, `/tradingview/lightweight-charts`, HIGH)
-- Next.js Route Handlers caching + `next/dynamic` lazy-loading docs (Context7, `/vercel/next.js`, HIGH)
-- Zustand TypeScript + `useShallow` guides (Context7, `/pmndrs/zustand`, HIGH)
-- date-fns-tz TZDate/timezone docs (Context7, `/date-fns/tz`, MEDIUM — v4-native successor API noted)
-- Yahoo Finance v8 chart API conventions (web consensus; direct verification rate-limited during research — MEDIUM/LOW as marked above)
+- `/marnusw/date-fns-tz` (Context7) — `formatInTimeZone`, `getTimezoneOffset`, DST transition behavior — MEDIUM confidence
+- `/tradingview/lightweight-charts` (Context7) — series markers, session-highlighting `attachPrimitive` plugin example — MEDIUM confidence
+- `/pmndrs/zustand` (Context7) — slices pattern, cross-slice updates, derived selectors — MEDIUM confidence
+- Web (firecrawl search, verified) — Yahoo v8 `interval=60m/1h` support; intraday lookback ~60d, 1m ~7d/request; same path works for futures symbols — LOW/MEDIUM confidence, **spike-verify ES=F 1h row density in the first implementation phase**
+
+---
+*Stack research for: v2.0 Modul 3 (Liquidity Sequencing & SMT, NQ vs ES, full AMD)*
+*Researched: 2026-09-06*
