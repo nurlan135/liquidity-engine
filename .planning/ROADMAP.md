@@ -110,3 +110,14 @@ Phases execute in numeric order: 1 → 2 → 3
 | 1. Data Foundation & ICT Core | 3/3 | In Progress|  |
 | 2. Terminal Composition | 4/4 | Complete    | 2026-09-05 |
 | 3. Production Deploy & Verification | 4/4 | Complete    | 2026-09-06 |
+
+### Phase 03.1: Close gap ICT-07 banner (INSERTED)
+
+**Goal:** Close the ICT-07 functional gap: wire detectRollover into a store selector (selectRollover) + banner component (flag-and-continue made visible), so E2E flow F5 (rollover week → flagged banner) exists. Scope is banner-only.
+**Requirements**: ICT-07
+**Depends on:** Phase 3
+**Plans:** 1 plan
+
+Plans:
+
+- [ ] 03.1-01-PLAN.md — Tracer slice: selectRollover selector plus rollover banner plus edge-case lock plus gates
