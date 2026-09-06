@@ -109,6 +109,66 @@ describe('store: refresh writes envelope in one update', () => {
     vi.unstubAllGlobals();
   });
 
+  it('refresh-failure-sets-stale: failed fetch marks stale with last-known preserved', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = fixtureCandles();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+    const beforeISO = useDashboard.getState().lastUpdatedISO;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    );
+    await useDashboard.getState().refresh();
+
+    const state = useDashboard.getState();
+    expect(state.stale).toBe(true);
+    expect(state.lastError).toBe('network down');
+    expect(state.candles).toEqual(candles);
+    expect(state.lastUpdatedISO).toBe(beforeISO);
+    expect(state.inFlight).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('refresh-success-clears-stale: next success restores envelope truth', async () => {
+    const { useDashboard } = await import('@/src/lib/store');
+    const candles = fixtureCandles();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+    vi.unstubAllGlobals();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    );
+    await useDashboard.getState().refresh();
+    expect(useDashboard.getState().stale).toBe(true);
+    vi.unstubAllGlobals();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json(mockEnvelope(candles))),
+    );
+    await useDashboard.getState().refresh();
+
+    const state = useDashboard.getState();
+    expect(state.stale).toBe(false);
+    expect(state.lastError).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it('derives range with eq equal to (high + low) / 2 plus bias and DOL from ict', async () => {
     const { useDashboard } = await import('@/src/lib/store');
     const { computeRange } = await import('@/src/lib/ict/range');
