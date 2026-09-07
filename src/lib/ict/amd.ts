@@ -114,6 +114,35 @@ function smtTag(judas: JudasOutput | null | undefined, smt: SmtOutput | null | u
 // promotion second, SMT regime tag third, NY unavailable branch last. Reason
 // assembly is a deterministic sentence selection (one base sentence plus at
 // most one SMT suffix), so section-3 prose can render reasons verbatim.
+// WR-05: the JudasOutput envelope drives every promotion branch. A
+// malformed judas (truthy-string flags, string sweepTime) previously slid
+// through — `asOf > "abc" + 2700` string-concats to NaN and silently holds
+// manipulation. Fail at the boundary like judasSwing does for its range.
+function assertValidJudas(judas: AmdInput['judas']): void {
+  if (judas === null || judas === undefined) {
+    return;
+  }
+  if (typeof judas !== 'object' || Array.isArray(judas)) {
+    throw new Error(`amdPhase requires a JudasOutput object or null, got ${String(judas)}`);
+  }
+  const j = judas as JudasOutput;
+  if (typeof j.candidate !== 'boolean' || typeof j.confirmed !== 'boolean') {
+    throw new Error(
+      `amdPhase requires boolean judas candidate/confirmed, got candidate=${String(j.candidate)} confirmed=${String(j.confirmed)}`,
+    );
+  }
+  if (j.sweepTime !== null && j.sweepTime !== undefined && (!Number.isFinite(j.sweepTime) || (j.sweepTime as number) <= 0)) {
+    throw new Error(
+      `amdPhase requires a finite positive judas sweepTime or null, got ${String(j.sweepTime)}`,
+    );
+  }
+  if (j.sweepSide !== null && j.sweepSide !== undefined && j.sweepSide !== 'HIGH' && j.sweepSide !== 'LOW') {
+    throw new Error(
+      `amdPhase requires judas sweepSide HIGH, LOW, or null, got ${String(j.sweepSide)}`,
+    );
+  }
+}
+
 export function amdPhase(input: AmdInput): AmdOutput {
   if (input === null || input === undefined || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error(`amdPhase requires an input object, got ${String(input)}`);
@@ -122,6 +151,7 @@ export function amdPhase(input: AmdInput): AmdOutput {
   if (!Number.isFinite(asOf) || (asOf as number) <= 0) {
     throw new Error(`amdPhase requires a finite positive asOf epoch, got ${String(asOf)}`);
   }
+  assertValidJudas(judas);
   const epoch = asOf as number;
   const minutes = nyMinutesOf(epoch);
 

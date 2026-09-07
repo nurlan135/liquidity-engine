@@ -218,6 +218,43 @@ describe('amd: SMT read-only', () => {
   });
 });
 
+describe('amd: malformed judas envelope throws at the boundary', () => {
+  it('rejects truthy non-boolean flags, string sweepTime, and bad sweepSide', () => {
+    const asOf = asiaHourEpoch();
+    expect(() =>
+      amdPhase({
+        asia: fixtureAsia(),
+        judas: { ...fixtureJudas({ candidate: true }), candidate: 1 } as unknown as JudasOutput,
+        smt: null,
+        asOf,
+      }),
+    ).toThrow('amdPhase requires boolean judas candidate/confirmed');
+    expect(() =>
+      amdPhase({
+        asia: fixtureAsia(),
+        judas: fixtureJudas({ candidate: true, confirmed: true, sweepTime: 'abc' as unknown as number }),
+        smt: null,
+        asOf,
+      }),
+    ).toThrow('amdPhase requires a finite positive judas sweepTime or null');
+    expect(() =>
+      amdPhase({
+        asia: fixtureAsia(),
+        judas: fixtureJudas({ candidate: true, sweepSide: 'BOTH' as unknown as SweepSide }),
+        smt: null,
+        asOf,
+      }),
+    ).toThrow('amdPhase requires judas sweepSide HIGH, LOW, or null');
+    // Null and well-formed envelopes still pass through.
+    expect(
+      amdPhase({ asia: fixtureAsia(), judas: null, smt: null, asOf }).phase,
+    ).toBe('accumulation');
+    expect(
+      amdPhase({ asia: fixtureAsia(), judas: fixtureJudas({ candidate: true }), smt: null, asOf }).phase,
+    ).toBe('manipulation');
+  });
+});
+
 describe('amd: end-to-end asiaRange through judasSwing to amdPhase fusion', () => {
   it('classifies manipulation with the exact Baş-verib reason and echoed inputs', () => {
     // One deterministic evening: five closed 1H Asia rows at the 20:00 NY open
