@@ -73,7 +73,12 @@ Plans:
   3. User sees FVG map + ERL/IRL transition state that fires only on sweep-then-reject (never sweep alone), with §2 Delivery Cycle upgraded
   4. User sees 4H structure synthesized from NY-anchored 1H blocks under closed-only discipline
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Tracer: SMT comparator with correlation gate plus joint rollover suppression
+- [ ] 07-02-PLAN.md — FVG map plus sweep-then-reject ERL/IRL transition plus §2 sentence
+- [ ] 07-03-PLAN.md — NY-anchored 1H→4H aggregation, complete blocks only
 
 ### Phase 8: AMD Sessions (Asia Range + Judas)
 
