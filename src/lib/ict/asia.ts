@@ -39,6 +39,13 @@ function hasValidTime(c: IntradayCandle): boolean {
   return Number.isFinite(c.time) && c.time > 0;
 }
 
+// WR-03: an inverted-OHLC row (high < low, bad feed tick) passes the finite
+// check but poisons the wick accumulator with a negative height. Dropped
+// like other invalid rows so one bad tick never becomes a pipeline throw.
+function hasOrderedWicks(c: IntradayCandle): boolean {
+  return c.high >= c.low;
+}
+
 // Per-candle IANA wall-clock minutes since midnight (D-07 discipline, T-08-02).
 // formatInTimeZone renders the explicit instant in NY_TZ, so the result is the
 // true NY wall clock on every machine and every instant — including inside DST
@@ -86,7 +93,7 @@ export function asiaRange(rows: IntradayCandle[], sessionDate: string): AsiaRang
   }
   assertValidSessionDate(sessionDate);
   const closed = closedOnlyIntraday(rows);
-  const valid = closed.filter((r) => hasFiniteOhlc(r) && hasValidTime(r));
+  const valid = closed.filter((r) => hasFiniteOhlc(r) && hasValidTime(r) && hasOrderedWicks(r));
 
   // T-08-01: ascending sort plus timestamp dedupe (first row wins) on copies so
   // caller arrays are never mutated and out-of-order rows cannot misattribute
@@ -116,11 +123,18 @@ export function asiaRange(rows: IntradayCandle[], sessionDate: string): AsiaRang
   }
 
   // D-02: wick-to-wick extremes (full candle highs/lows, raw OHLC).
+  // Defense-in-depth: every in-window row passed hasOrderedWicks, so the
+  // resulting height is positive by construction — but guard explicitly so
+  // a future filter change can never emit a negative-height range.
   let high = inWindow[0].high;
   let low = inWindow[0].low;
   for (const r of inWindow) {
     if (r.high > high) high = r.high;
     if (r.low < low) low = r.low;
   }
-  return { high, low, height: high - low, sessionDate };
+  const height = high - low;
+  if (!(height > 0)) {
+    return null;
+  }
+  return { high, low, height, sessionDate };
 }

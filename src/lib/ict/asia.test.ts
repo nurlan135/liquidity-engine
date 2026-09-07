@@ -170,6 +170,22 @@ describe('asia: boundary edges', () => {
     expect(asiaRange(poisoned, SESSION)).toEqual(asiaRange(rows, SESSION));
   });
 
+  it('drops inverted-OHLC rows so one bad tick never yields a negative height', () => {
+    const rows = block(SESSION, 20, 5);
+    const without = asiaRange(rows, SESSION);
+    expect(without).not.toBeNull();
+    // Inverted row with extreme wicks: dropped at the boundary, range unchanged.
+    const inverted = row(nyHourEpoch(SESSION, 21), BASE, {
+      high: BASE - 500,
+      low: BASE + 500,
+    });
+    expect(inverted.high).toBeLessThan(inverted.low);
+    expect(asiaRange([...rows, inverted], SESSION)).toEqual(without);
+    // Window of only inverted rows degrades honestly to null, never a
+    // negative-height range that would throw downstream in judasSwing.
+    expect(asiaRange([inverted], SESSION)).toBeNull();
+  });
+
   it('throws with the echoed value on non-array rows input', () => {
     expect(() => asiaRange('nope' as unknown as IntradayCandle[], SESSION)).toThrow(
       'asiaRange requires an IntradayCandle array, got nope',
