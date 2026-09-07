@@ -49,3 +49,6 @@ next-env.d.ts
 
 # playwright mcp session artifacts (logs, snapshots)
 .playwright-mcp/
+
+# gsd research cache (machine-generated, restorable)
+.planning/research/.cache/
