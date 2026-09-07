@@ -95,9 +95,16 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 08-01-PLAN.md — Tracer: conforming 19:00→20:00 edits plus Asia Range core with DST triple-test
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 08-02-PLAN.md — Three-gate Judas detector plus 60-day budget dev-script
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 08-03-PLAN.md — AMD phase classifier plus end-to-end fusion and full-suite green
 
 ### Phase 9: Composition (§3 Live + Overlays + Verify)
