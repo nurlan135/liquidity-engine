@@ -1,5 +1,7 @@
 import type { Candle } from '@/src/lib/ict/types';
 import { closedOnly } from '@/src/lib/ict/types';
+import { computeATR } from '@/src/lib/ict/regime';
+import { detectRollover } from '@/src/lib/ict/rollover';
 
 // D-02: fractal swing parameter shared by both legs, pinned by test.
 export const SWING_K = 2;
@@ -152,6 +154,102 @@ export function matchSwings(nq: Candle[], es: Candle[], k: number = SWING_K): Ma
 
 function bpsGap(sweptPrice: number, heldPrice: number, referenceExtreme: number): number {
   return (Math.abs(sweptPrice - heldPrice) / referenceExtreme) * 10000;
+}
+
+// Textbook Pearson r over two paired close arrays. Returns NaN on a
+// zero-variance denominator (flat leg carries zero directional information);
+// the caller converts every non-finite result to decoupled, never dividing
+// or propagating NaN (T-07-01).
+export function pearsonCorr(nqCloses: number[], esCloses: number[]): number {
+  if (nqCloses.length !== esCloses.length || nqCloses.length === 0) {
+    return NaN;
+  }
+  const n = nqCloses.length;
+  let meanX = 0;
+  let meanY = 0;
+  for (let i = 0; i < n; i++) {
+    meanX += nqCloses[i];
+    meanY += esCloses[i];
+  }
+  meanX /= n;
+  meanY /= n;
+  let num = 0;
+  let sumSqX = 0;
+  let sumSqY = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = nqCloses[i] - meanX;
+    const dy = esCloses[i] - meanY;
+    num += dx * dy;
+    sumSqX += dx * dx;
+    sumSqY += dy * dy;
+  }
+  const denom = Math.sqrt(sumSqX * sumSqY);
+  if (denom === 0) {
+    return NaN;
+  }
+  return num / denom;
+}
+
+// Full SMT pipeline in fixed gate order (D-07, D-05, D-06, D-08): correlation
+// first, then joint rollover, then matching. Any suppression returns before
+// matchSwings runs. D1 daily candles only (D-01); raw OHLC plus
+// basis-point compare only — never adjusted-close (T-07-02). Pure: asOf is a
+// plain string parameter, no current-time reads, zero store imports. Caller
+// arrays are never mutated.
+export function evaluateSMT(nq: Candle[], es: Candle[], asOf: string): SmtOutput {
+  // Boundary re-validation (T-07-01): forming rows drop via closedOnly and
+  // non-finite OHLC rows drop beside it, before any pairing.
+  const nqClosed = closedOnly(nq).filter(hasFiniteOhlc);
+  const esClosed = closedOnly(es).filter(hasFiniteOhlc);
+
+  const esByDate = new Map<string, number>();
+  for (const c of esClosed) {
+    if (!esByDate.has(c.date)) {
+      esByDate.set(c.date, c.close);
+    }
+  }
+  const seen = new Set<string>();
+  const paired: Array<{ date: string; nqClose: number; esClose: number }> = [];
+  for (const c of nqClosed) {
+    if (seen.has(c.date)) {
+      continue;
+    }
+    const e = esByDate.get(c.date);
+    if (e !== undefined) {
+      seen.add(c.date);
+      paired.push({ date: c.date, nqClose: c.close, esClose: e });
+    }
+  }
+
+  if (paired.length < CORR_WINDOW) {
+    return { suppressed: true, reason: 'CORR_DECOUPLED' };
+  }
+  const window = paired.slice(-CORR_WINDOW);
+  const corr = pearsonCorr(
+    window.map((p) => p.nqClose),
+    window.map((p) => p.esClose),
+  );
+  if (!Number.isFinite(corr) || corr < CORR_MIN) {
+    return { suppressed: true, reason: 'CORR_DECOUPLED', corr };
+  }
+
+  // Joint rollover check (D-08): per-leg ATR from computeATR with the final
+  // series element; a leg with an empty ATR series is non-suspect. Either
+  // suspect suppresses with reason 'rollover-week'. Shared multiplier
+  // ROLLOVER_ATR_MULT flows through detectRollover itself.
+  const nqAtr = computeATR(nqClosed);
+  const esAtr = computeATR(esClosed);
+  const nqFlag =
+    nqAtr.length > 0
+      ? detectRollover(nqClosed, nqAtr[nqAtr.length - 1], asOf, 'NQ D1 continuous')
+      : null;
+  const esFlag =
+    esAtr.length > 0 ? detectRollover(esClosed, esAtr[esAtr.length - 1], asOf, 'ES D1 continuous') : null;
+  if ((nqFlag !== null && nqFlag.rolloverSuspect) || (esFlag !== null && esFlag.rolloverSuspect)) {
+    return { suppressed: true, reason: 'rollover-week' };
+  }
+
+  return detectSMT(matchSwings(nqClosed, esClosed));
 }
 
 function legWindows(pair: MatchedSwing): { nqWindow: SmtLegWindow; esWindow: SmtLegWindow } {
