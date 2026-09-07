@@ -120,8 +120,15 @@ export function matchSwings(nq: Candle[], es: Candle[], k: number = SWING_K): Ma
   }
   // T-07-01: boundary re-validation — non-finite OHLC rows drop before
   // pairing so NaN can never poison the comparator.
-  const nqLeg = closedOnly(nq).filter(hasFiniteOhlc).slice(-SWING_LOOKBACK);
-  const esLeg = closedOnly(es).filter(hasFiniteOhlc).slice(-SWING_LOOKBACK);
+  // WR-06: chronological sort (T-07-04 precedent) so the trailing slice is
+  // the trailing window even for out-of-order feeds. Copies — caller arrays
+  // are never mutated.
+  const nqLeg = [...closedOnly(nq).filter(hasFiniteOhlc)]
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .slice(-SWING_LOOKBACK);
+  const esLeg = [...closedOnly(es).filter(hasFiniteOhlc)]
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .slice(-SWING_LOOKBACK);
   const nqSwings = detectSwings(nqLeg, k);
   const esSwings = detectSwings(esLeg, k);
   const used = new Set<number>();
@@ -195,8 +202,14 @@ export function pearsonCorr(nqCloses: number[], esCloses: number[]): number {
 export function evaluateSMT(nq: Candle[], es: Candle[], asOf: string): SmtOutput {
   // Boundary re-validation (T-07-01): forming rows drop via closedOnly and
   // non-finite OHLC rows drop beside it, before any pairing.
-  const nqClosed = closedOnly(nq).filter(hasFiniteOhlc);
-  const esClosed = closedOnly(es).filter(hasFiniteOhlc);
+  // WR-06: sorted copies so `paired.slice(-CORR_WINDOW)` is the trailing
+  // window even for out-of-order feeds (aggregate T-07-04 precedent).
+  const nqClosed = [...closedOnly(nq).filter(hasFiniteOhlc)].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+  const esClosed = [...closedOnly(es).filter(hasFiniteOhlc)].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
 
   const esByDate = new Map<string, number>();
   for (const c of esClosed) {
