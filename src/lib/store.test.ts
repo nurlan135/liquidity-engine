@@ -37,6 +37,62 @@ function mockEnvelope(candles: Candle[]) {
   };
 }
 
+// Phase 9 intraday builders: epoch-row IntradayCandle rows plus a matching
+// envelope. Times land in the 20:00+ NY Asia window of one NY calendar date
+// so selectAsia maps sessionDate deterministically.
+const INTRA_BASE = Date.UTC(2026, 1, 10, 1, 30, 0) / 1000;
+
+function intradayRows(count: number, start: number = INTRA_BASE, step = 3600): import('@/src/lib/ict/types').IntradayCandle[] {
+  const rows: import('@/src/lib/ict/types').IntradayCandle[] = [];
+  for (let i = 0; i < count; i++) {
+    const base = 20000 + i * 10;
+    rows.push({
+      time: start + i * step,
+      open: base,
+      high: base + 15,
+      low: base - 12,
+      close: base + 5,
+    });
+  }
+  return rows;
+}
+
+function mockIntradayEnvelope(
+  rows: import('@/src/lib/ict/types').IntradayCandle[],
+  hint: string,
+) {
+  return {
+    candles: rows,
+    contractHint: hint,
+    lastUpdatedISO: '2026-02-09T12:00:00.000Z',
+    stale: false,
+    source: 'live',
+  };
+}
+
+function stubFourLegs(
+  nqCandles: Candle[] = fixtureCandles().filter((c) => !c.forming),
+  esCandles: Candle[] = fixtureCandles().filter((c) => !c.forming),
+  // 4 hourly rows 20:30–23:30 ET on one NY date: the latest row maps
+  // sessionDate to 2026-02-09 and every row sits inside the Asia window.
+  h1 = intradayRows(4),
+  m15 = intradayRows(8, INTRA_BASE, 900),
+) {
+  const nqEnv = mockEnvelope(nqCandles);
+  const esEnv = { ...mockEnvelope(esCandles), contractHint: 'ES=F · CME' };
+  const h1Env = mockIntradayEnvelope(h1, 'NQ=F · 1H');
+  const m15Env = mockIntradayEnvelope(m15, 'NQ=F · 15M');
+  const fetchFn = vi.fn(async (url: string) => {
+    const u = String(url);
+    if (u.includes('interval=15m')) return Response.json(m15Env);
+    if (u.includes('interval=1h')) return Response.json(h1Env);
+    if (u.includes('symbol=ES')) return Response.json(esEnv);
+    return Response.json(nqEnv);
+  });
+  vi.stubGlobal('fetch', fetchFn);
+  return { fetchFn, nqEnv, esEnv, h1Env, m15Env };
+}
+
 describe('store: refresh writes envelope in one update', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -539,9 +595,12 @@ describe('store: dual-leg refreshers with stagger and per-leg envelopes (DATA-06
     // re-import): read the probe from the same instance that started the
     // timers — same-instance access keeps the assertion honest.
     useDashboard.getState().startDualPoll(new Date('2026-02-09T12:00:30.000Z'));
-    // Mount owns the first poll: the immediate NQ refresh lands at once.
+    // Mount owns the first poll: the immediate NQ refresh lands at once plus
+    // the two immediate intraday refreshes (Phase 9 D-13 fire-first behavior).
+    // The stubLegs mock answers any URL with a daily envelope, so exactly 3
+    // calls land (NQ + nq1h + nq15m) while the :30/:45 timers stay pending.
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(fetchFn).toHaveBeenCalledWith('/api/yahoo', { cache: 'no-store' });
 
     // NQ timer: fires at the next :00 plus 5–10s jitter (35–40s from here).
@@ -563,6 +622,10 @@ describe('store: dual-leg refreshers with stagger and per-leg envelopes (DATA-06
     let esFireAt = -1;
     for (let t = 0; t <= 75_000; t += 1_000) {
       await vi.advanceTimersByTimeAsync(1_000);
+      // Phase 9: only the bare '/api/yahoo' URL counts as an NQ call here
+      // (intraday URLs carry interval=1h/15m, the ES URL carries symbol=ES).
+      // Immediate intraday refreshes fail the legacy daily envelope guard and
+      // never fetch — the NQ timer fire is the second bare-URL call.
       const nqCalls = fetchFn.mock.calls.filter(([url]) => url === '/api/yahoo');
       const esCalls = fetchFn.mock.calls.filter(([url]) => String(url).includes('symbol=ES'));
       if (nqFireAt === -1 && nqCalls.length === 2) nqFireAt = t + 1_000;
@@ -687,12 +750,189 @@ describe('store: dual-leg refreshers with stagger and per-leg envelopes (DATA-06
 
     useDashboard.getState().startDualPoll(new Date('2026-02-09T12:00:30.000Z'));
     await vi.advanceTimersByTimeAsync(0);
+    // Mount owns the first poll: the immediate NQ refresh lands at once plus
+    // the two immediate intraday refreshes (D-13 fire-first behavior).
     const atStart = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
-    expect(atStart).toBe(1);
+    expect(atStart).toBe(3);
 
     useDashboard.getState().stopDualPoll();
     await vi.advanceTimersByTimeAsync(300_000);
     expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(atStart);
+  });
+});
+
+describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(async () => {
+    try {
+      const { useDashboard } = await import('@/src/lib/store');
+      useDashboard.getState().stopDualPoll();
+    } catch {
+      // store module may not be loaded — nothing to stop
+    }
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function resetDualState() {
+    vi.resetModules();
+    const mod = await import('@/src/lib/store');
+    return { useDashboard: mod.useDashboard };
+  }
+
+  it('four-leg stagger: startDualPoll pins :00/:15/:30/:45 offsets within jitter', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const { useDashboard } = await resetDualState();
+    stubFourLegs();
+
+    // Wall clock at second 30: NQ next :00 is 30s out, nq1h next :15 is 45s
+    // out, ES next :30 is 60s out, nq15m next :45 is 75s out — each plus the
+    // pinned 7.5s jitter (Math.random mocked to 0.5).
+    useDashboard.getState().startDualPoll(new Date('2026-02-09T12:00:30.000Z'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    const schedule = useDashboard.getState().lastSchedule;
+    expect(schedule).not.toBeNull();
+    expect(schedule!.delayNQ).toBeGreaterThanOrEqual(35_000);
+    expect(schedule!.delayNQ).toBeLessThanOrEqual(40_000);
+    expect(schedule!.delayNQ1H).toBeGreaterThanOrEqual(50_000);
+    expect(schedule!.delayNQ1H).toBeLessThanOrEqual(55_000);
+    expect(schedule!.delayES).toBeGreaterThanOrEqual(65_000);
+    expect(schedule!.delayES).toBeLessThanOrEqual(70_000);
+    expect(schedule!.delayNQ15M).toBeGreaterThanOrEqual(80_000);
+    expect(schedule!.delayNQ15M).toBeLessThanOrEqual(85_000);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('independent-failure: failed 15m refresh marks only nq15m stale with nq1h live', async () => {
+    const { useDashboard } = await resetDualState();
+    const h1 = intradayRows(4);
+    const m15 = intradayRows(8, INTRA_BASE, 900);
+    const h1Env = mockIntradayEnvelope(h1, 'NQ=F · 1H');
+    const m15Env = mockIntradayEnvelope(m15, 'NQ=F · 15M');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('interval=15m') ? Response.json(m15Env) : Response.json(h1Env),
+      ),
+    );
+    await useDashboard.getState().refreshNQ1H();
+    await useDashboard.getState().refreshNQ15M();
+    expect(useDashboard.getState().nq1h.stale).toBe(false);
+    expect(useDashboard.getState().nq15m.stale).toBe(false);
+
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('interval=15m')) {
+          throw new Error('15m upstream down');
+        }
+        return Response.json(h1Env);
+      }),
+    );
+    await useDashboard.getState().refreshNQ15M();
+
+    const state = useDashboard.getState();
+    expect(state.nq15m.stale).toBe(true);
+    expect(state.nq15m.lastError).toBe('15m upstream down');
+    expect(state.nq15m.candles).toEqual(m15);
+    expect(state.nq1h.stale).toBe(false);
+    expect(state.nq1h.lastError).toBeNull();
+    expect(state.nq1h.candles).toEqual(h1);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('stale-refusal: stale nq1h forces selectAsia null, stale ES forces selectSMT null', async () => {
+    const { useDashboard } = await resetDualState();
+    stubFourLegs();
+    await useDashboard.getState().refreshNQ();
+    await useDashboard.getState().refreshES();
+    await useDashboard.getState().refreshNQ1H();
+    await useDashboard.getState().refreshNQ15M();
+
+    expect(useDashboard.getState().selectAsia()).not.toBeNull();
+
+    // Stale nq1h refuses Asia (and downstream Judas) while SMT stays live.
+    useDashboard.setState({
+      nq1h: { ...useDashboard.getState().nq1h, stale: true, lastError: 'intraday stale' },
+    });
+    expect(useDashboard.getState().selectAsia()).toBeNull();
+    expect(useDashboard.getState().selectJudas()).toBeNull();
+    expect(useDashboard.getState().nq1h.lastError).toBe('intraday stale');
+
+    // Stale ES refuses SMT while the nq1h leg itself stays live.
+    useDashboard.setState({
+      nq1h: { ...useDashboard.getState().nq1h, stale: false },
+      es: { ...useDashboard.getState().es, stale: true, lastError: 'es stale' },
+    });
+    expect(useDashboard.getState().selectSMT()).toBeNull();
+    expect(useDashboard.getState().es.lastError).toBe('es stale');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('empty-refusal: empty legs force nulls without throwing', async () => {
+    const { useDashboard } = await resetDualState();
+
+    let asia: unknown = 'unset';
+    let judas: unknown = 'unset';
+    let smt: unknown = 'unset';
+    let amd: unknown = 'unset';
+    let path: unknown = 'unset';
+    expect(() => {
+      asia = useDashboard.getState().selectAsia();
+      judas = useDashboard.getState().selectJudas();
+      smt = useDashboard.getState().selectSMT();
+      amd = useDashboard.getState().selectAMD(1770500000);
+      path = useDashboard.getState().selectLiquidityPath();
+    }).not.toThrow();
+    expect(asia).toBeNull();
+    expect(judas).toBeNull();
+    expect(smt).toBeNull();
+    expect(amd).not.toBeNull();
+    expect(path).toBeNull();
+    // Confluence never nulls — empty inputs cap at base tier (D-11).
+    expect(useDashboard.getState().selectConfluence()).toBe('standart');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('all-degraded: every leg stale yields all selectors null plus base-tier confluence', async () => {
+    const { useDashboard } = await resetDualState();
+    stubFourLegs();
+    await useDashboard.getState().refreshNQ();
+    await useDashboard.getState().refreshES();
+    await useDashboard.getState().refreshNQ1H();
+    await useDashboard.getState().refreshNQ15M();
+
+    useDashboard.setState({
+      nq: { ...useDashboard.getState().nq, stale: true, lastError: 'nq down' },
+      es: { ...useDashboard.getState().es, stale: true, lastError: 'es down' },
+      nq1h: { ...useDashboard.getState().nq1h, stale: true, lastError: '1h down' },
+      nq15m: { ...useDashboard.getState().nq15m, stale: true, lastError: '15m down' },
+    });
+
+    const state = useDashboard.getState();
+    expect(state.selectSMT()).toBeNull();
+    expect(state.selectAsia()).toBeNull();
+    expect(state.selectJudas()).toBeNull();
+    expect(state.selectAMD(1770500000)).not.toBeNull();
+    expect(state.selectLiquidityPath()).toBeNull();
+    // Worst case keeps three renderable reasons and never collapses (D-02):
+    // each owning leg carries its reason verbatim.
+    expect(state.nq.lastError).toBe('nq down');
+    expect(state.es.lastError).toBe('es down');
+    expect(state.nq1h.lastError).toBe('1h down');
+    expect(state.selectConfluence()).toBe('standart');
+
+    useDashboard.getState().stopDualPoll();
   });
 });
 
