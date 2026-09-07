@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from 'react';import type { Candle } from '@/src/lib/ict/types';
 import type { LevelsOutput } from '@/src/lib/ict/levels';
-import { levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
+import type { JudasOutput } from '@/src/lib/ict/judas';
+import type { SmtOutput } from '@/src/lib/ict/smt';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
 
@@ -18,6 +20,17 @@ export interface NqChartProps {
   status: NqChartStatus;
   forming: boolean;
   levels?: LevelsOutput | null;
+  // Phase 9 overlays (D-05 through D-08): Asia extremes plus the Judas and
+  // SMT detector outputs with their containing D1 bar dates, mapped at the
+  // caller so marker time always equals a D1 candle date. Null means no
+  // overlay input — the chart renders clean candles and never blocks.
+  asiaHigh?: number | null;
+  asiaLow?: number | null;
+  judas?: JudasOutput | null;
+  judasBarDate?: string | null;
+  smt?: SmtOutput | null;
+  smtBarDate?: string | null;
+  overlayStale?: boolean;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).
@@ -31,7 +44,66 @@ function readVar(name: string, fallback: string): string {
   return value === '' ? fallback : value;
 }
 
-export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null }: NqChartProps) {
+// Phase 9 overlay marker row (lightweight-charts v5 plugin form): at most one
+// pin per signal per bar per the UI-06 ordering predicate — Judas first, then
+// SMT. Sweeper-leg detail lives in §3 prose, never on canvas (D-07).
+interface OverlayMarker {
+  time: string;
+  position: 'aboveBar' | 'belowBar';
+  shape: 'circle' | 'arrowUp' | 'arrowDown';
+  color: string;
+  text: string;
+}
+
+// Stale overlay color: muted gray matching the chart textColor (D-08).
+const MUTED_GRAY = '#71717A';
+
+// Build the marker array from resolved detector outputs: Judas first, then
+// SMT. Null, unresolved, NO-SIGNAL, or suppressed inputs contribute nothing;
+// empty input returns [] so the caller clears via an empty marker set.
+function buildOverlayMarkers(
+  judas: JudasOutput | null | undefined,
+  judasBarDate: string | null | undefined,
+  smt: SmtOutput | null | undefined,
+  smtBarDate: string | null | undefined,
+  overlayStale: boolean,
+  accent: string,
+): OverlayMarker[] {
+  const markers: OverlayMarker[] = [];
+  const tone = overlayStale ? MUTED_GRAY : accent;
+  if (judas !== null && judas !== undefined && judasBarDate !== null && judasBarDate !== undefined) {
+    if (judas.sweepSide === 'HIGH' || judas.sweepSide === 'LOW') {
+      const confirmed = judas.confirmed === true;
+      const candidate = judas.candidate === true && !confirmed;
+      if (confirmed || candidate) {
+        markers.push({
+          time: judasBarDate,
+          position: judas.sweepSide === 'HIGH' ? 'aboveBar' : 'belowBar',
+          shape: 'circle',
+          // Hollow-split candidate renders hollow-contrast: transparent fill
+          // is unavailable on the marker shape, so the tone dulls to muted
+          // gray while confirmed holds solid accent.
+          color: confirmed ? tone : MUTED_GRAY,
+          text: confirmed ? 'J' : 'J?',
+        });
+      }
+    }
+  }
+  if (smt !== null && smt !== undefined && smtBarDate !== null && smtBarDate !== undefined) {
+    if (!smt.suppressed && (smt.direction === 'BULLISH' || smt.direction === 'BEARISH')) {
+      markers.push({
+        time: smtBarDate,
+        position: smt.direction === 'BULLISH' ? 'belowBar' : 'aboveBar',
+        shape: smt.direction === 'BULLISH' ? 'arrowUp' : 'arrowDown',
+        color: tone,
+        text: 'S',
+      });
+    }
+  }
+  return markers;
+}
+
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -43,12 +115,17 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const q3LineRef = useRef<unknown>(null);
   const oteBullLineRef = useRef<unknown>(null);
   const oteBearLineRef = useRef<unknown>(null);
+  // Phase 9 Asia line pair refs (D-05): remove-then-create like EQ/DOL.
+  const asiaHighLineRef = useRef<unknown>(null);
+  const asiaLowLineRef = useRef<unknown>(null);
+  // Phase 9 series-markers plugin handle (v5 createSeriesMarkers form only).
+  const markersPluginRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
-  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels });
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale });
   // Sync the latest props outside render so the zone-fill getter reads live
   // values without violating the react-hooks/refs render-phase rule.
   useEffect(() => {
-    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels };
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale };
   });
 
   // Create the chart once per container; lightweight-charts loads lazily so
@@ -98,6 +175,48 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         lineStyle: LineStyle.Solid,
         title: props.dolName,
       });
+      // Asia-H/Asia-L pair (D-05): dashed accent lines via the finite-guarded
+      // asiaLineInputs — a guard throw or null props leaves both refs null so
+      // no lines render and the chart never blocks. Stale legs desaturate to
+      // muted gray while persisting per D-08.
+      if (props.asiaHigh !== null && props.asiaHigh !== undefined && props.asiaLow !== null && props.asiaLow !== undefined) {
+        try {
+          const asiaInputs = asiaLineInputs(props.asiaHigh, props.asiaLow);
+          const asiaColor = props.overlayStale ? MUTED_GRAY : accent;
+          asiaHighLineRef.current = typed.createPriceLine({
+            price: asiaInputs.asiaHigh,
+            color: asiaColor,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Asia-H',
+          });
+          asiaLowLineRef.current = typed.createPriceLine({
+            price: asiaInputs.asiaLow,
+            color: asiaColor,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Asia-L',
+          });
+        } catch {
+          asiaHighLineRef.current = null;
+          asiaLowLineRef.current = null;
+        }
+      }
+      // Overlay markers via the v5 plugin form (D-06/D-07): Judas first, then
+      // SMT; empty input sets an empty array so candles render clean. Stale
+      // persists desaturated with the STALE badge, never cleared (D-08).
+      try {
+        const { createSeriesMarkers } = await import('lightweight-charts');
+        const plugin = (
+          createSeriesMarkers as (
+            series: unknown,
+            markers: OverlayMarker[],
+          ) => { setMarkers: (markers: OverlayMarker[]) => void }
+        )(series, buildOverlayMarkers(props.judas, props.judasBarDate, props.smt, props.smtBarDate, props.overlayStale === true, accent));
+        markersPluginRef.current = plugin;
+      } catch {
+        markersPluginRef.current = null;
+      }
       // Quadrant/OTE lines annotate the proven selector path; null levels (or
       // a guard throw) render no new lines and never block the chart.
       if (props.levels !== null && props.levels !== undefined) {
@@ -185,6 +304,9 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       q3LineRef.current = null;
       oteBullLineRef.current = null;
       oteBearLineRef.current = null;
+      asiaHighLineRef.current = null;
+      asiaLowLineRef.current = null;
+      markersPluginRef.current = null;
     };
   }, []);
 
@@ -197,7 +319,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
     series.setData(mapCandlesToSeries(candles));
     // Re-create price-lines lazily to keep the module top DOM free.
     void (async () => {
-      const { LineStyle } = await import('lightweight-charts');
+      const { LineStyle, createSeriesMarkers } = await import('lightweight-charts');
       const live = seriesRef.current as {
         createPriceLine: (opts: { price: number; color: string; lineWidth: number; lineStyle: unknown; title: string }) => unknown;
         removePriceLine: (line: unknown) => void;
@@ -209,11 +331,16 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       if (q3LineRef.current !== null) live.removePriceLine(q3LineRef.current);
       if (oteBullLineRef.current !== null) live.removePriceLine(oteBullLineRef.current);
       if (oteBearLineRef.current !== null) live.removePriceLine(oteBearLineRef.current);
+      if (asiaHighLineRef.current !== null) live.removePriceLine(asiaHighLineRef.current);
+      if (asiaLowLineRef.current !== null) live.removePriceLine(asiaLowLineRef.current);
       q1LineRef.current = null;
       q3LineRef.current = null;
       oteBullLineRef.current = null;
       oteBearLineRef.current = null;
+      asiaHighLineRef.current = null;
+      asiaLowLineRef.current = null;
       const accent = readVar(VAR_ACCENT, '#00D9FF');
+      const overlayTone = overlayStale ? MUTED_GRAY : accent;
       const inputs = priceLineInputs(eq, dolPrice);
       eqLineRef.current = live.createPriceLine({
         price: inputs.eq,
@@ -267,18 +394,77 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           oteBearLineRef.current = null;
         }
       }
+      // Asia pair follows the same remove-then-create cycle: guard-throw or
+      // null props render no lines and never block the chart.
+      if (asiaHigh !== null && asiaHigh !== undefined && asiaLow !== null && asiaLow !== undefined) {
+        try {
+          const asiaInputs = asiaLineInputs(asiaHigh, asiaLow);
+          asiaHighLineRef.current = live.createPriceLine({
+            price: asiaInputs.asiaHigh,
+            color: overlayTone,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Asia-H',
+          });
+          asiaLowLineRef.current = live.createPriceLine({
+            price: asiaInputs.asiaLow,
+            color: overlayTone,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Asia-L',
+          });
+        } catch {
+          asiaHighLineRef.current = null;
+          asiaLowLineRef.current = null;
+        }
+      }
+      // Marker refresh through the v5 plugin only (never the v4 series-dot
+      // form): rebuild on every input change, clear via the empty array.
+      try {
+        const next = buildOverlayMarkers(judas, judasBarDate, smt, smtBarDate, overlayStale, accent);
+        const plugin = markersPluginRef.current as {
+          setMarkers: (markers: OverlayMarker[]) => void;
+        } | null;
+        if (plugin !== null) {
+          plugin.setMarkers(next);
+        } else {
+          const liveSeries = seriesRef.current;
+          if (liveSeries !== null) {
+            markersPluginRef.current = (
+              createSeriesMarkers as (
+                series: unknown,
+                markers: OverlayMarker[],
+              ) => { setMarkers: (markers: OverlayMarker[]) => void }
+            )(liveSeries, next);
+          }
+        }
+      } catch {
+        // Marker failures never block candles or price lines.
+      }
     })();
     // Recompute zone geometry on range change; stale desaturates fills.
     if (zoneRef.current !== null) {
       zoneRef.current.opacityScale = status === 'stale' ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
-  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels]);
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale]);
 
   const latest = candles.length > 0 ? candles[candles.length - 1] : null;
+  const hasAsiaLines = asiaHigh !== null && asiaHigh !== undefined && asiaLow !== null && asiaLow !== undefined;
+  const hasJudasMarkers =
+    judas !== null && judas !== undefined && (judas.confirmed === true || judas.candidate === true) &&
+    (judas.sweepSide === 'HIGH' || judas.sweepSide === 'LOW') &&
+    judasBarDate !== null && judasBarDate !== undefined;
+  const hasSmtMarker =
+    smt !== null && smt !== undefined && !smt.suppressed &&
+    (smt.direction === 'BULLISH' || smt.direction === 'BEARISH') &&
+    smtBarDate !== null && smtBarDate !== undefined;
 
   return (
     <div data-slot="chart-block" data-overlay={status} className="relative min-h-[400px] w-full">
+      {hasAsiaLines ? <span data-slot="asia-lines" aria-hidden="true" className="hidden" /> : null}
+      {hasJudasMarkers ? <span data-slot="judas-markers" aria-hidden="true" className="hidden" /> : null}
+      {hasSmtMarker ? <span data-slot="smt-marker" aria-hidden="true" className="hidden" /> : null}
       <div
         ref={containerRef}
         data-slot="nq-chart"
