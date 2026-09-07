@@ -119,7 +119,7 @@ Plans:
   3. Highest-conviction setups score higher only when SMT and Judas both confirm — rule-based, no fake precision
   4. v2.0 is verified on the live Vercel URL: ES cold-start drill, intraday payload under `maxDuration`, §3 render check
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 **UI hint**: yes
 Plans:
 **Wave 1**
@@ -132,7 +132,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 09-03-PLAN.md — Live-URL verify: ES cold-start plus intraday payload plus §3 render drill with human checkpoint
+- [x] 09-03-PLAN.md — Live-URL verify: ES cold-start plus intraday payload plus §3 render drill with human checkpoint
 
 ## Progress
 
@@ -149,4 +149,4 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 5/5 | Complete    | 2026-09-07 |
 | 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | Complete    | 2026-09-07 |
 | 8. AMD Sessions (Asia Range + Judas) | v2.0 | 3/3 | Complete   | 2026-09-07 |
-| 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 2/3 | In Progress|  |
+| 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 3/3 | In Progress|  |
