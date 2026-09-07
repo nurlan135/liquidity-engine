@@ -26,6 +26,8 @@ function row(time: number, price: number, overrides: Partial<IntradayCandle> = {
 // the wall time in NY_TZ), so fixtures stay correct across both transitions
 // without hand-rolled offsets.
 import { fromZonedTime } from 'date-fns-tz';
+import { computePosition, computeRange } from '@/src/lib/ict/range';
+import { computeBias } from '@/src/lib/ict/bias';
 
 function nyHourEpoch(nyDate: string, nyHour: number): number {
   return Math.floor(fromZonedTime(`${nyDate} ${String(nyHour).padStart(2, '0')}:00:00`, NY_TZ).getTime() / 1000);
@@ -85,6 +87,87 @@ describe('aggregate: DST transition pairs', () => {
     const blocks = aggregate1Hto4H(rows, '2026-11-01');
     expect(blocks).toHaveLength(1);
     expect(blocks[0].date).toBe('2026-10-31-B2');
+  });
+});
+
+describe('aggregate: hardening — determinism and Candle reuse', () => {
+  it('consecutive polls on the same input return deep-equal output', () => {
+    const rows = block8('2026-06-15', 18);
+    const first = aggregate1Hto4H(rows, '2026-06-16');
+    const second = aggregate1Hto4H(rows, '2026-06-16');
+    expect(second).toEqual(first);
+    expect(first).toHaveLength(2);
+  });
+
+  it('emitted blocks feed computeRange and computeBias unchanged', () => {
+    const rows = block8('2026-06-15', 18);
+    const blocks = aggregate1Hto4H(rows, '2026-06-16');
+    const range = computeRange(blocks, '2026-06-16');
+    expect(range.high).toBe(Math.max(...blocks.map((b) => b.high)));
+    expect(range.low).toBe(Math.min(...blocks.map((b) => b.low)));
+    const position = computePosition(range, blocks[blocks.length - 1].close);
+    const bias = computeBias(position, 'expansion', blocks.length);
+    expect(typeof bias.rationale).toBe('string');
+    expect(bias.rationale.length).toBeGreaterThan(0);
+    expect(Number.isFinite(position)).toBe(true);
+  });
+});
+
+describe('aggregate: hardening — boundary edges', () => {
+  it('empty input returns an empty array', () => {
+    expect(aggregate1Hto4H([], '2026-06-16')).toEqual([]);
+  });
+
+  it('sub-block 3-row input returns an empty array with no throw', () => {
+    const rows = block8('2026-06-15', 18).slice(0, 3);
+    expect(() => aggregate1Hto4H(rows, '2026-06-16')).not.toThrow();
+    expect(aggregate1Hto4H(rows, '2026-06-16')).toEqual([]);
+  });
+
+  it('a row exactly on a block start joins the opening block with no duplication', () => {
+    // B2 opens at 22:00 ET Jun 15: rows 22,23,00,01 complete it exactly.
+    const start = nyHourEpoch('2026-06-15', 22);
+    const rows = [0, 1, 2, 3].map((i) => row(start + i * STEP, BASE + i));
+    const blocks = aggregate1Hto4H(rows, '2026-06-16');
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].date).toBe('2026-06-15-B2');
+    expect(blocks[0].open).toBe(rows[0].open);
+  });
+
+  it('out-of-order input emits ascending blocks identical to sorted input', () => {
+    const rows = block8('2026-06-15', 18);
+    const shuffled = [...rows].reverse();
+    expect(aggregate1Hto4H(shuffled, '2026-06-16')).toEqual(
+      aggregate1Hto4H(rows, '2026-06-16'),
+    );
+    const blocks = aggregate1Hto4H(shuffled, '2026-06-16');
+    const dates = blocks.map((b) => b.date);
+    expect(dates).toEqual([...dates].sort());
+  });
+
+  it('non-finite OHLC rows drop at the boundary', () => {
+    const rows = block8('2026-06-15', 18);
+    const poisoned = rows.map((r, i) =>
+      i === 2 ? { ...r, high: Number.NaN } : r,
+    );
+    // B1 loses one constituent (3 valid) so only B2 completes.
+    const blocks = aggregate1Hto4H(poisoned, '2026-06-16');
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].date).toBe('2026-06-15-B2');
+  });
+
+  it('duplicate timestamps dedupe keeping the first row', () => {
+    const rows = block8('2026-06-15', 18);
+    const dup = { ...rows[0], open: BASE + 9999 };
+    const blocks = aggregate1Hto4H([rows[0], dup, ...rows.slice(1)], '2026-06-16');
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].open).toBe(rows[0].open);
+  });
+
+  it('rows past the asOf right edge are excluded', () => {
+    const rows = block8('2026-06-15', 18);
+    expect(aggregate1Hto4H(rows, '2026-06-15')).toHaveLength(1);
+    expect(aggregate1Hto4H(rows, '2026-06-15')[0].date).toBe('2026-06-15-B1');
   });
 });
 
