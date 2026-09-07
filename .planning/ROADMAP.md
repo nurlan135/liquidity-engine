@@ -122,8 +122,16 @@ Plans:
 **Plans**: 3 plans
 **UI hint**: yes
 Plans:
+**Wave 1**
+
 - [ ] 09-01-PLAN.md — Tracer conviction trunk: confluence tiers plus intraday legs plus selectors plus §3 live contract
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 09-02-PLAN.md — Presentation: live §3 sub-blocks plus conviction line plus Asia lines plus Judas/SMT markers
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 09-03-PLAN.md — Live-URL verify: ES cold-start plus intraday payload plus §3 render drill with human checkpoint
 
 ## Progress
