@@ -41,17 +41,25 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// Epoch seconds of a fixed-offset synthesis instant. June NY sessions are
-// EDT (UTC-4) and the run only needs self-consistent spacing plus a
-// fromZonedTime anchor for the wall-clock helpers — Asia bucketing uses the
-// 20:00 NY open date string, killzone membership resolves the true NY wall
-// clock per candle at call time.
+// WR-06: epoch seconds of a NY wall-clock instant, resolved per call through
+// fromZonedTime so the wall clock survives DST transitions. The previous
+// anchor-plus-fixed-offset arithmetic (dayOffset * 86400 + hour * 3600)
+// drifts an hour when the window spans a spring-forward/fall-back boundary
+// while sessionDateOf/nyMinutesOf resolve true wall clock — silently
+// measuring the wrong windows. Each calendar date is advanced in NY civil
+// time (month/day rollover via the Date constructor), then combined with the
+// requested wall-clock hour/minute and resolved in NY_TZ.
 function epochOf(dayOffset: number, hour: number, minute: number): number {
-  const anchor = fromZonedTime(
-    `${BASE_YEAR}-${String(BASE_MONTH).padStart(2, '0')}-${String(BASE_DAY).padStart(2, '0')} 00:00:00`,
-    NY_TZ_LOCAL,
-  ).getTime() / 1000;
-  return anchor + dayOffset * 86400 + hour * 3600 + minute * 60;
+  const base = new Date(BASE_YEAR, BASE_MONTH - 1, BASE_DAY + dayOffset);
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, '0');
+  const d = String(base.getDate()).padStart(2, '0');
+  return Math.floor(
+    fromZonedTime(
+      `${y}-${m}-${d} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`,
+      NY_TZ_LOCAL,
+    ).getTime() / 1000,
+  );
 }
 
 const BASE_PRICE = 20000;
