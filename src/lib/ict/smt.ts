@@ -277,10 +277,16 @@ function noSignal(pair: MatchedSwing | null): SmtSignal {
   };
 }
 
+// Epsilon for tolerance-boundary compares (WR-02): hold-gap arithmetic
+// (divide-then-multiply on binary floats) lands within ~1 ulp of the true
+// value, so a raw `>` flips on refactors or nearby fixtures. A gap equal to
+// tolerance within epsilon is NO-SIGNAL under strict-greater-than semantics.
+const TOL_EPS_BPS = 1e-9;
+
 // Directional SMT compare over matched time-anchored pairs (D-04). Evaluates
 // the most recent pair against its predecessor; anything that is not a clean
 // sweep-vs-hold outside tolerance defaults to NO-SIGNAL. A gap exactly equal
-// to tolerance is NO-SIGNAL under strict-greater-than semantics.
+// to tolerance (within epsilon) is NO-SIGNAL.
 export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_BPS): SmtSignal {
   if (!Number.isFinite(toleranceBps) || toleranceBps <= 0) {
     throw new Error(`detectSMT requires a finite positive toleranceBps, got ${toleranceBps}`);
@@ -308,7 +314,7 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
     // sweeper (fade the sweeper).
     if (latest.nqExtreme > prior.nqExtreme) {
       const holdGapBps = ((prior.esExtreme - latest.esExtreme) / prior.esExtreme) * 10000;
-      if (holdGapBps > toleranceBps) {
+      if (holdGapBps - toleranceBps > TOL_EPS_BPS) {
         return {
           suppressed: false,
           direction: 'BEARISH',
@@ -321,7 +327,7 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
     }
     if (latest.esExtreme > prior.esExtreme) {
       const holdGapBps = ((prior.nqExtreme - latest.nqExtreme) / prior.nqExtreme) * 10000;
-      if (holdGapBps > toleranceBps) {
+      if (holdGapBps - toleranceBps > TOL_EPS_BPS) {
         return {
           suppressed: false,
           direction: 'BEARISH',
@@ -339,7 +345,7 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
   // tolerance. Sweeper is the sweeping leg.
   if (latest.esExtreme < prior.esExtreme) {
     const holdGapBps = ((latest.nqExtreme - prior.nqExtreme) / prior.nqExtreme) * 10000;
-    if (holdGapBps > toleranceBps) {
+    if (holdGapBps - toleranceBps > TOL_EPS_BPS) {
       return {
         suppressed: false,
         direction: 'BULLISH',
@@ -352,7 +358,7 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
   }
   if (latest.nqExtreme < prior.nqExtreme) {
     const holdGapBps = ((latest.esExtreme - prior.esExtreme) / prior.esExtreme) * 10000;
-    if (holdGapBps > toleranceBps) {
+    if (holdGapBps - toleranceBps > TOL_EPS_BPS) {
       return {
         suppressed: false,
         direction: 'BULLISH',
