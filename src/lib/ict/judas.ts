@@ -76,7 +76,11 @@ function idle(): JudasOutput {
 
 // Three-gate London Judas evaluation. The first chronological sweep wins:
 // HIGH when the candle high strictly exceeds the Asia high, LOW when the
-// candle low strictly goes below the Asia low. A sweep outside the strict
+// candle low strictly goes below the Asia low. A single candle that pierces
+// both extremes resolves deterministically: the side with the larger
+// penetration distance (high - asiaHigh vs asiaLow - low) wins, with exact
+// ties preferring HIGH, so the same input always yields the same sweepSide.
+// A sweep outside the strict
 // killzone (minutes at or below 120, or at or above 300) returns preRun
 // with preRun and candidate mutually exclusive (D-08). A sweep inside the
 // killzone sets candidate (gates 1+2) and confirms only when a candle in
@@ -131,12 +135,24 @@ export function judasSwing(
   let sweepSide: SweepSide | null = null;
   for (let i = 0; i < deduped.length; i++) {
     const r = deduped[i];
-    if (r.high > (asiaHigh as number)) {
+    // WR-01: a wide-range candle can pierce both extremes in one print.
+    // Resolve by penetration distance so the larger violation wins; exact
+    // ties prefer HIGH for determinism.
+    const highPierced = r.high > (asiaHigh as number);
+    const lowPierced = r.low < (asiaLow as number);
+    if (highPierced && lowPierced) {
+      const highPen = r.high - (asiaHigh as number);
+      const lowPen = (asiaLow as number) - r.low;
+      sweepIndex = i;
+      sweepSide = lowPen > highPen ? 'LOW' : 'HIGH';
+      break;
+    }
+    if (highPierced) {
       sweepIndex = i;
       sweepSide = 'HIGH';
       break;
     }
-    if (r.low < (asiaLow as number)) {
+    if (lowPierced) {
       sweepIndex = i;
       sweepSide = 'LOW';
       break;

@@ -106,6 +106,37 @@ describe('judas: LOW-side mirror', () => {
   });
 });
 
+describe('judas: double-sided sweep priority', () => {
+  it('resolves a both-extremes candle by penetration distance (larger violation wins)', () => {
+    const range = fixtureRange();
+    // Deeper LOW penetration (120 below) than HIGH (20 above) resolves LOW.
+    const lowWins = block15(SESSION, '02:00', 20050);
+    lowWins[2] = row(lowWins[2].time, 20050, { high: 20120, low: 19880, close: 19900 });
+    const lowOut = judasSwing(lowWins, range);
+    expect(lowOut.candidate).toBe(true);
+    expect(lowOut.preRun).toBe(false);
+    expect(lowOut.sweepSide).toBe('LOW');
+    expect(lowOut.sweepTime).toBe(lowWins[2].time);
+    // Deeper HIGH penetration mirrors: resolves HIGH.
+    const highWins = block15(SESSION, '02:00', 20050);
+    highWins[2] = row(highWins[2].time, 20050, { high: 20220, low: 19980, close: 20150 });
+    const highOut = judasSwing(highWins, range);
+    expect(highOut.sweepSide).toBe('HIGH');
+    expect(highOut.sweepTime).toBe(highWins[2].time);
+  });
+
+  it('prefers HIGH on an exact penetration tie for determinism', () => {
+    const range = fixtureRange();
+    // high 20120 is +20 above, low 19980 is -20 below: exact tie -> HIGH.
+    const tied = block15(SESSION, '02:00', 20050);
+    tied[2] = row(tied[2].time, 20050, { high: 20120, low: 19980, close: 20105 });
+    const out = judasSwing(tied, range);
+    expect(out.candidate).toBe(true);
+    expect(out.sweepSide).toBe('HIGH');
+    expect(judasSwing(tied, range)).toEqual(out);
+  });
+});
+
 describe('judas: pierce without reversal persists as candidate', () => {
   it('holds candidate true with confirmed false when no in-window close reverses', () => {
     const range = fixtureRange();
