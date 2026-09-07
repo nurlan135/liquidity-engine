@@ -17,7 +17,7 @@ export interface ReportSection {
 export const REPORT_SECTIONS: ReportSection[] = [
   { index: 1, title: '1. RETAIL EXPOSURE & SENTIMENT ENGINEERING', state: 'unavailable' },
   { index: 2, title: '2. MACRO DEALING RANGE & VOLATILITY REGIME (D1/4H)', state: 'live' },
-  { index: 3, title: '3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)', state: 'unavailable' },
+  { index: 3, title: '3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)', state: 'live' },
   { index: 4, title: '4. "WHY NOW?" EXECUTION PROTOCOL (5M/1M)', state: 'unavailable' },
   { index: 5, title: '5. INSTITUTIONAL ORDER TICKET', state: 'unavailable' },
   { index: 6, title: '6. FATAL FLAW CHECK & CHALLENGE QUESTION', state: 'unavailable' },
@@ -30,3 +30,7 @@ export const REGIME_BADGE: Record<RegimeState, string> = {
 
 // Pre-news override: a high-impact event inside the window supersedes the ATR badge.
 export const PRE_NEWS_BADGE = 'Yüksək təsirli xəbər gözlənilir';
+
+// §3 conviction line label prefix (ICT-15): tier display words stay sourced
+// from confluence.ts — no duplicated mapping table here.
+export const CONVICTION_LABEL = 'İnam: ';
