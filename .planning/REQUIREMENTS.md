@@ -16,10 +16,10 @@ Requirements for milestone v2.0 Modul 3 (Liquidity Sequencing & SMT). Each maps 
 
 ### ICT Math Core (Modul 3)
 
-- [ ] **ICT-08**: User sees SMT divergence status (NQ vs ES, time-anchored matched swing pairs, bps tolerance) — BULLISH / BEARISH / NO-SIGNAL with swing references in output, correlation-regime gate suppresses when pair decouples
-- [ ] **ICT-09**: Rollover-week fake SMT is suppressed — cross-symbol signals blocked when either leg is rollover-suspect (v1.0 tripwire reused on both symbols)
-- [ ] **ICT-10**: User sees FVG map + ERL/IRL transition state (FVG-only IRL) — transitions fire only on sweep-then-reject, never on sweep alone; §2 Delivery Cycle upgraded
-- [ ] **ICT-11**: 4H structure is synthesized from 1H NY-anchored blocks in pure `aggregate.ts` (Yahoo has no 4H interval) — injected time, `closedOnly` discipline
+- [x] **ICT-08**: User sees SMT divergence status (NQ vs ES, time-anchored matched swing pairs, bps tolerance) — BULLISH / BEARISH / NO-SIGNAL with swing references in output, correlation-regime gate suppresses when pair decouples
+- [x] **ICT-09**: Rollover-week fake SMT is suppressed — cross-symbol signals blocked when either leg is rollover-suspect (v1.0 tripwire reused on both symbols)
+- [x] **ICT-10**: User sees FVG map + ERL/IRL transition state (FVG-only IRL) — transitions fire only on sweep-then-reject, never on sweep alone; §2 Delivery Cycle upgraded
+- [x] **ICT-11**: 4H structure is synthesized from 1H NY-anchored blocks in pure `aggregate.ts` (Yahoo has no 4H interval) — injected time, `closedOnly` discipline
 - [ ] **ICT-12**: User sees Asia Range (IANA `America/New_York` wall-clock, 19:00–00:00 NY, Baku display at edge) — March + November + maintenance-break DST tests green
 - [ ] **ICT-13**: User sees London Judas Swing with three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement) — candidates hollow vs confirmed solid, ≤25% confirmed sessions over 60 days
 - [ ] **ICT-14**: User sees AMD phase classifier (accumulation / manipulation / distribution) fusing range + Judas + SMT state — NY shown as Gözlənilir until its detector lands
@@ -90,10 +90,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-05 | Phase 6 | Complete |
 | DATA-06 | Phase 6 | Complete |
 | DATA-07 | Phase 6 | Complete |
-| ICT-08 | Phase 7 | Pending |
-| ICT-09 | Phase 7 | Pending |
-| ICT-10 | Phase 7 | Pending |
-| ICT-11 | Phase 7 | Pending |
+| ICT-08 | Phase 7 | Complete |
+| ICT-09 | Phase 7 | Complete |
+| ICT-10 | Phase 7 | Complete |
+| ICT-11 | Phase 7 | Complete |
 | ICT-12 | Phase 8 | Pending |
 | ICT-13 | Phase 8 | Pending |
 | ICT-14 | Phase 8 | Pending |

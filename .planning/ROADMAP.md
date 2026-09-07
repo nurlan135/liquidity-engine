@@ -25,7 +25,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** NQ vs ES SMT divergence və tam AMD (Asia Range + London Judas) ilə 4H/1H likvidlik sekvensiyası — hesabat §3 canlı.
 
 - [x] **Phase 6: Dual-Symbol Proxy + Data Contracts** - Parameterized ES=F + intraday proxy with per-symbol stale envelopes and timestamp join (completed 2026-09-07)
-- [ ] **Phase 7: SMT + 4H/1H Sequencing Math** - Time-anchored SMT comparator, rollover suppression, FVG/IRL transition, 4H synthesis
+- [x] **Phase 7: SMT + 4H/1H Sequencing Math** - Time-anchored SMT comparator, rollover suppression, FVG/IRL transition, 4H synthesis (completed 2026-09-07)
 - [ ] **Phase 8: AMD Sessions (Asia Range + Judas)** - Baku-aware Asia Range, three-gate London Judas, AMD phase classifier
 - [ ] **Phase 9: Composition (§3 Live + Overlays + Verify)** - Live rule-based report §3, Asia overlay + markers, Vercel per-leg verify
 
@@ -122,6 +122,6 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 03.1 Close gap ICT-07 banner | v1.0 | 1/1 | Complete | 2026-09-06 |
 | 03.2 Close gap gate + fixes | v1.0 | 4/4 | Complete | 2026-09-06 |
 | 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 5/5 | Complete    | 2026-09-07 |
-| 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | In Progress|  |
+| 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | Complete    | 2026-09-07 |
 | 8. AMD Sessions (Asia Range + Judas) | v2.0 | 0/TBD | Not started | - |
 | 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 0/TBD | Not started | - |
