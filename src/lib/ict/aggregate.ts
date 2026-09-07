@@ -24,6 +24,14 @@ function hasFiniteOhlc(c: IntradayCandle): boolean {
   );
 }
 
+// WR-05: the epoch field is part of the boundary (T-07-01). A row with a
+// non-finite or non-positive time reaches formatInTimeZone (throw/Invalid
+// Date) and poisons seen/sort. Kept as a separate predicate so the failure
+// mode stays distinguishable from OHLC.
+function hasValidTime(c: IntradayCandle): boolean {
+  return Number.isFinite(c.time) && c.time > 0;
+}
+
 // Per-candle IANA wall-clock resolution (D-12, prohibition: never a fixed UTC
 // offset). formatInTimeZone renders the explicit instant in NY_TZ, so the
 // result is the true NY wall clock on every machine and every instant —
@@ -97,7 +105,7 @@ export function aggregate1Hto4H(rows: IntradayCandle[], asOf: string): Candle[] 
   // renders on the chart but never enters blocks; non-finite OHLC never
   // reaches aggregation.
   const closed = closedOnlyIntraday(rows);
-  const valid = closed.filter(hasFiniteOhlc);
+  const valid = closed.filter((r) => hasFiniteOhlc(r) && hasValidTime(r));
 
   // T-07-04: ascending sort plus timestamp dedupe (first row wins) before
   // grouping, so out-of-order rows cannot misattribute first-open/last-close.
