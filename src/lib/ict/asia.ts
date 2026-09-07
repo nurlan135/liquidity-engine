@@ -58,10 +58,33 @@ function nyDateOf(timeSec: number): string {
 // 00:00 (1440). The end edge is vacuous for same-date rows but pins D-03
 // explicitly: post-midnight rows carry the next NY calendar date, so the date
 // equality alone excludes the 00:00-02:00 wicks from the range.
+// WR-02: sessionDate is a contract input, not a filter value. An
+// undefined/null/malformed date must throw at the boundary instead of
+// falling through to an honest-looking null (empty window).
+function assertValidSessionDate(sessionDate: string): void {
+  if (typeof sessionDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)) {
+    throw new Error(
+      `asiaRange requires a sessionDate in yyyy-MM-dd format, got ${String(sessionDate)}`,
+    );
+  }
+  const [y, m, d] = sessionDate.split('-').map(Number);
+  const roundTrip = new Date(Date.UTC(y, m - 1, d));
+  if (
+    roundTrip.getUTCFullYear() !== y ||
+    roundTrip.getUTCMonth() !== m - 1 ||
+    roundTrip.getUTCDate() !== d
+  ) {
+    throw new Error(
+      `asiaRange requires a real calendar sessionDate, got ${String(sessionDate)}`,
+    );
+  }
+}
+
 export function asiaRange(rows: IntradayCandle[], sessionDate: string): AsiaRange | null {
   if (!Array.isArray(rows)) {
     throw new Error(`asiaRange requires an IntradayCandle array, got ${String(rows)}`);
   }
+  assertValidSessionDate(sessionDate);
   const closed = closedOnlyIntraday(rows);
   const valid = closed.filter((r) => hasFiniteOhlc(r) && hasValidTime(r));
 

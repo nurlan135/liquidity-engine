@@ -175,6 +175,25 @@ describe('asia: boundary edges', () => {
       'asiaRange requires an IntradayCandle array, got nope',
     );
   });
+
+  it('throws on missing, malformed, or non-calendar sessionDate instead of returning null', () => {
+    const rows = block(SESSION, 20, 5);
+    expect(() => asiaRange(rows, undefined as unknown as string)).toThrow(
+      'asiaRange requires a sessionDate in yyyy-MM-dd format, got undefined',
+    );
+    expect(() => asiaRange(rows, null as unknown as string)).toThrow(
+      'asiaRange requires a sessionDate in yyyy-MM-dd format, got null',
+    );
+    expect(() => asiaRange(rows, '15-06-2026')).toThrow(
+      'asiaRange requires a sessionDate in yyyy-MM-dd format, got 15-06-2026',
+    );
+    expect(() => asiaRange(rows, '2026-02-30')).toThrow(
+      'asiaRange requires a real calendar sessionDate, got 2026-02-30',
+    );
+    expect(() => asiaRange(rows, '2026-13-01')).toThrow(
+      'asiaRange requires a real calendar sessionDate, got 2026-13-01',
+    );
+  });
 });
 
 describe('asia: DST March spring-forward pair', () => {
