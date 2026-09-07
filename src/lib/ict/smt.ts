@@ -152,10 +152,6 @@ export function matchSwings(nq: Candle[], es: Candle[], k: number = SWING_K): Ma
   return pairs;
 }
 
-function bpsGap(sweptPrice: number, heldPrice: number, referenceExtreme: number): number {
-  return (Math.abs(sweptPrice - heldPrice) / referenceExtreme) * 10000;
-}
-
 // Textbook Pearson r over two paired close arrays. Returns NaN on a
 // zero-variance denominator (flat leg carries zero directional information);
 // the caller converts every non-finite result to decoupled, never dividing
@@ -318,7 +314,7 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
           sweeperLeg: 'NQ',
           nqWindow,
           esWindow,
-          bpsGap: bpsGap(latest.nqExtreme, latest.esExtreme, prior.esExtreme),
+          bpsGap: holdGapBps,
         };
       }
     }
@@ -335,7 +331,7 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
         sweeperLeg: 'ES',
         nqWindow,
         esWindow,
-        bpsGap: bpsGap(latest.esExtreme, latest.nqExtreme, prior.nqExtreme),
+        bpsGap: holdGapBps,
       };
     }
   }
