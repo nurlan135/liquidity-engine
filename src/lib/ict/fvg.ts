@@ -109,3 +109,69 @@ export function applyMitigation(gaps: FvgGap[], candles: Candle[]): FvgGap[] {
   }
   return active.slice(-FVG_MAP_BOUND);
 }
+
+export type DeliveryState = 'ERL' | 'IRL';
+
+export interface TransitionState {
+  state: DeliveryState;
+  originFvg: FvgGap;
+  triggerCandle: string;
+}
+
+// D-10 sweep-then-reject: starting from ERL, evaluate candles after each gap
+// origin in chronological order and flip to IRL only when a single candle
+// satisfies both halves — for a bullish gap the wick pierces strictly below
+// the bottom while the same candle closes at or above the bottom; for a
+// bearish gap the wick pierces strictly above the top while the same candle
+// closes at or below the top. A pierce whose close stays outside flips
+// nothing and leaves the gap active (T-07-01: one bad wick cannot whiplash
+// §2 prose). asOf is an injected plain-string date; no clock reads.
+export function detectTransition(
+  gaps: FvgGap[],
+  candles: Candle[],
+  asOf: string,
+): TransitionState | null {
+  if (!Array.isArray(gaps)) {
+    throw new Error(`detectTransition requires a gap array, got ${String(gaps)}`);
+  }
+  if (!Array.isArray(candles)) {
+    throw new Error(`detectTransition requires a Candle array, got ${String(candles)}`);
+  }
+  if (typeof asOf !== 'string' || asOf.length === 0) {
+    throw new Error(`detectTransition requires an asOf date string, got ${String(asOf)}`);
+  }
+  const closed = closedOnly(candles).filter(isFiniteCandle);
+  const ordered = [...gaps].sort((a, b) => (a.originDate < b.originDate ? -1 : a.originDate > b.originDate ? 1 : 0));
+  for (const gap of ordered) {
+    assertFiniteGap(gap, 'detectTransition');
+    const origin = originIndex(closed, gap.originDate, 'detectTransition');
+    for (let j = origin + 1; j < closed.length; j++) {
+      const c = closed[j];
+      if (c.date > asOf) continue;
+      const pierced = gap.polarity === 'BULLISH' ? c.low < gap.bottom : c.high > gap.top;
+      if (!pierced) continue;
+      const rejected = gap.polarity === 'BULLISH' ? c.close >= gap.bottom : c.close <= gap.top;
+      if (rejected) {
+        return { state: 'IRL', originFvg: { ...gap }, triggerCandle: c.date };
+      }
+    }
+  }
+  return null;
+}
+
+// D-11 §2 Delivery Cycle prose: deterministic IRL-aware delivery sentence
+// selected from transition state. Null (no transition) names the ERL state
+// token; a transition names IRL together with the origin bounds and trigger
+// date. Neutral trap-vs-genuine house wording, no new report section.
+export function describeDeliveryTransition(transition: TransitionState | null): string {
+  if (transition === null) {
+    return 'Delivery stays ERL: price holds external range and no fair-value gap shows a sweep-then-reject, so a trap read has no trigger yet.';
+  }
+  const { originFvg, triggerCandle } = transition;
+  assertFiniteGap(originFvg, 'describeDeliveryTransition');
+  return (
+    `Delivery flips IRL: the ${originFvg.polarity === 'BULLISH' ? 'bullish' : 'bearish'} gap ` +
+    `${originFvg.bottom}–${originFvg.top} swept and rejected on ${triggerCandle}, ` +
+    'so genuine follow-through reads through that zone first and a trap read fades only on a second failure.'
+  );
+}
