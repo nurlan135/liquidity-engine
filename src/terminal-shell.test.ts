@@ -184,6 +184,10 @@ beforeEach(() => {
     es: { candles: [], contractHint: '', lastUpdatedISO: null, stale: false, source: 'none', lastError: null },
     inFlightNQ: false,
     inFlightES: false,
+    nq1h: { candles: [], contractHint: '', lastUpdatedISO: null, stale: false, source: 'none', lastError: null },
+    nq15m: { candles: [], contractHint: '', lastUpdatedISO: null, stale: false, source: 'none', lastError: null },
+    inFlightNQ1H: false,
+    inFlightNQ15M: false,
     coverage: { nq: 0, es: 0, joined: 0, dropped: 0 },
     lastSchedule: null,
   });
@@ -223,8 +227,9 @@ describe('terminal shell composes the full grid on live data', () => {
 
     const container = await renderShell();
 
-    // Mount owns the first poll.
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    // Mount owns the first poll: the immediate NQ refresh plus the two
+    // immediate intraday refreshes (Phase 9 D-13 fire-first behavior).
+    expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(fetchFn).toHaveBeenCalledWith('/api/yahoo', { cache: 'no-store' });
 
     // Grid composition: 3-panel responsive grid + all live panels.
@@ -292,8 +297,9 @@ describe('terminal shell owns the dual staggered always-on poll loop (D-01/D-02/
     vi.stubGlobal('fetch', fetchFn);
 
     await renderShell();
-    // Mount owns the first poll on the bare NQ path.
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    // Mount owns the first poll on the bare NQ path plus the two immediate
+    // intraday refreshes (Phase 9 D-13 fire-first behavior).
+    expect(fetchFn).toHaveBeenCalledTimes(3);
     expect(fetchFn).toHaveBeenCalledWith('/api/yahoo', { cache: 'no-store' });
 
     // Staggered offsets recorded in state: NQ near :00, ES :30 later.
@@ -327,7 +333,7 @@ describe('terminal shell owns the dual staggered always-on poll loop (D-01/D-02/
     vi.stubGlobal('fetch', fetchFn);
 
     await renderShell();
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
 
     await act(async () => {
       useDashboard.getState().stopDualPoll();
@@ -335,7 +341,7 @@ describe('terminal shell owns the dual staggered always-on poll loop (D-01/D-02/
     await act(async () => {
       vi.advanceTimersByTime(300_000);
     });
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 });
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { formatInTimeZone } from 'date-fns-tz';
 import type { BiasOutput, Candle, DealingRange, DOLTarget, IntradayCandle, RegimeOutput, RolloverFlag } from '@/src/lib/ict/types';
-import { closedOnly } from '@/src/lib/ict/types';
+import { closedOnly, closedOnlyIntraday } from '@/src/lib/ict/types';
 import { innerJoinOnTimestamp, type JoinCoverage } from '@/src/lib/ict/join';
 import { ANCHOR_WINDOW, computePosition, computeRange } from '@/src/lib/ict/range';
 import { computeBias } from '@/src/lib/ict/bias';
@@ -8,6 +9,13 @@ import { computePrimaryDOL } from '@/src/lib/ict/dol';
 import { computeRegime } from '@/src/lib/ict/regime';
 import { detectRollover } from '@/src/lib/ict/rollover';
 import { computeLevels, type LevelsOutput } from '@/src/lib/ict/levels';
+import { NY_TZ } from '@/src/lib/ict/aggregate';
+import { asiaRange, type AsiaRange } from '@/src/lib/ict/asia';
+import { judasSwing, type JudasOutput } from '@/src/lib/ict/judas';
+import { evaluateSMT, type SmtOutput } from '@/src/lib/ict/smt';
+import { amdPhase, type AmdOutput } from '@/src/lib/ict/amd';
+import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransition } from '@/src/lib/ict/fvg';
+import { deriveConvictionTier, type ConvictionTier } from '@/src/lib/confluence';
 import { getAsOfBakuDate } from '@/src/lib/time';
 
 export type ScenarioId = 'crowded-long' | 'crowded-short' | 'balanced';
@@ -85,6 +93,99 @@ function emptyLeg(): LegState {
   };
 }
 
+// D-13: intraday leg envelope. Same per-leg envelope shape as LegState but
+// over epoch-row IntradayCandle rows per the Phase 6 epoch contract — never a
+// merged stale boolean, never cross-leg data.
+export interface IntradayLegState {
+  candles: IntradayCandle[];
+  contractHint: string;
+  lastUpdatedISO: string | null;
+  stale: boolean;
+  source: string;
+  lastError: string | null;
+}
+
+function emptyIntradayLeg(): IntradayLegState {
+  return {
+    candles: [],
+    contractHint: '',
+    lastUpdatedISO: null,
+    stale: false,
+    source: 'none',
+    lastError: null,
+  };
+}
+
+interface IntradayEnvelopeJson {
+  candles: unknown;
+  contractHint?: unknown;
+  lastUpdatedISO?: unknown;
+  stale?: unknown;
+  source?: unknown;
+}
+
+interface ValidIntradayEnvelope {
+  candles: IntradayCandle[];
+  contractHint: string;
+  lastUpdatedISO: string;
+  stale: boolean;
+  source: string;
+}
+
+function isValidIntradayCandle(c: unknown): c is IntradayCandle {
+  if (typeof c !== 'object' || c === null) return false;
+  const row = c as Record<string, unknown>;
+  return (
+    isFiniteNumber(row.time) &&
+    isFiniteNumber(row.open) &&
+    isFiniteNumber(row.high) &&
+    isFiniteNumber(row.low) &&
+    isFiniteNumber(row.close) &&
+    (row.forming === undefined || typeof row.forming === 'boolean')
+  );
+}
+
+// Per-leg intraday envelope guard (T-09-01): finite OHLC on every row,
+// strictly ascending epoch times, non-empty contractHint, parseable ISO.
+// A malformed leg is rejected without touching healthy legs.
+function isValidIntradayEnvelope(env: IntradayEnvelopeJson): env is ValidIntradayEnvelope {
+  if (!Array.isArray(env.candles) || env.candles.length < 1) return false;
+  if (!env.candles.every(isValidIntradayCandle)) return false;
+  if (typeof env.contractHint !== 'string' || env.contractHint.trim().length === 0) return false;
+  if (typeof env.lastUpdatedISO !== 'string') return false;
+  if (!Number.isFinite(new Date(env.lastUpdatedISO).getTime())) return false;
+  if (typeof env.stale !== 'boolean') return false;
+  if (typeof env.source !== 'string') return false;
+  const times = (env.candles as IntradayCandle[]).map((c) => c.time);
+  for (let i = 1; i < times.length; i++) {
+    if (times[i] <= times[i - 1]) return false;
+  }
+  return true;
+}
+
+async function fetchIntradayEnvelope(url: string): Promise<ValidIntradayEnvelope> {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`refresh failed with status ${res.status}`);
+  }
+  const json = (await res.json()) as IntradayEnvelopeJson;
+  if (!isValidIntradayEnvelope(json)) {
+    throw new Error('refresh rejected invalid envelope');
+  }
+  return json;
+}
+
+function intradayLegFromEnvelope(env: ValidIntradayEnvelope): IntradayLegState {
+  return {
+    candles: env.candles,
+    contractHint: env.contractHint,
+    lastUpdatedISO: env.lastUpdatedISO,
+    stale: env.stale,
+    source: env.source,
+    lastError: null,
+  };
+}
+
 export interface DashboardState {
   candles: Candle[];
   contractHint: string;
@@ -101,6 +202,11 @@ export interface DashboardState {
   es: LegState;
   inFlightNQ: boolean;
   inFlightES: boolean;
+  // D-13: intraday legs — nq1h (1H) feeds Asia, nq15m (15M) feeds Judas.
+  nq1h: IntradayLegState;
+  nq15m: IntradayLegState;
+  inFlightNQ1H: boolean;
+  inFlightNQ15M: boolean;
   // D-13: join coverage diagnostics ride in the data for Phase 7 selectors.
   coverage: JoinCoverage;
   // D-01: last computed dual-poll offsets (ms) — state, not a module probe,
@@ -109,6 +215,8 @@ export interface DashboardState {
   refresh: () => Promise<void>;
   refreshNQ: () => Promise<void>;
   refreshES: () => Promise<void>;
+  refreshNQ1H: () => Promise<void>;
+  refreshNQ15M: () => Promise<void>;
   startDualPoll: (now?: Date) => void;
   stopDualPoll: () => void;
   setScenario: (scenario: ScenarioId) => void;
@@ -120,6 +228,12 @@ export interface DashboardState {
   selectRegime: () => RegimeOutput | null;
   selectLevels: () => LevelsOutput | null;
   selectRollover: () => RolloverFlag | null;
+  selectSMT: () => SmtOutput | null;
+  selectAsia: () => AsiaRange | null;
+  selectJudas: () => JudasOutput | null;
+  selectAMD: (asOf?: number) => AmdOutput | null;
+  selectConfluence: () => ConvictionTier;
+  selectLiquidityPath: () => string | null;
 }
 
 function closedCount(candles: Candle[]): number {
@@ -205,12 +319,19 @@ let nqTimeout: ReturnType<typeof setTimeout> | null = null;
 let nqInterval: ReturnType<typeof setInterval> | null = null;
 let esTimeout: ReturnType<typeof setTimeout> | null = null;
 let esInterval: ReturnType<typeof setInterval> | null = null;
+let nq1hTimeout: ReturnType<typeof setTimeout> | null = null;
+let nq1hInterval: ReturnType<typeof setInterval> | null = null;
+let nq15mTimeout: ReturnType<typeof setTimeout> | null = null;
+let nq15mInterval: ReturnType<typeof setInterval> | null = null;
 
 // Test-visible probe of the pending dual-timer schedule (offsets in ms).
 // Production UI never reads this; the stagger test pins D-01 through it.
+// D-14: four-leg grid — NQ at :00, nq1h at :15, ES at :30, nq15m at :45.
 export interface DualPollSchedule {
   delayNQ: number;
   delayES: number;
+  delayNQ1H: number;
+  delayNQ15M: number;
 }
 
 
@@ -231,6 +352,22 @@ function clearDualTimers(): void {
     clearInterval(esInterval);
     esInterval = null;
   }
+  if (nq1hTimeout !== null) {
+    clearTimeout(nq1hTimeout);
+    nq1hTimeout = null;
+  }
+  if (nq1hInterval !== null) {
+    clearInterval(nq1hInterval);
+    nq1hInterval = null;
+  }
+  if (nq15mTimeout !== null) {
+    clearTimeout(nq15mTimeout);
+    nq15mTimeout = null;
+  }
+  if (nq15mInterval !== null) {
+    clearInterval(nq15mInterval);
+    nq15mInterval = null;
+  }
 }
 
 export const useDashboard = create<DashboardState>()((set, get) => ({
@@ -247,6 +384,10 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   es: emptyLeg(),
   inFlightNQ: false,
   inFlightES: false,
+  nq1h: emptyIntradayLeg(),
+  nq15m: emptyIntradayLeg(),
+  inFlightNQ1H: false,
+  inFlightNQ15M: false,
   coverage: { ...EMPTY_COVERAGE },
   lastSchedule: null,
 
@@ -340,17 +481,61 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     }
   },
 
+  refreshNQ1H: async () => {
+    // D-13/D-15: independent intraday refresher copying the refreshES shape —
+    // own singleflight flag, own leg stale plus lastError on failure, never
+    // writing sibling legs, coverage recompute untouched.
+    if (get().inFlightNQ1H) return;
+    set({ inFlightNQ1H: true });
+    try {
+      const json = await fetchIntradayEnvelope('/api/yahoo?symbol=NQ=F&interval=1h');
+      set({
+        nq1h: intradayLegFromEnvelope(json),
+        inFlightNQ1H: false,
+        asOfBaku: getAsOfBakuDate(new Date()),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'refresh failed';
+      set({
+        nq1h: { ...get().nq1h, stale: true, lastError: message },
+        inFlightNQ1H: false,
+      });
+    }
+  },
+
+  refreshNQ15M: async () => {
+    // D-13/D-15: 15M mirror of refreshNQ1H — independent failure isolates to
+    // the nq15m leg only.
+    if (get().inFlightNQ15M) return;
+    set({ inFlightNQ15M: true });
+    try {
+      const json = await fetchIntradayEnvelope('/api/yahoo?symbol=NQ=F&interval=15m');
+      set({
+        nq15m: intradayLegFromEnvelope(json),
+        inFlightNQ15M: false,
+        asOfBaku: getAsOfBakuDate(new Date()),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'refresh failed';
+      set({
+        nq15m: { ...get().nq15m, stale: true, lastError: message },
+        inFlightNQ15M: false,
+      });
+    }
+  },
+
   startDualPoll: (nowArg?: Date) => {
-    // Restart cleanly: exactly one pair of timers ever.
+    // Restart cleanly: exactly one timer pair per leg, four legs total.
     get().stopDualPoll();
     // Optional injectable clock (tests pin fake-system time; production
     // passes nothing and reads the wall clock). Never Date.now() inside
     // selectors — this is orchestration, not src/lib/ict math.
     const now = nowArg ?? new Date();
-    // UTC getters: the stagger grid (:00/:30) is a wall-clock-UTC grid, and
-    // getSeconds() under a non-UTC TZ would shift the offsets off-grid.
-    // getTime-derived fields (immune to any Date-method mocking): seconds
-    // within the minute and millis within the second, straight from epoch.
+    // UTC getters: the stagger grid (:00/:15/:30/:45) is a wall-clock-UTC
+    // grid, and getSeconds() under a non-UTC TZ would shift the offsets
+    // off-grid. getTime-derived fields (immune to any Date-method mocking):
+    // seconds within the minute and millis within the second, straight from
+    // epoch.
     const epochMs = now.getTime();
     if (!Number.isFinite(epochMs)) throw new Error('startDualPoll read an invalid clock');
     // Positive modulo: epoch seconds are positive here, but % keeps the sign
@@ -360,18 +545,26 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const sec = ((totalSec % 60) + 60) % 60;
     const ms = epochMs - totalSec * 1000;
     const jitterNQ = staggerJitterMs();
+    const jitterNQ1H = staggerJitterMs();
     const jitterES = staggerJitterMs();
+    const jitterNQ15M = staggerJitterMs();
     const delayNQ = ((60 - sec) % 60) * 1000 - ms + jitterNQ;
     // At :30 the next ES :30 is a full 60s out (60s grid phase-locked to
     // :30), not 0s: (90 - sec) % 60 hits 0 at sec 30. (60 - sec + 30)
     // keeps the +30s phase without the zero-trap.
     const delayES = (((60 - sec) % 60) + 30) * 1000 - ms + jitterES;
+    // nq1h rides the :15 phase, nq15m the :45 phase — same +phase form as
+    // delayES so the grid never hits the zero-trap at its own second.
+    const delayNQ1H = (((60 - sec) % 60) + 15) * 1000 - ms + jitterNQ1H;
+    const delayNQ15M = (((60 - sec) % 60) + 45) * 1000 - ms + jitterNQ15M;
     // The delay computation is recorded in the store state itself (same
     // zustand instance the test reads), so D-01 offsets are pinned without
     // a module-level probe cell.
-    set({ lastSchedule: { delayNQ, delayES } });
+    set({ lastSchedule: { delayNQ, delayES, delayNQ1H, delayNQ15M } });
     // Mount owns the first poll: NQ lands immediately on the bare path.
     void get().refreshNQ();
+    void get().refreshNQ1H();
+    void get().refreshNQ15M();
     nqTimeout = setTimeout(() => {
       void get().refreshNQ();
       nqInterval = setInterval(() => {
@@ -384,6 +577,18 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
         void get().refreshES();
       }, POLL_INTERVAL_MS);
     }, Math.max(0, delayES));
+    nq1hTimeout = setTimeout(() => {
+      void get().refreshNQ1H();
+      nq1hInterval = setInterval(() => {
+        void get().refreshNQ1H();
+      }, POLL_INTERVAL_MS);
+    }, Math.max(0, delayNQ1H));
+    nq15mTimeout = setTimeout(() => {
+      void get().refreshNQ15M();
+      nq15mInterval = setInterval(() => {
+        void get().refreshNQ15M();
+      }, POLL_INTERVAL_MS);
+    }, Math.max(0, delayNQ15M));
   },
 
   stopDualPoll: () => {
@@ -456,5 +661,90 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const { atr } = computeRegime(candles);
     if (!Number.isFinite(atr) || atr <= 0) return null;
     return detectRollover(candles, atr, asOfBaku, contractHint);
+  },
+
+  // Phase 9 §3 selectors: each refuses null on stale or empty legs (D-01,
+  // D-15) with the owning leg lastError carrying the reason the render layer
+  // reads verbatim. Every detector call sits in try/catch so selectors never
+  // throw on bad data. Null means degraded — never a throw into render.
+  selectSMT: () => {
+    const { nq, es, asOfBaku } = get();
+    if (nq.stale || es.stale) return null;
+    if (nq.candles.length === 0 || es.candles.length === 0) return null;
+    try {
+      return evaluateSMT(nq.candles, es.candles, asOfBaku);
+    } catch {
+      return null;
+    }
+  },
+
+  selectAsia: () => {
+    const { nq1h } = get();
+    if (nq1h.stale) return null;
+    const closed = closedOnlyIntraday(nq1h.candles);
+    if (closed.length === 0) return null;
+    try {
+      const latest = [...closed].sort((a, b) => a.time - b.time)[closed.length - 1];
+      const sessionDate = formatInTimeZone(latest.time * 1000, NY_TZ, 'yyyy-MM-dd');
+      return asiaRange(nq1h.candles, sessionDate);
+    } catch {
+      return null;
+    }
+  },
+
+  selectJudas: () => {
+    const { nq15m } = get();
+    if (nq15m.stale) return null;
+    const closed = closedOnlyIntraday(nq15m.candles);
+    if (closed.length === 0) return null;
+    try {
+      const asia = get().selectAsia();
+      if (asia === null) return null;
+      return judasSwing(nq15m.candles, asia);
+    } catch {
+      return null;
+    }
+  },
+
+  selectAMD: (asOf?: number) => {
+    try {
+      const asia = get().selectAsia();
+      const judas = get().selectJudas();
+      const smt = get().selectSMT();
+      const epoch =
+        asOf ??
+        (() => {
+          const iso = get().nq1h.lastUpdatedISO;
+          const parsed = iso === null ? NaN : new Date(iso).getTime();
+          return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Math.floor(new Date().getTime() / 1000);
+        })();
+      return amdPhase({ asia, judas, smt, asOf: epoch });
+    } catch {
+      return null;
+    }
+  },
+
+  // Sixth selector beside the five named in PATTERNS: FVG delivery prose
+  // needs the same refuse-with-reason envelope so components stay math-free.
+  selectLiquidityPath: () => {
+    const { nq, asOfBaku } = get();
+    if (nq.stale) return null;
+    if (nq.candles.length === 0) return null;
+    try {
+      const gaps = detectFVGs(nq.candles);
+      const active = applyMitigation(gaps, nq.candles);
+      return describeDeliveryTransition(detectTransition(active, nq.candles, asOfBaku));
+    } catch {
+      return null;
+    }
+  },
+
+  selectConfluence: () => {
+    try {
+      return deriveConvictionTier(get().selectJudas(), get().selectSMT());
+    } catch {
+      // D-11: confluence never returns null — worst case is base tier.
+      return 'standart';
+    }
   },
 }));

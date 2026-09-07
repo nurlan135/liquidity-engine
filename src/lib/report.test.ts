@@ -2,15 +2,22 @@
 // English identifiers; locked English chip UNAVAILABLE untouched.
 
 import { describe, expect, it } from 'vitest';
-import { PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS } from '@/src/lib/report';
+import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS } from '@/src/lib/report';
 
 describe('report', () => {
-  it('holds exactly 6 entries with only index 2 live', () => {
+  it('holds exactly 6 entries with only indexes 2 and 3 live', () => {
     expect(REPORT_SECTIONS).toHaveLength(6);
     expect(REPORT_SECTIONS.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
     const live = REPORT_SECTIONS.filter((s) => s.state === 'live');
-    expect(live).toHaveLength(1);
-    expect(live[0].index).toBe(2);
+    expect(live).toHaveLength(2);
+    expect(live.map((s) => s.index)).toEqual([2, 3]);
+  });
+
+  it('locks the §3 title and the conviction label prefix', () => {
+    const s3 = REPORT_SECTIONS.find((s) => s.index === 3);
+    expect(s3).toBeDefined();
+    expect(s3!.title).toBe('3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)');
+    expect(CONVICTION_LABEL).toBe('İnam: ');
   });
 
   it('matches the institutional rules CIXIS FORMATI literals', () => {
