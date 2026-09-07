@@ -92,7 +92,7 @@ Plans:
   2. User sees London Judas Swing only on three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement), with candidates hollow vs confirmed solid and ≤25% confirmed sessions over 60 days
   3. User sees AMD phase (accumulation / manipulation / distribution) fusing range + Judas + SMT state, with NY honestly marked Gözlənilir
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
@@ -101,7 +101,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-02-PLAN.md — Three-gate Judas detector plus 60-day budget dev-script
+- [x] 08-02-PLAN.md — Three-gate Judas detector plus 60-day budget dev-script
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -136,5 +136,5 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 03.2 Close gap gate + fixes | v1.0 | 4/4 | Complete | 2026-09-06 |
 | 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 5/5 | Complete    | 2026-09-07 |
 | 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | Complete    | 2026-09-07 |
-| 8. AMD Sessions (Asia Range + Judas) | v2.0 | 1/3 | In Progress|  |
+| 8. AMD Sessions (Asia Range + Judas) | v2.0 | 2/3 | In Progress|  |
 | 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 0/TBD | Not started | - |
