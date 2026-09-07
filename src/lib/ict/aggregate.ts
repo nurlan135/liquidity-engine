@@ -132,11 +132,31 @@ export function aggregate1Hto4H(rows: IntradayCandle[], asOf: string): Candle[] 
     }
   }
 
-  // D-13 complete-blocks-only: a group emits iff it holds exactly BLOCK_SIZE
-  // constituents. The trailing partial, DST-short days, and maintenance-break
-  // gaps stay absent — never synthesize filler rows.
+  // D-13 complete-blocks-only: a group emits iff it holds exactly
+  // BLOCK_SIZE constituents after DST fall-back merging. The trailing
+  // partial, DST-short (spring-forward) days, and maintenance-break gaps stay
+  // absent — never synthesize filler rows.
+  // WR-03: on the November fall-back Sunday the repeated 01:00 wall-clock
+  // hour yields two distinct epoch rows in the same block (5 members). The
+  // duplicate wall-clock hour is merged (first occurrence wins) so the valid
+  // block still emits 4 constituents.
   const blocks: Candle[] = [];
-  for (const [date, members] of groups) {
+  for (const [date, group] of groups) {
+    let members = group;
+    if (group.length > BLOCK_SIZE) {
+      const seenWallClock = new Set<string>();
+      const merged: IntradayCandle[] = [];
+      for (const m of group) {
+        // Wall-clock identity (NY date + hour) distinguishes the repeated
+        // fall-back hour: same wall clock, different epoch instants.
+        const wallClock = `${nyDateOf(m.time)}@${nyHourOf(m.time)}`;
+        if (!seenWallClock.has(wallClock)) {
+          seenWallClock.add(wallClock);
+          merged.push(m);
+        }
+      }
+      members = merged;
+    }
     if (members.length !== BLOCK_SIZE) {
       continue;
     }
