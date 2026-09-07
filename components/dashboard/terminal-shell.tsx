@@ -53,6 +53,36 @@ export function TerminalShell() {
   // together in refresh), so the derived value never goes stale.
   const selectLevels = useDashboard((s) => s.selectLevels);
   const levels = selectLevels();
+  // Phase 9 §3 overlay selectors: same stable-function derivation during
+  // render. Asia extremes, Judas plus its containing D1 bar date, SMT plus
+  // its windowEnd date, and overlay staleness flow into the NqChart props.
+  // Bar-date mapping happens here at the caller so marker time always equals
+  // a D1 candle date (T-09-03). Judas sweepTime is an epoch; the containing
+  // bar is the latest D1 candle at or before the sweep instant. SMT
+  // windowEnd is already a D1 date string.
+  const selectAsia = useDashboard((s) => s.selectAsia);
+  const selectJudas = useDashboard((s) => s.selectJudas);
+  const selectSMT = useDashboard((s) => s.selectSMT);
+  const nq1hStale = useDashboard((s) => s.nq1h.stale);
+  const nq15mStale = useDashboard((s) => s.nq15m.stale);
+  const esStale = useDashboard((s) => s.es.stale);
+  const asia = selectAsia();
+  const judas = selectJudas();
+  const smt = selectSMT();
+  const overlayStale = nq1hStale || nq15mStale || esStale;
+  let judasBarDate: string | null = null;
+  if (judas !== null && judas.sweepTime !== null && candles.length > 0) {
+    let best: string | null = null;
+    for (const c of candles) {
+      const barEpoch = Math.floor(new Date(`${c.date}T00:00:00Z`).getTime() / 1000);
+      if (Number.isFinite(barEpoch) && barEpoch <= judas.sweepTime) {
+        best = c.date;
+      }
+    }
+    judasBarDate = best ?? candles[candles.length - 1].date;
+  }
+  const smtBarDate =
+    smt !== null && !smt.suppressed && smt.esWindow !== null ? smt.esWindow.end : null;
   // Header clocks tick locally every 10s (StatusStrip precedent); the poll
   // loop stays the single store writer — this state never touches the store.
   const [now, setNow] = useState(() => new Date());
@@ -238,6 +268,13 @@ export function TerminalShell() {
                   status={chartStatus}
                   forming={forming}
                   levels={levels}
+                  asiaHigh={asia?.high ?? null}
+                  asiaLow={asia?.low ?? null}
+                  judas={judas}
+                  judasBarDate={judasBarDate}
+                  smt={smt}
+                  smtBarDate={smtBarDate}
+                  overlayStale={overlayStale}
                 />
               ) : (
                 <div data-slot="chart-empty">
