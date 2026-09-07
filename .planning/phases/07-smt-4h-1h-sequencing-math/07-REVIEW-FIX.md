@@ -38,6 +38,9 @@ from the main checkout after the fast-forward.
 - WR-03 additionally verified with a throwaway vitest case (both 01:00 fall-back occurrences in
   one B2 group → single merged block, first-open from row 0, last-close from the first 01:00);
   the scratch file was deleted after passing and is not part of the commits.
+- Human verification (2026-09-07, operator confirmed): WR-01 mirror-arm `sweeperLeg` naming
+  (BEARISH/ES, BULLISH/NQ) matches trading logic; WR-03 "first occurrence wins" merge policy
+  accepted. Both `requires human verification` flags resolved.
 
 ## Fixed Issues
 
