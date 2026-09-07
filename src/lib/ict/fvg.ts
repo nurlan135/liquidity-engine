@@ -111,6 +111,10 @@ export function applyMitigation(gaps: FvgGap[], candles: Candle[]): FvgGap[] {
       active.push({ ...gap, mitigated: false });
     }
   }
+  // WR-07: sort by originDate before the trailing-20 slice so the map and the
+  // transition layer (which sorts identically) agree on what is current, even
+  // for unsorted gap input.
+  active.sort((a, b) => (a.originDate < b.originDate ? -1 : a.originDate > b.originDate ? 1 : 0));
   return active.slice(-FVG_MAP_BOUND);
 }
 
