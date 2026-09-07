@@ -92,7 +92,13 @@ Plans:
   2. User sees London Judas Swing only on three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement), with candidates hollow vs confirmed solid and ≤25% confirmed sessions over 60 days
   3. User sees AMD phase (accumulation / manipulation / distribution) fusing range + Judas + SMT state, with NY honestly marked Gözlənilir
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 08-01-PLAN.md — Tracer: conforming 19:00→20:00 edits plus Asia Range core with DST triple-test
+- [ ] 08-02-PLAN.md — Three-gate Judas detector plus 60-day budget dev-script
+- [ ] 08-03-PLAN.md — AMD phase classifier plus end-to-end fusion and full-suite green
 
 ### Phase 9: Composition (§3 Live + Overlays + Verify)
 
