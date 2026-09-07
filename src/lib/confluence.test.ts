@@ -94,3 +94,67 @@ describe('confluence: single happy path plus nearest neighbors', () => {
     expect(deriveConvictionTier(judas({ sweepSide: 'HIGH' }), smtNoSignal())).toBe('standart');
   });
 });
+
+describe('confluence: ICT-15 tier boundary one step either side', () => {
+  it('two agreements (confirmed plus aligned) yield highest', () => {
+    expect(
+      deriveConvictionTier(judas({ sweepSide: 'HIGH' }), smtSignal({ direction: 'BEARISH' })),
+    ).toBe('yüksək inam');
+    expect(deriveConvictionTier(judas({ sweepSide: 'LOW' }), smtSignal({ direction: 'BULLISH' }))).toBe(
+      'yüksək inam',
+    );
+  });
+
+  it('one agreement — confirmed plus misaligned — yields base', () => {
+    expect(
+      deriveConvictionTier(judas({ sweepSide: 'HIGH' }), smtSignal({ direction: 'BULLISH' })),
+    ).toBe('standart');
+    expect(
+      deriveConvictionTier(judas({ sweepSide: 'LOW' }), smtSignal({ direction: 'BEARISH' })),
+    ).toBe('standart');
+  });
+
+  it('one agreement — confirmed plus suppressed — yields base', () => {
+    expect(deriveConvictionTier(judas({ sweepSide: 'HIGH' }), smtSuppressed())).toBe('standart');
+  });
+
+  it('one agreement — candidate plus aligned — yields base', () => {
+    expect(
+      deriveConvictionTier(
+        judas({ confirmed: false, sweepSide: 'LOW' }),
+        smtSignal({ direction: 'BULLISH' }),
+      ),
+    ).toBe('standart');
+  });
+
+  it('zero agreements yield base', () => {
+    expect(deriveConvictionTier(null, null)).toBe('standart');
+    expect(deriveConvictionTier(judas({ confirmed: false }), smtNoSignal())).toBe('standart');
+  });
+});
+
+describe('confluence: ICT-15 precision — tiers are discrete words only', () => {
+  it('every tier value is exactly one of the two word literals', () => {
+    const tiers = [
+      deriveConvictionTier(judas({ sweepSide: 'HIGH' }), smtSignal({ direction: 'BEARISH' })),
+      deriveConvictionTier(judas({ sweepSide: 'LOW' }), smtSignal({ direction: 'BULLISH' })),
+      deriveConvictionTier(judas({ confirmed: false }), smtSignal({ direction: 'BEARISH' })),
+      deriveConvictionTier(judas(), smtSuppressed()),
+      deriveConvictionTier(null, null),
+    ];
+    for (const tier of tiers) {
+      expect(tier === 'standart' || tier === 'yüksək inam').toBe(true);
+    }
+  });
+
+  it('numeric coercion of each tier is NaN', () => {
+    expect(Number('standart' as string)).toBeNaN();
+    expect(Number('yüksək inam' as string)).toBeNaN();
+  });
+
+  it('no tier string contains a digit or percent sign', () => {
+    for (const tier of ['standart', 'yüksək inam'] as const) {
+      expect(tier).not.toMatch(/[0-9%]/);
+    }
+  });
+});
