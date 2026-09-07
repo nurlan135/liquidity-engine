@@ -106,6 +106,30 @@ describe('yahoo route params', () => {
     expect(res.headers.get('Cache-Control')).toBe('public, s-maxage=60, stale-while-revalidate=30');
   });
 
+  it('intraday upstream failure returns honest 502 or stale never daily-shaped data', async () => {
+    // Mirrors the stale-envelope test: empty cache, 500 upstream, fake timers
+    // drive the retry backoff sleeps to exhaustion, then the catch maps to 502.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-02-09T12:00:00Z'));
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 500 })));
+      const pending = GET(stubRequest('http://localhost/api/yahoo?symbol=ES%3DF&interval=1h'));
+      await vi.advanceTimersByTimeAsync(30_000);
+      const res = await pending;
+      expect(res.status).toBe(502);
+      const body = await res.json();
+      expect(typeof body.error).toBe('string');
+      expect(body.error.length).toBeGreaterThan(0);
+      expect(body.retryAfter).toBe(60);
+      expect(res.headers.get('Cache-Control')).toBe('no-store');
+      expect(res.headers.get('Retry-After')).toBe('60');
+      expect(body).not.toHaveProperty('candles');
+      expect(JSON.stringify(body)).not.toContain('"date"');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('stale envelope carries no-store while fresh carries the public rule', async () => {
     // Fake timers control the route's internal new Date() so the 60s TTL can
     // expire; advanceTimersByTimeAsync drives the retry backoff sleeps.
