@@ -88,7 +88,7 @@ Plans:
 **Requirements**: ICT-12, ICT-13, ICT-14
 **Success Criteria** (what must be TRUE):
 
-  1. User sees Asia Range computed on IANA `America/New_York` wall-clock (19:00–00:00 NY) with correct Baku display across March, November, and maintenance-break boundaries
+  1. User sees Asia Range computed on IANA `America/New_York` wall-clock (20:00–00:00 NY) with correct Baku display across March, November, and maintenance-break boundaries
   2. User sees London Judas Swing only on three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement), with candidates hollow vs confirmed solid and ≤25% confirmed sessions over 60 days
   3. User sees AMD phase (accumulation / manipulation / distribution) fusing range + Judas + SMT state, with NY honestly marked Gözlənilir
 
