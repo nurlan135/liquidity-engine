@@ -26,7 +26,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 6: Dual-Symbol Proxy + Data Contracts** - Parameterized ES=F + intraday proxy with per-symbol stale envelopes and timestamp join (completed 2026-09-07)
 - [x] **Phase 7: SMT + 4H/1H Sequencing Math** - Time-anchored SMT comparator, rollover suppression, FVG/IRL transition, 4H synthesis (completed 2026-09-07)
-- [ ] **Phase 8: AMD Sessions (Asia Range + Judas)** - Baku-aware Asia Range, three-gate London Judas, AMD phase classifier
+- [x] **Phase 8: AMD Sessions (Asia Range + Judas)** - Baku-aware Asia Range, three-gate London Judas, AMD phase classifier (completed 2026-09-07)
 - [ ] **Phase 9: Composition (§3 Live + Overlays + Verify)** - Live rule-based report §3, Asia overlay + markers, Vercel per-leg verify
 
 ## Phase Details
@@ -92,7 +92,7 @@ Plans:
   2. User sees London Judas Swing only on three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement), with candidates hollow vs confirmed solid and ≤25% confirmed sessions over 60 days
   3. User sees AMD phase (accumulation / manipulation / distribution) fusing range + Judas + SMT state, with NY honestly marked Gözlənilir
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -105,7 +105,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 08-03-PLAN.md — AMD phase classifier plus end-to-end fusion and full-suite green
+- [x] 08-03-PLAN.md — AMD phase classifier plus end-to-end fusion and full-suite green
 
 ### Phase 9: Composition (§3 Live + Overlays + Verify)
 
@@ -136,5 +136,5 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 03.2 Close gap gate + fixes | v1.0 | 4/4 | Complete | 2026-09-06 |
 | 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 5/5 | Complete    | 2026-09-07 |
 | 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | Complete    | 2026-09-07 |
-| 8. AMD Sessions (Asia Range + Judas) | v2.0 | 2/3 | In Progress|  |
+| 8. AMD Sessions (Asia Range + Judas) | v2.0 | 3/3 | Complete   | 2026-09-07 |
 | 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 0/TBD | Not started | - |
