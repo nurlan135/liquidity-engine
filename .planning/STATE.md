@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Modul 3
-current_phase: 08
-current_phase_name: amd-sessions-asia-range-judas
-status: executing
-stopped_at: Phase 08 context gathered
-last_updated: "2026-09-07T09:29:19.025Z"
+current_phase: 9
+current_phase_name: Composition (§3 Live + Overlays + Verify)
+status: planning
+stopped_at: Phase 08 complete, ready to plan Phase 9
+last_updated: "2026-09-07T10:51:59.000Z"
 last_activity: 2026-09-07
-last_activity_desc: Phase 08 execution started
+last_activity_desc: Phase 08 complete (UAT 9/9), transitioned to Phase 9
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 8
-  percent: 50
+  completed_plans: 11
+  percent: 75
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-06)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 08 — amd-sessions-asia-range-judas
+**Current focus:** Phase 09 — Composition (§3 Live + Overlays + Verify)
 
 ## Current Position
 
-Phase: 08 (amd-sessions-asia-range-judas) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 08
-Last activity: 2026-09-07 — Phase 08 execution started
+Phase: 9 — Composition (§3 Live + Overlays + Verify)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-07 — Phase 08 complete (UAT 9/9), transitioned to Phase 9
 
-Progress: [███░░░░░░░] 25%
+Progress: [██████░░░░] 75%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███░░░░░░░] 25%
 | 03.2 | 4 | - | - |
 | 06 | 5 | - | - |
 | 07 | 3 | - | - |
+| 08 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 - [Roadmap 2026-09-06]: v2.0 continues numbering at Phase 6 (v1.0 ended at Phase 5 counting 03.1/03.2 insertions); 4 phases from research order: proxy+contracts → SMT+sequencing math → AMD sessions → composition
 - [Roadmap 2026-09-06]: Phases 7 and 8 both depend only on Phase 6 (may interleave); Phase 9 needs both — SMT math and AMD sessions are independent after data contracts land
 - [Phase 03.2]: Retroactive 01 gate passed 10/10 — ICT-01 claim recorded, all 8 audit partials resolved; pre-existing tsc LayoutProps error (3a3a1cb) left as noted residual
+- [Phase 08]: Asia window 20:00 NY inclusive / 00:00 exclusive via per-candle formatInTimeZone wall-clock; NY_TZ imported from aggregate module, never redefined (D-01/D-07)
+- [Phase 08]: London Judas three-gate conjunction with strict killzone inequality, Asia-height displacement denominator, first-sweep-wins; budget ≤25% confirmed pinned by seeded 60-session run
+- [Phase 08]: amdPhase gate order — clock skeleton, Judas promotion, SMT read-only tag, NY branch last; confirmed-with-unusable-sweepTime holds manipulation, never guesses distribution
 - [Phase ?]: 06-01: RANGE_FOR_INTERVAL pinned from live probe (1d 182d window, 1h 3mo, 15m 1mo); ES=F 1h 1800 rows, 15m 2419 rows, no truncation
 - [Phase ?]: 06-01: fetchSymbol parameterized proxy with composite cache keys and per-key singleflight; NQ default byte-identical via delegation
 - [Phase ?]: [06-02] Intraday path is a separate parse/fetch/cache lane, not a branch inside daily functions — D1 stays byte-identical
@@ -94,7 +98,7 @@ None yet.
 ### Blockers/Concerns
 
 - Yahoo ES=F 1H row density / intraday lookback caps are LOW/MEDIUM confidence web claims — Phase 6 plans a live probe test first
-- Judas/AMD ICT semantics are MEDIUM (education sources, no official spec) — pin Asia 19:00–00:00 NY + displacement multiples during Phase 8 planning
+- Judas/AMD ICT semantics were MEDIUM — resolved in Phase 8: Asia 20:00–00:00 NY pinned (D-01 conformance), displacement 0.5× Asia height, killzone 02:00–05:00 NY strict
 - Pre-existing tsc LayoutProps error in app/layout.tsx (from 3a3a1cb) — outside v1.0 scope, candidate for v2.0 cleanup if touched
 
 ## Deferred Items
@@ -107,10 +111,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-07T08:27:14.003Z
-Stopped at: Phase 08 context gathered
-Resume file: .planning/phases/08-amd-sessions-asia-range-judas/08-CONTEXT.md
+Last session: 2026-09-07T10:51:59.000Z
+Stopped at: Phase 08 complete (UAT 9/9), ready to plan Phase 9
+Resume file: None
 
 ## Operator Next Steps
 
-- Discuss then plan Phase 6 with /gsd-discuss-phase or /gsd-plan-phase 6
+- Discuss then plan Phase 9 with /gsd-discuss-phase 9 or /gsd-plan-phase 9
