@@ -31,7 +31,7 @@ covered_files:
   - components/dashboard/status-strip.tsx
   - components/dashboard/terminal-shell.tsx
   - src/terminal-shell.test.ts
-covered_digest: "unavailable — gsd-tools fingerprint verb not present in this environment"
+covered_digest: "v1:sha256:a36fb2db7f4c81c632d5d6ee79d4df7a14dc963095c69d818b1029b1b1b3d393"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
