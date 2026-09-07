@@ -272,7 +272,8 @@ describe('smt hardening: gates, negative fixtures, purity', () => {
       nq.filter((_, i) => i % 2 === 0).map((c) => c.date),
     );
     for (const p of pairs) {
-      expect(removed.has(p.windowStart) && removed.has(p.windowEnd)).toBe(false);
+      expect(removed.has(p.windowStart)).toBe(false);
+      expect(removed.has(p.windowEnd)).toBe(false);
     }
     expect(pairs.length).toBeLessThanOrEqual(clean.length);
   });
