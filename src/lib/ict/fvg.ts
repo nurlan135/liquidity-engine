@@ -34,12 +34,12 @@ function assertFiniteGap(gap: FvgGap, caller: string): void {
   }
 }
 
-function originIndex(closed: Candle[], originDate: string, caller: string): number {
-  const idx = closed.findIndex((c) => c.date === originDate);
-  if (idx === -1) {
-    throw new Error(`${caller}: originDate ${originDate} not found in candle window`);
-  }
-  return idx;
+// CR-02: gaps may come from a longer history than the evaluation window
+// (trailing-20 map, truncated chart window, rolled history). A stale origin
+// is untestable, not an error — callers skip it (mitigation keeps the gap,
+// transition ignores it) instead of throwing.
+function originIndexOrNeg1(closed: Candle[], originDate: string): number {
+  return closed.findIndex((c) => c.date === originDate);
 }
 
 // 3-candle imbalance scan over closed D1 rows. Bullish gap at middle index i:
@@ -94,7 +94,11 @@ export function applyMitigation(gaps: FvgGap[], candles: Candle[]): FvgGap[] {
   for (const gap of gaps) {
     if (gap.mitigated) continue;
     assertFiniteGap(gap, 'applyMitigation');
-    const origin = originIndex(closed, gap.originDate, 'applyMitigation');
+    const origin = originIndexOrNeg1(closed, gap.originDate);
+    if (origin === -1) {
+      active.push({ ...gap, mitigated: false });
+      continue;
+    }
     let filled = false;
     for (let j = origin + 1; j < closed.length; j++) {
       const close = closed[j].close;
@@ -144,7 +148,8 @@ export function detectTransition(
   const ordered = [...gaps].sort((a, b) => (a.originDate < b.originDate ? -1 : a.originDate > b.originDate ? 1 : 0));
   for (const gap of ordered) {
     assertFiniteGap(gap, 'detectTransition');
-    const origin = originIndex(closed, gap.originDate, 'detectTransition');
+    const origin = originIndexOrNeg1(closed, gap.originDate);
+    if (origin === -1) continue;
     for (let j = origin + 1; j < closed.length; j++) {
       const c = closed[j];
       if (c.date > asOf) continue;
