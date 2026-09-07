@@ -119,8 +119,12 @@ Plans:
   3. Highest-conviction setups score higher only when SMT and Judas both confirm — rule-based, no fake precision
   4. v2.0 is verified on the live Vercel URL: ES cold-start drill, intraday payload under `maxDuration`, §3 render check
 
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+Plans:
+- [ ] 09-01-PLAN.md — Tracer conviction trunk: confluence tiers plus intraday legs plus selectors plus §3 live contract
+- [ ] 09-02-PLAN.md — Presentation: live §3 sub-blocks plus conviction line plus Asia lines plus Judas/SMT markers
+- [ ] 09-03-PLAN.md — Live-URL verify: ES cold-start plus intraday payload plus §3 render drill with human checkpoint
 
 ## Progress
 
