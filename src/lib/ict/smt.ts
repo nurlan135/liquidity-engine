@@ -302,9 +302,10 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
     return noSignal(latest);
   }
   if (latest.kind === 'high') {
-    // Bearish SMT: NQ takes its prior high while ES holds below its own
-    // prior high by more than tolerance. The sweeping leg is the manipulated
-    // one — name NQ as the sweeper (fade NQ).
+    // Bearish SMT (either leg may sweep): the sweeping leg takes its prior
+    // high while the other leg holds below its own prior high by more than
+    // tolerance. The sweeping leg is the manipulated one — name it as the
+    // sweeper (fade the sweeper).
     if (latest.nqExtreme > prior.nqExtreme) {
       const holdGapBps = ((prior.esExtreme - latest.esExtreme) / prior.esExtreme) * 10000;
       if (holdGapBps > toleranceBps) {
@@ -318,10 +319,24 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
         };
       }
     }
+    if (latest.esExtreme > prior.esExtreme) {
+      const holdGapBps = ((prior.nqExtreme - latest.nqExtreme) / prior.nqExtreme) * 10000;
+      if (holdGapBps > toleranceBps) {
+        return {
+          suppressed: false,
+          direction: 'BEARISH',
+          sweeperLeg: 'ES',
+          nqWindow,
+          esWindow,
+          bpsGap: holdGapBps,
+        };
+      }
+    }
     return noSignal(latest);
   }
-  // Bullish mirror: ES takes its prior low while NQ holds above its own
-  // prior low by more than tolerance. Sweeper is ES.
+  // Bullish mirror (either leg may sweep): the sweeping leg takes its prior
+  // low while the other leg holds above its own prior low by more than
+  // tolerance. Sweeper is the sweeping leg.
   if (latest.esExtreme < prior.esExtreme) {
     const holdGapBps = ((latest.nqExtreme - prior.nqExtreme) / prior.nqExtreme) * 10000;
     if (holdGapBps > toleranceBps) {
@@ -329,6 +344,19 @@ export function detectSMT(pairs: MatchedSwing[], toleranceBps: number = SMT_TOL_
         suppressed: false,
         direction: 'BULLISH',
         sweeperLeg: 'ES',
+        nqWindow,
+        esWindow,
+        bpsGap: holdGapBps,
+      };
+    }
+  }
+  if (latest.nqExtreme < prior.nqExtreme) {
+    const holdGapBps = ((latest.esExtreme - prior.esExtreme) / prior.esExtreme) * 10000;
+    if (holdGapBps > toleranceBps) {
+      return {
+        suppressed: false,
+        direction: 'BULLISH',
+        sweeperLeg: 'NQ',
         nqWindow,
         esWindow,
         bpsGap: holdGapBps,
