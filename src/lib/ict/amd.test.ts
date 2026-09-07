@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { fromZonedTime } from 'date-fns-tz';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
 import { amdPhase } from '@/src/lib/ict/amd';
+import { asiaRange } from '@/src/lib/ict/asia';
 import type { AsiaRange } from '@/src/lib/ict/asia';
+import { judasSwing } from '@/src/lib/ict/judas';
 import type { JudasOutput, SweepSide } from '@/src/lib/ict/judas';
 import type { SmtOutput } from '@/src/lib/ict/smt';
+import type { IntradayCandle } from '@/src/lib/ict/types';
 
 const SESSION = '2026-06-15';
 
@@ -212,5 +215,71 @@ describe('amd: SMT read-only', () => {
     const before = JSON.parse(JSON.stringify(smt)) as SmtOutput;
     amdPhase({ asia: fixtureAsia(), judas, smt, asOf: sweepTime + 600 });
     expect(smt).toEqual(before);
+  });
+});
+
+describe('amd: end-to-end asiaRange through judasSwing to amdPhase fusion', () => {
+  it('classifies manipulation with the exact Baş-verib reason and echoed inputs', () => {
+    // One deterministic evening: five closed 1H Asia rows at the 20:00 NY open
+    // hour with known wick extremes, then twelve closed 15M killzone rows
+    // carrying a HIGH-side pierce plus a six-tenths-height close back.
+    const asiaRows: IntradayCandle[] = [];
+    let t = nyHourEpoch(SESSION, 20);
+    for (let i = 0; i < 5; i++) {
+      asiaRows.push({
+        time: t,
+        open: 20050 - i * 5,
+        high: 20100 - i * 4,
+        low: 20000 + i * 3,
+        close: 20050 - i * 5,
+      });
+      t += 3600;
+    }
+    const range = asiaRange(asiaRows, SESSION);
+    expect(range).not.toBeNull();
+    const asia = range as AsiaRange;
+    expect(asia.high).toBe(20100);
+    expect(asia.low).toBe(20000);
+
+    const killzone: IntradayCandle[] = [];
+    let k = nyHourEpoch(SESSION, 2);
+    for (let i = 0; i < 12; i++) {
+      killzone.push({ time: k, open: 20050, high: 20058, low: 20044, close: 20053 });
+      k += 900;
+    }
+    // 02:30 sweep: wick pierces strictly above the Asia high.
+    killzone[2] = {
+      time: killzone[2].time,
+      open: 20090,
+      high: 20120,
+      low: 20060,
+      close: 20105,
+    };
+    // 02:45 reversal: closes back through the high with 60/100 displacement.
+    killzone[3] = {
+      time: killzone[3].time,
+      open: 20030,
+      high: 20048,
+      low: 20032,
+      close: 20040,
+    };
+    const judas = judasSwing(killzone, asia);
+    expect(judas.candidate).toBe(true);
+    expect(judas.confirmed).toBe(true);
+    expect(judas.sweepSide).toBe('HIGH');
+
+    const smt = signalSmt('BEARISH');
+    const out = amdPhase({ asia, judas, smt, asOf: (judas.sweepTime as number) + 600 });
+    expect(out.phase).toBe('manipulation');
+    expect(out.reason).toBe(
+      'Asia Range Təmizlənib. London Judas Swing Baş verib. SMT razılaşır.',
+    );
+    expect(out.inputs.asia?.high).toBe(20100);
+    expect(out.inputs.asia?.low).toBe(20000);
+    expect(out.inputs.judas?.sweepSide).toBe('HIGH');
+    const smtDir = out.inputs.smt !== null && out.inputs.smt !== undefined && !out.inputs.smt.suppressed
+      ? out.inputs.smt.direction
+      : null;
+    expect(smtDir).toBe('BEARISH');
   });
 });
