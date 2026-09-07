@@ -246,8 +246,8 @@ describe('smt hardening: gates, negative fixtures, purity', () => {
     // Prior high pair at 20200 (NQ) / 6100 (ES), latest NQ takes to 20300
     // while ES holds at 6084.75 — hold gap exactly 25 bps under
     // strict-greater-than semantics => NO-SIGNAL.
-    const priorHigh = { start: '2026-01-05', end: '2026-01-09', kind: 'high' as const, nqExtreme: 20200, esExtreme: 6100 };
-    const latestHigh = { start: '2026-01-20', end: '2026-01-24', kind: 'high' as const, nqExtreme: 20300, esExtreme: 6084.75 };
+    const priorHigh = { windowStart: '2026-01-05', windowEnd: '2026-01-09', kind: 'high' as const, nqExtreme: 20200, esExtreme: 6100 };
+    const latestHigh = { windowStart: '2026-01-20', windowEnd: '2026-01-24', kind: 'high' as const, nqExtreme: 20300, esExtreme: 6084.75 };
     expect(((6100 - 6084.75) / 6100) * 10000).toBeCloseTo(25, 10);
     const signal = detectSMT([priorHigh, latestHigh]);
     if (signal.suppressed) {
