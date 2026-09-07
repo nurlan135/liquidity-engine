@@ -119,12 +119,12 @@ Plans:
   3. Highest-conviction setups score higher only when SMT and Judas both confirm — rule-based, no fake precision
   4. v2.0 is verified on the live Vercel URL: ES cold-start drill, intraday payload under `maxDuration`, §3 render check
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 **UI hint**: yes
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Tracer conviction trunk: confluence tiers plus intraday legs plus selectors plus §3 live contract
+- [x] 09-01-PLAN.md — Tracer conviction trunk: confluence tiers plus intraday legs plus selectors plus §3 live contract
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -149,4 +149,4 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 5/5 | Complete    | 2026-09-07 |
 | 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | Complete    | 2026-09-07 |
 | 8. AMD Sessions (Asia Range + Judas) | v2.0 | 3/3 | Complete   | 2026-09-07 |
-| 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 0/TBD | Not started | - |
+| 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 1/3 | In Progress|  |
