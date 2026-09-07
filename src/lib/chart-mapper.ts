@@ -40,6 +40,24 @@ export function priceLineInputs(eq: number, dolPrice: number): PriceLineInputs {
   return { eq, dol: dolPrice };
 }
 
+export interface AsiaLineInputs {
+  asiaHigh: number;
+  asiaLow: number;
+}
+
+// Pass the Asia range extremes through unchanged for dashed price-line
+// creation (D-05). Guards with the module isFiniteNumber predicate and throws
+// naming asiaLineInputs on any non-finite input; the NqChart caller wraps in
+// try-catch so a throw renders no lines and never blocks the chart. The
+// equal high-equals-low zero-width case is finite and passes deterministically
+// as coincident values per the UI-06 adjacency predicate.
+export function asiaLineInputs(high: number, low: number): AsiaLineInputs {
+  if (!isFiniteNumber(high) || !isFiniteNumber(low)) {
+    throw new Error(`asiaLineInputs requires finite asiaHigh and asiaLow, got ${String(high)} ${String(low)}`);
+  }
+  return { asiaHigh: high, asiaLow: low };
+}
+
 export interface LevelLineInputs {
   q1: number;
   q3: number;

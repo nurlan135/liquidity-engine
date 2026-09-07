@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
 import type { LevelsOutput } from '@/src/lib/ict/levels';
 
 describe('chart-mapper: candle to series mapping', () => {
@@ -30,6 +30,24 @@ describe('chart-mapper: candle to series mapping', () => {
 
   it('returns the range eq and DOL price unchanged for line creation', () => {
     expect(priceLineInputs(20100.5, 20215)).toEqual({ eq: 20100.5, dol: 20215 });
+  });
+});
+
+describe('chart-mapper: Asia line inputs', () => {
+  it('passes a finite high-low pair through unchanged', () => {
+    expect(asiaLineInputs(20215.5, 20100.25)).toEqual({ asiaHigh: 20215.5, asiaLow: 20100.25 });
+  });
+
+  it('throws naming asiaLineInputs on a NaN high', () => {
+    expect(() => asiaLineInputs(Number.NaN, 20100.25)).toThrow(/asiaLineInputs/);
+  });
+
+  it('throws naming asiaLineInputs on a positive-Infinity low', () => {
+    expect(() => asiaLineInputs(20215.5, Number.POSITIVE_INFINITY)).toThrow(/asiaLineInputs/);
+  });
+
+  it('returns coincident values without throwing on equal high-low (zero-width)', () => {
+    expect(asiaLineInputs(20150, 20150)).toEqual({ asiaHigh: 20150, asiaLow: 20150 });
   });
 });
 
