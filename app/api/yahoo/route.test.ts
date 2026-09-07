@@ -3,6 +3,7 @@ import { GET } from '@/app/api/yahoo/route';
 import { __resetYahooCacheForTests } from '@/src/lib/yahoo';
 import esDailyFixture from '@/src/lib/__fixtures__/es-daily.json';
 import nqBaseline from '@/src/lib/__fixtures__/nq-daily-baseline.json';
+import intraday1hFixture from '@/src/lib/__fixtures__/intraday-1h.json';
 
 const DAY = 86400;
 const BASE_TS = Math.floor(new Date('2026-01-05T00:00:00Z').getTime() / 1000);
@@ -88,6 +89,21 @@ describe('yahoo route params', () => {
     const body = await res.json();
     expect(body.error).toContain('unsupported interval');
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('GET with symbol ES=F and interval 1h returns the intraday epoch envelope', async () => {
+    vi.stubGlobal('fetch', stubFetch(intraday1hFixture));
+    const res = await GET(stubRequest('http://localhost/api/yahoo?symbol=ES%3DF&interval=1h'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.contractHint).toContain('ES=F');
+    expect(body.candles).toHaveLength(30);
+    for (const candle of body.candles) {
+      expect(Number.isInteger(candle.time)).toBe(true);
+      expect(candle).not.toHaveProperty('date');
+    }
+    expect(body.stale).toBe(false);
+    expect(res.headers.get('Cache-Control')).toBe('public, s-maxage=60, stale-while-revalidate=30');
   });
 
   it('stale envelope carries no-store while fresh carries the public rule', async () => {

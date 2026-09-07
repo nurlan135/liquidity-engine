@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import {
   INTERVAL_ALLOWLIST,
   SYMBOL_ALLOWLIST,
+  fetchIntraday,
   fetchSymbol,
   UpstreamError,
   type Interval,
@@ -33,7 +34,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const envelope = await fetchSymbol(symbolParam, intervalParam, new Date());
+    const envelope =
+      intervalParam === '1d'
+        ? await fetchSymbol(symbolParam, intervalParam, new Date())
+        : await fetchIntraday(symbolParam, intervalParam, new Date());
     return Response.json(envelope, {
       headers: {
         'Cache-Control': envelope.stale ? 'no-store' : 'public, s-maxage=60, stale-while-revalidate=30',
