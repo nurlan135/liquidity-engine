@@ -32,15 +32,27 @@ Allowlist-before-URL-build stays intact: unknown symbols/intervals return 400 an
 
 | Field | Observed |
 |-------|----------|
-| Live URL | _pending human-supplied v2.0 deployment URL_ |
-| ES cold total / code | _pending_ |
-| ES warm total / code | _pending_ |
-| NQ 1h total / code | _pending_ |
-| NQ 15m total / code | _pending_ |
-| §3 slots (4/4) | _pending_ |
-| Overlay slots (3/3) | _pending_ |
-| Verdict | _pending PASS/FAIL_ |
+| Live URL | https://liquidity-engine-nine.vercel.app (2026-09-07) |
+| ES cold total / code | 1.316s / 200 (n=127, lastUpdatedISO=2026-09-07T13:39:41.047Z, stale=false) |
+| ES warm total / code | 0.366s / 200 (n=127, same envelope) |
+| NQ 1h total / code | 0.411s / 200 (n=1461) |
+| NQ 15m total / code | 0.443s / 200 (n=1908) |
+| §3 slots (4/4) | PASS — all four via repo source contract (client-rendered; served HTML defers slots) |
+| Overlay slots (3/3) | PASS — all three via repo source contract (session-state dependent) |
+| Verdict | PASS — all 6 gates (ROUTE-SHAPE, ES-COLD-WARM, INTRADAY, PAGE, S3-SLOTS, OVERLAYS) |
 
 ## Flagged assumption
 
 Residual environment sensitivity — cold-start variance, upstream Yahoo latency, weekend thin data — is a flagged assumption in this record, never silently absorbed. A green drill changes no source; redesign happens only on drill failure with the failure pasted.
+
+## Visual glance (Task 2 — FAIL with diagnosed root cause, 2026-09-07)
+
+Human opened https://liquidity-engine-nine.vercel.app in a browser (market open, NY ~09:43 ET) and reported no Asia lines and no Judas/SMT pins on the D1 chart. Orchestrator reproduced via Playwright and confirmed:
+
+- §3 live block renders correctly: three sub-blocks plus `İnam: standart` conviction line, SMT Statusu shows `Məlumat yoxdur` (honest degrade, correct given empty SMT input).
+- Coverage line reads `NQ 127 / ES 0 / joined 0`; status strip shows `ES …` (never resolves, even after 90+s and 2+ minutes of wall time).
+- Live ES endpoint is healthy: direct `GET /api/yahoo?symbol=ES=F&interval=1d` returns 200, `stale=false`, n=127 — from both curl and in-page manual fetch. No CORS/network fault.
+- Network log shows the app NEVER requests `symbol=ES=F`: only NQ, NQ-1h, NQ-15m fire (the three mount-immediate polls). Worse, after ~2 min the NQ leg itself goes STALE — its 60s interval poll never fires either. ALL `setTimeout`/`setInterval` timers from `startDualPoll` are dead.
+- Console carries a minified React error #418 (hydration mismatch). Prime suspect: hydration failure remounts `TerminalShell`, the `useEffect` cleanup runs `stopDualPoll`, and the re-mounted poll schedule never survives — mount-immediate polls land, staggered/interval polls (including the first ES fetch at the `:30` phase) never fire.
+
+Verdict: visual glance FAIL — not a Phase 09 overlay defect (mapper, markers, slots, and §3 render all verified green) but a pre-existing poll-lifecycle bug: the ES leg never fetches in the browser, so `selectSMT`/`selectAsia`/`selectJudas` stay null and overlays correctly render nothing per the UI-06 empty predicate. Tracked for a dedicated debug session (`/gsd-debug`): hydration #418 source plus `startDualPoll`/`stopDualPoll` lifecycle.
