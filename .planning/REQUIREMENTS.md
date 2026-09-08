@@ -19,20 +19,20 @@ Requirements for milestone v2.0 Modul 3 (Liquidity Sequencing & SMT). Each maps 
 - [x] **ICT-08**: User sees SMT divergence status (NQ vs ES, time-anchored matched swing pairs, bps tolerance) — BULLISH / BEARISH / NO-SIGNAL with swing references in output, correlation-regime gate suppresses when pair decouples
 - [x] **ICT-09**: Rollover-week fake SMT is suppressed — cross-symbol signals blocked when either leg is rollover-suspect (v1.0 tripwire reused on both symbols)
 - [x] **ICT-10**: User sees FVG map + ERL/IRL transition state (FVG-only IRL) — transitions fire only on sweep-then-reject, never on sweep alone; §2 Delivery Cycle upgraded
-- [x] **ICT-11**: 4H structure is synthesized from 1H NY-anchored blocks in pure `aggregate.ts` (Yahoo has no 4H interval) — injected time, `closedOnly` discipline
-- [ ] **ICT-12**: User sees Asia Range (IANA `America/New_York` wall-clock, 20:00–00:00 NY, Baku display at edge) — March + November + maintenance-break DST tests green
-- [ ] **ICT-13**: User sees London Judas Swing with three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement) — candidates hollow vs confirmed solid, ≤25% confirmed sessions over 60 days
-- [ ] **ICT-14**: User sees AMD phase classifier (accumulation / manipulation / distribution) fusing range + Judas + SMT state — NY shown as Gözlənilir until its detector lands
-- [ ] **ICT-15**: SMT+Judas confluence boosts confidence score — highest-conviction setup when both confirm, rule-based, no fake precision
+- [x] **ICT-11**: 4H structure is synthesized from 1H NY-anchored blocks in pure `aggregate.ts` (Yahoo has no 4H interval) — injected time, `closedOnly` discipline — consumed by `selectRange4H` + §2 `s2-range-4h` line (ICT-11 closure, 2026-09-08)
+- [x] **ICT-12**: User sees Asia Range (IANA `America/New_York` wall-clock, 20:00–00:00 NY, Baku display at edge) — March + November + maintenance-break DST tests green
+- [x] **ICT-13**: User sees London Judas Swing with three-gate conjunction (in-killzone AND swept-Asia-extreme AND reversal-with-displacement) — candidates hollow vs confirmed solid, ≤25% confirmed sessions over 60 days
+- [x] **ICT-14**: User sees AMD phase classifier (accumulation / manipulation / distribution) fusing range + Judas + SMT state — NY shown as Gözlənilir until its detector lands
+- [x] **ICT-15**: SMT+Judas confluence boosts confidence score — highest-conviction setup when both confirm, rule-based, no fake precision
 
 ### Terminal UI (§3 live + overlays)
 
-- [ ] **UI-05**: User sees live report §3 (Engineered Liquidity Path, SMT Divergence Status, Session AMD Timing) — every degraded state renders its reason, missing detector families keep unavailable markers (partial-honest)
-- [ ] **UI-06**: User sees Asia Range overlay on chart (lightweight-charts v5 primitive, null-autoscale) + Judas/SMT pins via series markers — ES stays off-chart initially
+- [x] **UI-05**: User sees live report §3 (Engineered Liquidity Path, SMT Divergence Status, Session AMD Timing) — every degraded state renders its reason, missing detector families keep unavailable markers (partial-honest)
+- [x] **UI-06**: User sees Asia Range overlay on chart (lightweight-charts v5 primitive, null-autoscale) + Judas/SMT pins via series markers — ES stays off-chart initially
 
 ### Deployment
 
-- [ ] **DEPLOY-02**: v2.0 deployed on Vercel Hobby with per-leg verify — ES cold-start drill, intraday payload under `maxDuration`, §3 render check on live URL
+- [x] **DEPLOY-02**: v2.0 deployed on Vercel Hobby with per-leg verify — ES cold-start drill, intraday payload under `maxDuration`, §3 render check on live URL
 
 ## Future Requirements (v2.x / v3+)
 
@@ -94,13 +94,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ICT-09 | Phase 7 | Complete |
 | ICT-10 | Phase 7 | Complete |
 | ICT-11 | Phase 7 | Complete |
-| ICT-12 | Phase 8 | Pending |
-| ICT-13 | Phase 8 | Pending |
-| ICT-14 | Phase 8 | Pending |
-| ICT-15 | Phase 9 | Pending |
-| UI-05 | Phase 9 | Pending |
-| UI-06 | Phase 9 | Pending |
-| DEPLOY-02 | Phase 9 | Pending |
+| ICT-12 | Phase 8 | Complete |
+| ICT-13 | Phase 8 | Complete |
+| ICT-14 | Phase 8 | Complete |
+| ICT-15 | Phase 9 | Complete |
+| UI-05 | Phase 9 | Complete |
+| UI-06 | Phase 9 | Complete |
+| DEPLOY-02 | Phase 9 | Complete |
 
 **Coverage:**
 
@@ -110,4 +110,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-09-06*
-*Last updated: 2026-09-06 after roadmap creation (Phases 6–9)*
+*Last updated: 2026-09-08 after milestone audit remediation (all 15 v2.0 requirements Complete; ICT-11 consumer wired via selectRange4H)*
