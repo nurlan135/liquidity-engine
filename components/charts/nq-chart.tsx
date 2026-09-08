@@ -142,8 +142,19 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       const down = readVar(VAR_DOWN, '#FF00FF');
       const accent = readVar(VAR_ACCENT, '#00D9FF');
       const chart = createChart(el, {
+        autoSize: true,
         layout: { background: { color: 'transparent' }, textColor: '#71717A' },
+        timeScale: { lockVisibleTimeRangeOnResize: true },
       });
+      // Fallback when ResizeObserver is absent: autoSize stays inactive, so
+      // size the chart once from the live container box (T-11-01 zero-guard).
+      if (!chart.autoSizeActive()) {
+        const fallbackWidth = el.clientWidth;
+        const fallbackHeight = el.clientHeight;
+        if (fallbackWidth > 0 && fallbackHeight > 0) {
+          chart.resize(fallbackWidth, fallbackHeight);
+        }
+      }
       const series = chart.addSeries(CandlestickSeries, {
         upColor: up,
         downColor: down,
