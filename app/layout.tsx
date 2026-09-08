@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: "NQ=F D1 Premium/Discount positioning terminal — institutional execution readout on live NQ data.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="az"
