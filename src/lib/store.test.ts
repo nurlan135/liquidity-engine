@@ -98,7 +98,10 @@ describe('store: refresh writes envelope in one update', () => {
     vi.resetModules();
   });
 
-  it('writes candles, lastUpdatedISO, stale false, and source in one update', async () => {
+  // G-09-flake-1: dynamic store re-import after vi.resetModules() can exceed
+  // the 15s default under full-suite parallel worker contention (import-bound,
+  // observed 15574ms once). Generous per-test timeout; assertion unchanged.
+  it('writes candles, lastUpdatedISO, stale false, and source in one update', { timeout: 60_000 }, async () => {
     const { useDashboard } = await import('@/src/lib/store');
     const candles = fixtureCandles();
     const envelope = mockEnvelope(candles);
