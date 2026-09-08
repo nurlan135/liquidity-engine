@@ -63,6 +63,7 @@ export function Report() {
   const lastUpdatedISO = useDashboard((s) => s.lastUpdatedISO);
   const scenario = useDashboard((s) => s.scenario);
   const selectPosition = useDashboard((s) => s.selectPosition);
+  const selectRange4H = useDashboard((s) => s.selectRange4H);
   const selectBias = useDashboard((s) => s.selectBias);
   const selectDOL = useDashboard((s) => s.selectDOL);
   const selectRegime = useDashboard((s) => s.selectRegime);
@@ -75,6 +76,7 @@ export function Report() {
   const selectConfluence = useDashboard((s) => s.selectConfluence);
 
   const position = selectPosition();
+  const range4H = selectRange4H();
   const biasOutput = selectBias();
   const dol = selectDOL();
   const regimeOutput = selectRegime();
@@ -216,6 +218,11 @@ export function Report() {
                   <p className={cn('text-xl font-semibold', biasTone)}>{biasOutput.bias}</p>
                   <p className="text-xs">{`Mövqe: ${positionLabel(position)}`}</p>
                   <p className="text-xs">Çatdırılma dövrü: D1</p>
+                  <p className="text-xs" data-slot="s2-range-4h">
+                    {range4H === null
+                      ? '4H diapazon: Məlumat yoxdur'
+                      : `4H diapazon: ${range4H.high} / ${range4H.low} (1H bloklardan)`}
+                  </p>
                   <p className="text-xs">
                     {`Alqoritmin əsas hədəfi: ${dol.name} `}
                     <span className="font-mono">{dol.price}</span>

@@ -9,7 +9,7 @@ import { computePrimaryDOL } from '@/src/lib/ict/dol';
 import { computeRegime } from '@/src/lib/ict/regime';
 import { detectRollover } from '@/src/lib/ict/rollover';
 import { computeLevels, type LevelsOutput } from '@/src/lib/ict/levels';
-import { NY_TZ } from '@/src/lib/ict/aggregate';
+import { NY_TZ, aggregate1Hto4H } from '@/src/lib/ict/aggregate';
 import { asiaRange, type AsiaRange } from '@/src/lib/ict/asia';
 import { judasSwing, type JudasOutput } from '@/src/lib/ict/judas';
 import { evaluateSMT, type SmtOutput } from '@/src/lib/ict/smt';
@@ -221,6 +221,7 @@ export interface DashboardState {
   stopDualPoll: () => void;
   setScenario: (scenario: ScenarioId) => void;
   selectRange: () => DealingRange | null;
+  selectRange4H: () => DealingRange | null;
   selectLastClose: () => number | null;
   selectPosition: () => number | null;
   selectBias: () => BiasOutput | null;
@@ -607,6 +608,30 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const { candles, asOfBaku } = get();
     if (closedCount(candles) < 1) return null;
     return computeRange(candles, asOfBaku, ANCHOR_WINDOW);
+  },
+
+  // ICT-11 closure: 4H dealing range from NY-anchored 1H blocks. Same
+  // refuse-with-reason envelope as the other selectors: stale or empty nq1h
+  // refuses null (reason rides in nq1h.lastError), and too-few-blocks
+  // (aggregate emits complete blocks only, so a thin window yields []) also
+  // refuses null instead of throwing. asOf is the latest closed 1H row's NY
+  // calendar date — injected from data, never Date.now.
+  selectRange4H: () => {
+    const { nq1h, asOfBaku } = get();
+    if (nq1h.stale) return null;
+    if (nq1h.candles.length === 0) return null;
+    try {
+      const closed = closedOnlyIntraday(nq1h.candles);
+      if (closed.length === 0) return null;
+      const sorted = [...closed].sort((a, b) => a.time - b.time);
+      const latest = sorted[sorted.length - 1];
+      const asOf = formatInTimeZone(latest.time * 1000, NY_TZ, 'yyyy-MM-dd');
+      const blocks = aggregate1Hto4H(nq1h.candles, asOf);
+      if (blocks.length === 0) return null;
+      return computeRange(blocks, asOfBaku, ANCHOR_WINDOW);
+    } catch {
+      return null;
+    }
   },
 
   selectLastClose: () => {

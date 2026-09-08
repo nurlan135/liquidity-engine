@@ -268,6 +268,43 @@ describe('terminal shell composes the full grid on live data', () => {
     expect(typeof props.dolName).toBe('string');
   });
 
+  it('renders the §2 4H range line from NY-anchored 1H blocks (ICT-11)', async () => {
+    // D1 envelope for the bare path, 16 hourly rows 20:30–11:30 ET for the
+    // 1h leg (4 complete 4-candle blocks), empty rows for 15m/ES.
+    const h1Rows = [];
+    const base = Date.UTC(2026, 1, 10, 1, 30, 0) / 1000;
+    for (let i = 0; i < 16; i++) {
+      const price = 20000 + i * 10;
+      h1Rows.push({
+        time: base + i * 3600,
+        open: price,
+        high: price + 15,
+        low: price - 12,
+        close: price + 5,
+      });
+    }
+    const h1Env = {
+      candles: h1Rows,
+      contractHint: 'NQ=F · 1H',
+      lastUpdatedISO: new Date().toISOString(),
+      stale: false,
+      source: 'live',
+    };
+    const fetchFn = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('interval=1h')) return Response.json(h1Env);
+      return Response.json(liveEnvelope());
+    });
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    const slot = container.querySelector('[data-slot="s2-range-4h"]');
+    expect(slot).not.toBeNull();
+    expect(slot!.textContent).toContain('4H diapazon:');
+    // 16 rising hourly rows aggregate to a live 4H range (not the fallback).
+    expect(slot!.textContent).not.toContain('Məlumat yoxdur');
+  });
+
   it('disables the Yenilə button while a refresh is in flight', async () => {
     const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
     vi.stubGlobal('fetch', fetchFn);

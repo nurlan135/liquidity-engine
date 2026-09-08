@@ -937,5 +937,58 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
 
     useDashboard.getState().stopDualPoll();
   });
+
+  it('range4h-live: seeded 1H window yields a 4H range from NY-anchored blocks', async () => {
+    const { useDashboard } = await resetDualState();
+    // 16 hourly rows 20:30–11:30 ET across one NY date boundary: 4 complete
+    // 4-candle blocks (B1 18:00–22:00 … B4 06:00–10:00) with a trailing
+    // partial the aggregate drops.
+    const rows = intradayRows(16);
+    stubFourLegs(
+      fixtureCandles().filter((c) => !c.forming),
+      fixtureCandles().filter((c) => !c.forming),
+      rows,
+    );
+    await useDashboard.getState().refreshNQ1H();
+
+    const range4H = useDashboard.getState().selectRange4H();
+    expect(range4H).not.toBeNull();
+    // Rising fixture: first block opens 20000, last block closes 20155.
+    expect(range4H!.high).toBeGreaterThan(range4H!.low);
+    expect(range4H!.window).toBe(20);
+    expect(typeof range4H!.asOf).toBe('string');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('range4h-refusal: stale or empty nq1h forces selectRange4H null without throwing', async () => {
+    const { useDashboard } = await resetDualState();
+    let live: unknown = 'unset';
+    let stale: unknown = 'unset';
+    let empty: unknown = 'unset';
+    expect(() => {
+      live = useDashboard.getState().selectRange4H();
+    }).not.toThrow();
+    expect(live).toBeNull();
+
+    stubFourLegs();
+    await useDashboard.getState().refreshNQ1H();
+    useDashboard.setState({
+      nq1h: { ...useDashboard.getState().nq1h, stale: true, lastError: '1h down' },
+    });
+    expect(() => {
+      stale = useDashboard.getState().selectRange4H();
+    }).not.toThrow();
+    expect(stale).toBeNull();
+    expect(useDashboard.getState().nq1h.lastError).toBe('1h down');
+
+    useDashboard.setState({ nq1h: { ...useDashboard.getState().nq1h, stale: false, candles: [] } });
+    expect(() => {
+      empty = useDashboard.getState().selectRange4H();
+    }).not.toThrow();
+    expect(empty).toBeNull();
+
+    useDashboard.getState().stopDualPoll();
+  });
 });
 
