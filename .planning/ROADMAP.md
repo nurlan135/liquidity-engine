@@ -22,7 +22,10 @@
 **Success Criteria** (what must be TRUE):
   1. `tsc --noEmit` exits zero on a clean checkout
   2. Layout page renders identically before and after the fix (no runtime behavior change)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 10-01-PLAN.md — Clean-checkout tsc fix plus build and parity proof
 
 ### Phase 11: Chart Rendering Polish
 **Goal**: Users see a crisp chart on any display that redraws cleanly on resize
