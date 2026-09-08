@@ -42,8 +42,12 @@ Plans:
   2. User can resize the browser window and the chart refills its container with no stretch, clipping, or frozen canvas
   3. No console errors or warnings appear during resize or DPI switch
 
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
+
+Plans:
+
+- [ ] 11-01-PLAN.md — Library-native autosize with view-lock plus overlay and human proof
 
 ### Phase 12: Deployment Hygiene
 
