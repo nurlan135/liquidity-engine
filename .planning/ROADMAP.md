@@ -27,7 +27,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 6: Dual-Symbol Proxy + Data Contracts** - Parameterized ES=F + intraday proxy with per-symbol stale envelopes and timestamp join (completed 2026-09-07)
 - [x] **Phase 7: SMT + 4H/1H Sequencing Math** - Time-anchored SMT comparator, rollover suppression, FVG/IRL transition, 4H synthesis (completed 2026-09-07)
 - [x] **Phase 8: AMD Sessions (Asia Range + Judas)** - Baku-aware Asia Range, three-gate London Judas, AMD phase classifier (completed 2026-09-07)
-- [ ] **Phase 9: Composition (§3 Live + Overlays + Verify)** - Live rule-based report §3, Asia overlay + markers, Vercel per-leg verify
+- [x] **Phase 9: Composition (§3 Live + Overlays + Verify)** - Live rule-based report §3, Asia overlay + markers, Vercel per-leg verify (completed 2026-09-08 — visual glance re-verify PASS, human-confirmed)
 
 ## Phase Details
 
@@ -149,4 +149,4 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 (Phases 7 and 8 both depend
 | 6. Dual-Symbol Proxy + Data Contracts | v2.0 | 5/5 | Complete    | 2026-09-07 |
 | 7. SMT + 4H/1H Sequencing Math | v2.0 | 3/3 | Complete    | 2026-09-07 |
 | 8. AMD Sessions (Asia Range + Judas) | v2.0 | 3/3 | Complete   | 2026-09-07 |
-| 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 3/3 | In Progress|  |
+| 9. Composition (§3 Live + Overlays + Verify) | v2.0 | 3/3 | Complete   | 2026-09-08 |

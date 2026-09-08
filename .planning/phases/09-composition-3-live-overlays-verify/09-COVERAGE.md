@@ -61,4 +61,16 @@ Verdict: visual glance FAIL — not a Phase 09 overlay defect (mapper, markers, 
 
 - Retest 2026-09-08 (real Chromium vs live Vercel URL AND vs local prod): bug DOES NOT REPRODUCE. ES lands at ~55-90s (200), coverage `NQ 126 / ES 126 / joined 126`, all staggered timeouts + 60s intervals fire. #418 fires on every load INCLUDING healthy runs (pageerror at 1.4s) — it does not kill timers.
 - Controlled experiments (same bundle bytes + same frozen-clock mismatch + #418 firing → timers live) FALSIFY the prime suspect: `#418 recovery kills the poll schedule`. Reclassified Bohrbug → Mandelbug (environment-gated). 09-07 transient candidates: Yahoo throttle/429 on Vercel egress at market-open load, or observation artifact across the spontaneous 13:53 reload.
-- Proven defect fixed regardless: `suppressHydrationWarning` on the session-line clock span (`components/dashboard/terminal-shell.tsx`) — silences the expected SSR/client clock-text mismatch. Post-fix real-Chromium vs local prod: `418-COUNT=0`, ES 200, coverage `126/126/126`, `npm test` 280/280.
+- Proven defect fixed regardless: `suppressHydrationWarning` on the session-line clock span (`components/dashboard/terminal-shell.tsx`, commit `68d4121`) — silences the expected SSR/client clock-text mismatch. Post-fix real-Chromium vs local prod: `418-COUNT=0`, ES 200, coverage `126/126/126`, `npm test` 280/280.
+- Full session record: `.planning/debug/es-poll-lifecycle-bug.md` (status: resolved 2026-09-08).
+
+## Visual glance re-verify (2026-09-08 — PASS, human-confirmed)
+
+- Operator retest on the live URL: initial `NQ 126 / ES 0 / joined 0` at ~40s (inside the by-design ES dead window — first ES fetch lands ~45-70s via the `:30`-phase grid + jitter), then coverage fills to `NQ 126 / ES 126 / joined 126` by ~90-150s and holds. Operator replied **"confirmed fixed"**.
+- Playwright live check same day: header `Bakı 10:36 · NY 02:36`, coverage `NQ 126 / ES 126 / joined 126` at 150s, status strip `NQ LIVE · 1 dəq əvvəl · ES LIVE · 1 dəq əvvəl`, console **0 errors / 0 warnings** — React #418 gone.
+- §3 live block renders with data: Likvidlik Yolu + SMT Statusu (`rollover-week — SMT Gözlənilir`) + Sessiya AMD all present; `rollover-week` suppression is correct behavior this week (quarterly rollover week — third Friday of Sep), not a defect. Placeholder `UNAVAILABLE · Modul 3` card remains by design (unbuilt, separate phase scope).
+- Verdict: visual glance **PASS** — the 09-07 FAIL is closed. The residual Mandelbug (09-07 2-min+ total timer death mechanism) stays unexplained-by-design; recurrence reopens via `.planning/debug/es-poll-lifecycle-bug.md`.
+
+## Adjacent fix (2026-09-08 — NY clock timezone, commit `e1f9b85`)
+
+- Header `NY` label rendered `America/Chicago` (CME_TZ), one hour behind real Eastern. Fixed: `src/lib/session-line.ts` now uses `NY_TZ = 'America/New_York'` (same convention as ICT `aggregate.ts`); test expectations updated (`07:00`→`08:00`, `19:05`→`20:05` EDT). Live-verified (`NY 02:36`). `npm test` 280/280 green.
