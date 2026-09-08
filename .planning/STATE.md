@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-09-08T07:52:46.717Z"
 last_activity: 2026-09-08
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-06)
+See: .planning/PROJECT.md (updated 2026-09-08 after v2.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 09 — Composition (§3 Live + Overlays + Verify)
+**Current focus:** v2.1 Cleanup & Polish — roadmap created, Phases 10–13
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 10 — Type Safety Fix (next up, roadmap approved pending)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-09-08 — Milestone v2.1 started
+Status: Roadmap created, awaiting approval
+Last activity: 2026-09-08 — v2.1 roadmap created (Phases 10–13)
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Recent decisions affecting current work:
 
 - [Roadmap 2026-09-06]: v2.0 continues numbering at Phase 6 (v1.0 ended at Phase 5 counting 03.1/03.2 insertions); 4 phases from research order: proxy+contracts → SMT+sequencing math → AMD sessions → composition
 - [Roadmap 2026-09-06]: Phases 7 and 8 both depend only on Phase 6 (may interleave); Phase 9 needs both — SMT math and AMD sessions are independent after data contracts land
+- [Roadmap 2026-09-08]: v2.1 continues numbering at Phase 10 (v2.0 ended at Phase 9); 4 small phases from cleanup debt: tsc fix → chart polish → deploy hygiene → thin history (Phase 13 depends on 11, shares chart area)
 - [Phase 03.2]: Retroactive 01 gate passed 10/10 — ICT-01 claim recorded, all 8 audit partials resolved; pre-existing tsc LayoutProps error (3a3a1cb) left as noted residual
 - [Phase 08]: Asia window 20:00 NY inclusive / 00:00 exclusive via per-candle formatInTimeZone wall-clock; NY_TZ imported from aggregate module, never redefined (D-01/D-07)
 - [Phase 08]: London Judas three-gate conjunction with strict killzone inequality, Asia-height displacement denominator, first-sweep-wins; budget ≤25% confirmed pinned by seeded 60-session run
@@ -83,7 +84,6 @@ Recent decisions affecting current work:
 - [Phase 06]: [06-03] Join re-validates at its own boundary (forming + non-finite OHLC dropped pre-join) rather than trusting parser flags
 - [Phase 06]: [06-04] ES :30 stagger uses ((60 - sec) % 60) + 30 phase form to avoid the :30 zero-trap
 - [Phase 06]: [06-04] Stagger offsets recorded in zustand state (lastSchedule), never a module-level probe cell
-- [Phase 06]: [06-04] Strip per-leg segments reuse deriveStatus plus formatStripAge vocabulary with no new status enum
 
 ### Pending Todos
 
@@ -91,9 +91,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- Yahoo ES=F 1H row density / intraday lookback caps are LOW/MEDIUM confidence web claims — Phase 6 plans a live probe test first
-- Judas/AMD ICT semantics were MEDIUM — resolved in Phase 8: Asia 20:00–00:00 NY pinned (D-01 conformance), displacement 0.5× Asia height, killzone 02:00–05:00 NY strict
-- Pre-existing tsc LayoutProps error in app/layout.tsx (from 3a3a1cb) — outside v1.0 scope, candidate for v2.0 cleanup if touched
+- v2.1 is a cleanup milestone — no new ICT math, no v3.0 Execution scope (live observation 2–4 weeks still running)
+- Phase 12 (Deployment Hygiene) may touch Vercel dashboard settings outside the repo — document anything that cannot be verified in code
+- Phase 13 (thinHistory) shares the chart component with Phase 11 — ordered after 11 to avoid merge friction
 
 ## Deferred Items
 
@@ -105,10 +105,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-07T11:53:39.570Z
-Stopped at: Phase 09 UI-SPEC approved
-Resume file: .planning/phases/09-composition-3-live-overlays-verify/09-UI-SPEC.md
+Last session: 2026-09-08
+Stopped at: v2.1 roadmap created (Phases 10–13), awaiting approval
+Resume file: .planning/ROADMAP.md
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Approve v2.1 roadmap, then start planning with /gsd-plan-phase 10

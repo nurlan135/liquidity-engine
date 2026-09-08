@@ -57,19 +57,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TYPE-01 | TBD | Pending |
-| CHRT-01 | TBD | Pending |
-| CHRT-02 | TBD | Pending |
-| DEPL-01 | TBD | Pending |
-| DEPL-02 | TBD | Pending |
-| DEPL-03 | TBD | Pending |
-| HIST-01 | TBD | Pending |
+| TYPE-01 | Phase 10 | Pending |
+| CHRT-01 | Phase 11 | Pending |
+| CHRT-02 | Phase 11 | Pending |
+| DEPL-01 | Phase 12 | Pending |
+| DEPL-02 | Phase 12 | Pending |
+| DEPL-03 | Phase 12 | Pending |
+| HIST-01 | Phase 13 | Pending |
 
 **Coverage:**
 - v1 requirements: 7 total
-- Mapped to phases: 0
-- Unmapped: 7 ⚠️
+- Mapped to phases: 7
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-09-08*
-*Last updated: 2026-09-08 after initial definition*
+*Last updated: 2026-09-08 after v2.1 roadmap creation (Phases 10–13)*
