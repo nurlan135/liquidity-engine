@@ -1,8 +1,9 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: Debug the ES poll-lifecycle bug on the live deployment (https://liquidity-engine-nine.vercel.app)
 created: 2026-09-07
 updated: 2026-09-08
+resolved: 2026-09-08
 ---
 
 # Debug Session: es-poll-lifecycle-bug
