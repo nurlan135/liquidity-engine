@@ -47,7 +47,7 @@ Plans:
 
 Plans:
 
-- [ ] 11-01-PLAN.md — Library-native autosize with view-lock plus overlay and human proof
+- [x] 11-01-PLAN.md — Library-native autosize with view-lock plus overlay and human proof
 
 ### Phase 12: Deployment Hygiene
 
@@ -80,7 +80,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 10. Type Safety Fix | 1/1 | Complete    | 2026-09-08 |
-| 11. Chart Rendering Polish | 0/0 | Not started | - |
+| 11. Chart Rendering Polish | 1/1 | Complete   | 2026-09-08 |
 | 12. Deployment Hygiene | 0/0 | Not started | - |
 | 13. Thin History Honesty | 0/0 | Not started | - |
 
