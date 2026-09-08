@@ -9,7 +9,7 @@
 ## Phases
 
 - [x] **Phase 10: Type Safety Fix** - Zero tsc errors via LayoutProps fix (completed 2026-09-08)
-- [ ] **Phase 11: Chart Rendering Polish** - Crisp HiDPI chart with clean resize
+- [x] **Phase 11: Chart Rendering Polish** - Crisp HiDPI chart with clean resize (completed 2026-09-08)
 - [ ] **Phase 12: Deployment Hygiene** - Vercel leftovers removed and documented
 - [ ] **Phase 13: Thin History Honesty** - Honest rendering for thin history
 
@@ -80,7 +80,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 10. Type Safety Fix | 1/1 | Complete    | 2026-09-08 |
-| 11. Chart Rendering Polish | 1/1 | Complete   | 2026-09-08 |
+| 11. Chart Rendering Polish | 1/1 | Verified (UAT 6/6) | 2026-09-08 |
 | 12. Deployment Hygiene | 0/0 | Not started | - |
 | 13. Thin History Honesty | 0/0 | Not started | - |
 
