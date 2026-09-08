@@ -34,6 +34,10 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 
 ### Active
 
+- [ ] v2.1: Fix pre-existing tsc LayoutProps error in `app/layout.tsx` (from 3a3a1cb) — zero tsc errors
+- [ ] v2.1: Chart HiDPI/resize polish — crisp rendering on high-DPI screens, clean redraw on window resize
+- [ ] v2.1: Remove Vercel leftovers — token, Deployment Protection, drill-preview branch remnants
+- [ ] v2.1: Close thinHistory display gap — honest rendering for thin history
 - [ ] v3.0 Execution (Modul 4): WHY NOW trigger, order ticket, fatal flaw — scope after live observation
 - [ ] Pain Threshold map (§1 BSL/SSL projection) — gap closure candidate for v3.0 scoping
 
@@ -92,6 +96,16 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [v2.0] Retroactive 08/09 VERIFICATIONs | Missing artifacts blocked formal audit, substance was green | ✓ Both passed, audit flipped to passed |
 | [v2.0] Live observation before v3.0 | Synthetic fixtures prove mechanics, not methodology | — Pending (2–4 week watch: Judas rate, SMT rollover, Asia alignment, Mandelbug) |
 
+## Current Milestone: v2.1 Cleanup & Polish
+
+**Goal:** Pay down the four known-debt items left over from v1.0/v2.0 so the terminal is clean before v3.0 scoping.
+
+**Target features:**
+- tsc LayoutProps fix (`app/layout.tsx`, from 3a3a1cb) — zero tsc errors
+- Chart HiDPI/resize polish — crisp high-DPI rendering, clean redraw on resize
+- Vercel leftovers removal — token, Deployment Protection, drill-preview branch remnants
+- thinHistory display gap closure — honest rendering for thin history
+
 ## Current State: v2.0 Shipped
 
 **Shipped 2026-09-08.** Next: live observation (2–4 weeks of daily §3-vs-market notes), then `/gsd-new-milestone` for v3.0 Execution with facts, not assumptions.
@@ -129,4 +143,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-08 after v2.0 milestone ship*
+*Last updated: 2026-09-08 after v2.1 milestone start*

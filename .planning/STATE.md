@@ -1,21 +1,16 @@
 ---
 gsd_state_version: "1.0"
-milestone: v2.0
-milestone_name: Modul 3 (Liquidity Sequencing & SMT)
-status: Awaiting next milestone
-stopped_at: Phase 09 complete — visual glance re-verify PASS (human-confirmed)
-last_updated: "2026-09-08T07:41:02.840Z"
+milestone: v2.1
+milestone_name: Cleanup & Polish
+status: planning
+last_updated: "2026-09-08T07:52:46.717Z"
 last_activity: 2026-09-08
-last_activity_desc: Milestone v2.0 completed and archived
-state_head: 4b6437cab41e94682a371207b3cba5931f089d0f
 progress:
-  total_phases: 4
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
   percent: 0
-current_phase: 09
-current_phase_name: Composition (§3 Live + Overlays + Verify)
 ---
 
 # Project State
@@ -29,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-09-06)
 
 ## Current Position
 
-Phase: Milestone v2.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-08 — Milestone v2.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-09-08 — Milestone v2.1 started
 
 ## Performance Metrics
 
