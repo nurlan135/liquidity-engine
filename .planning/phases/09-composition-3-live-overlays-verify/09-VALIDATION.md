@@ -3,10 +3,11 @@ phase: "09"
 slug: "composition-3-live-overlays-verify"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-09-07"
+validated: "2026-09-08"
 ---
 
 # Phase 09 — Validation Strategy
@@ -40,11 +41,13 @@ created: "2026-09-07"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 09-XX | 01 | 1 | ICT-15 | — | Tier derivation: confirmed Judas + aligned SMT → highest tier; suppressed SMT caps at base; candidate scores zero; prose-only tiers (no numeric precision) | unit | `npx vitest run src/lib/confluence.test.ts` | ❌ W0 | ⬜ pending |
-| 09-XX | 01 | 1 | UI-05 | — | Per-block reasons verbatim; all-degraded stacks three; NY dimmed line inside AMD block | unit (selector/prose) | `npx vitest run src/lib/store.test.ts src/lib/report.test.ts` | ❌ W0 | ⬜ pending |
-| 09-XX | 02 | 2 | UI-06 | — | Asia H/L lines created/removed; Judas/SMT markers pinned; stale dims never hides; ES off-chart | unit (mapper) | `npx vitest run src/lib/chart-mapper.test.ts` | ❌ W0 | ⬜ pending |
-| 09-XX | 03 | 3 | DEPLOY-02 | T-09-01/T-09-02 | Intraday legs (`15m`/`1h`) pass allowlist-before-URL-build; errors never cached; stale never masquerades as live | manual-only (live URL drill) | drill script (see below) | ❌ W0 | ⬜ pending |
-| 09-XX | all | all | purity | — | No `Date.now` in any new phase module/test/script; injected time only (Phase 6–8 precedent) | grep gate | `grep -rn "Date.now" src/lib/confluence.ts src/lib/store.ts` (no hits) | ✅ | ⬜ pending |
+| 09-01 | 01 | 1 | ICT-15 | — | Tier derivation: confirmed Judas + aligned SMT → highest tier; suppressed SMT caps at base; candidate scores zero; prose-only tiers (no numeric precision) | unit | `npx vitest run src/lib/confluence.test.ts` | ✅ | ✅ green |
+| 09-01 | 01 | 1 | UI-05 | — | Per-block reasons verbatim; all-degraded stacks three; NY dimmed line inside AMD block | unit (selector/prose) | `npx vitest run src/lib/store.test.ts src/lib/report.test.ts` | ✅ | ✅ green |
+| 09-01 | 01 | 1 | UI-05 (stability) | — | G-09-flake-1 resolved: per-test 60s timeout on the resetModules re-import test; suite stable | unit (stability) | `npm test` (3 consecutive green post-fix) | ✅ | ✅ green |
+| 09-02 | 02 | 2 | UI-06 | — | Asia H/L lines created/removed; Judas/SMT markers pinned; stale dims never hides; ES off-chart | unit (mapper) | `npx vitest run src/lib/chart-mapper.test.ts` | ✅ | ✅ green |
+| 09-02 | 02 | 2 | UI-05 / ICT-15 | — | Live §3 three sub-blocks + conviction line; per-block verbatim reasons; stable degrade order | unit + live DOM | `npx vitest run src/lib/report.test.ts` + Playwright live snapshot | ✅ | ✅ green |
+| 09-03 | 03 | 3 | DEPLOY-02 | T-09-01/T-09-02 | Intraday legs (`15m`/`1h`) pass allowlist-before-URL-build; errors never cached; stale never masquerades as live | live drill (script + Node/Playwright equivalent) | drill gates: ES 200, 1h/15m 200, PAGE 200, slots live-present | ✅ | ✅ green |
+| 09-all | all | all | purity | — | No `Date.now` in any new phase module/test/script; injected time only (Phase 6–8 precedent) | grep gate | `grep -rn "Date.now" src/lib/confluence.ts src/lib/report.ts src/lib/chart-mapper.ts src/lib/session-line.ts` (no hits; one comment-only mention in store.ts:531) | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -72,13 +75,23 @@ created: "2026-09-07"
 
 ---
 
+## Validation Audit 2026-09-08
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 (G-09-flake-1: store.test.ts parallel-load timeout flake) |
+| Resolved | 1 (per-test 60s timeout, test-only; 3 consecutive full-suite greens post-fix) |
+| Escalated | 0 |
+
+Coverage classification: 13/13 COVERED (12 unit/green + 1 stability/green post-fix), 0 PARTIAL, 0 MISSING. UAT 09-UAT.md: 13/13 pass, 0 issues.
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-09-08
