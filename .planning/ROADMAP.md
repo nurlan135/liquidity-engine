@@ -16,45 +16,58 @@
 ## Phase Details
 
 ### Phase 10: Type Safety Fix
+
 **Goal**: TypeScript compiles cleanly with zero errors and no runtime change
 **Depends on**: Nothing (isolated fix, first phase)
 **Requirements**: TYPE-01
 **Success Criteria** (what must be TRUE):
+
   1. `tsc --noEmit` exits zero on a clean checkout
   2. Layout page renders identically before and after the fix (no runtime behavior change)
+
 **Plans**: 1 plan
 
 Plans:
-- [ ] 10-01-PLAN.md — Clean-checkout tsc fix plus build and parity proof
+
+- [x] 10-01-PLAN.md — Clean-checkout tsc fix plus build and parity proof
 
 ### Phase 11: Chart Rendering Polish
+
 **Goal**: Users see a crisp chart on any display that redraws cleanly on resize
 **Depends on**: Nothing (independent of Phase 10; touches chart component only)
 **Requirements**: CHRT-01, CHRT-02
 **Success Criteria** (what must be TRUE):
+
   1. User sees crisp chart lines and text on a high-DPI (Retina/2x) display with no blur
   2. User can resize the browser window and the chart refills its container with no stretch, clipping, or frozen canvas
   3. No console errors or warnings appear during resize or DPI switch
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 12: Deployment Hygiene
+
 **Goal**: Vercel project is free of stale credentials, flags, and dead branches
 **Depends on**: Nothing (verification + removal work, independent)
 **Requirements**: DEPL-01, DEPL-02, DEPL-03
 **Success Criteria** (what must be TRUE):
+
   1. No stale Vercel token remains in env, config, or committed files
   2. Deployment Protection state is intentional and its setting is documented
   3. No drill-preview branch, flag, or reference remains in repo, config, or dashboard
+
 **Plans**: TBD
 
 ### Phase 13: Thin History Honesty
+
 **Goal**: Users always get an honest chart when history is too thin for full rendering
 **Depends on**: Phase 11 (shares the chart component area — polish first, then the thin-history path)
 **Requirements**: HIST-01
 **Success Criteria** (what must be TRUE):
+
   1. User with thin/insufficient history sees an honest indicator or fallback state
   2. Thin history never renders as a silent empty chart or a misleading full chart
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -62,7 +75,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 10. Type Safety Fix | 0/0 | Not started | - |
+| 10. Type Safety Fix | 1/1 | Complete   | 2026-09-08 |
 | 11. Chart Rendering Polish | 0/0 | Not started | - |
 | 12. Deployment Hygiene | 0/0 | Not started | - |
 | 13. Thin History Honesty | 0/0 | Not started | - |
