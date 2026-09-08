@@ -1,8 +1,9 @@
 ---
 phase: 11-chart-rendering-polish
 verified: 2026-09-08T00:00:00Z
-status: human_needed
-score: 0/9 must-haves verified
+re_verified: 2026-09-08T12:30:00Z
+status: passed
+score: 9/9 must-haves verified (0 automated, 9 human-UAT; UAT 6/6 pass in 11-UAT.md)
 covered_files:
   - .planning/phases/11-chart-rendering-polish/11-01-PLAN.md
   - .planning/phases/11-chart-rendering-polish/11-01-SUMMARY.md
@@ -76,8 +77,8 @@ human_verification:
 
 **Phase Goal:** Users see a crisp chart on any display that redraws cleanly on resize
 **Verified:** 2026-09-08
-**Status:** human_needed
-**Re-verification:** No — initial verification (no prior VERIFICATION.md found)
+**Status:** passed
+**Re-verification:** Yes — human UAT completed 2026-09-08 (11-UAT.md, status: complete, 6/6 pass), closing all 9 behavior-unverified truths
 
 ## Goal Achievement
 
@@ -155,7 +156,7 @@ See frontmatter `human_verification` (6 items, harvested from PLAN `<human-check
 
 ### Gaps Summary
 
-No gaps. Code-side verification is complete: the single deliverable (autosize flag, visible-range lock, observer-absent fallback gate) exists, is substantive (not a stub), is wired into the mount effect, preserves overlays/chrome/empty state byte-identical, and passed type, test, build, and review gates. All 9 truths are present-but-behavior-unverified because every one asserts runtime visual behavior that no test in this repo's node-env suite can exercise. These route to human UAT per the plan's own validation contract — not to gap closure.
+No gaps. Code-side verification is complete: the single deliverable (autosize flag, visible-range lock, observer-absent fallback gate) exists, is substantive (not a stub), is wired into the mount effect, preserves overlays/chrome/empty state byte-identical, and passed type, test, build, and review gates. All 9 truths were present-but-behavior-unverified at initial verification because every one asserts runtime visual behavior that no test in this repo's node-env suite can exercise — and all 9 are now human-verified via UAT 6/6 pass (11-UAT.md, status: complete, 2026-09-08). Validated-partial per 11-VALIDATION.md audit (2 requirements manual-only by operator decision, covered by UAT).
 
 ---
 
