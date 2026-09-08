@@ -148,7 +148,10 @@ export function TerminalShell() {
     <div data-slot="terminal-shell" className="flex min-h-full flex-col gap-3 p-4">
       <header data-slot="terminal-header" className="flex items-center justify-between rounded-xl px-4 py-3">
         <span className="font-mono text-sm font-semibold tracking-widest">LIQUIDITY ENGINE // NQ=F</span>
-        <span data-slot="session-line" className="font-mono text-[11px] text-muted-foreground tabular-nums">
+        {/* Clock text differs between SSR and hydration by design (live
+            operator clock) — silence the expected mismatch so React does not
+            log a recoverable #418 on every load. */}
+        <span data-slot="session-line" suppressHydrationWarning className="font-mono text-[11px] text-muted-foreground tabular-nums">
           {formatSessionLine(now)}
         </span>
         <Button onClick={() => void refresh()} disabled={inFlight} data-slot="refresh-button">

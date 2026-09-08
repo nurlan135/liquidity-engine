@@ -56,3 +56,9 @@ Human opened https://liquidity-engine-nine.vercel.app in a browser (market open,
 - Console carries a minified React error #418 (hydration mismatch). Prime suspect: hydration failure remounts `TerminalShell`, the `useEffect` cleanup runs `stopDualPoll`, and the re-mounted poll schedule never survives — mount-immediate polls land, staggered/interval polls (including the first ES fetch at the `:30` phase) never fire.
 
 Verdict: visual glance FAIL — not a Phase 09 overlay defect (mapper, markers, slots, and §3 render all verified green) but a pre-existing poll-lifecycle bug: the ES leg never fetches in the browser, so `selectSMT`/`selectAsia`/`selectJudas` stay null and overlays correctly render nothing per the UI-06 empty predicate. Tracked for a dedicated debug session (`/gsd-debug`): hydration #418 source plus `startDualPoll`/`stopDualPoll` lifecycle.
+
+## Debug follow-up (2026-09-08 — `#418-as-killer` FALSIFIED, Mandelbug reclassification)
+
+- Retest 2026-09-08 (real Chromium vs live Vercel URL AND vs local prod): bug DOES NOT REPRODUCE. ES lands at ~55-90s (200), coverage `NQ 126 / ES 126 / joined 126`, all staggered timeouts + 60s intervals fire. #418 fires on every load INCLUDING healthy runs (pageerror at 1.4s) — it does not kill timers.
+- Controlled experiments (same bundle bytes + same frozen-clock mismatch + #418 firing → timers live) FALSIFY the prime suspect: `#418 recovery kills the poll schedule`. Reclassified Bohrbug → Mandelbug (environment-gated). 09-07 transient candidates: Yahoo throttle/429 on Vercel egress at market-open load, or observation artifact across the spontaneous 13:53 reload.
+- Proven defect fixed regardless: `suppressHydrationWarning` on the session-line clock span (`components/dashboard/terminal-shell.tsx`) — silences the expected SSR/client clock-text mismatch. Post-fix real-Chromium vs local prod: `418-COUNT=0`, ES 200, coverage `126/126/126`, `npm test` 280/280.
