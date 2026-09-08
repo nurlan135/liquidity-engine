@@ -1,7 +1,8 @@
 ---
 phase: "11"
 slug: "chart-rendering-polish"
-status: draft
+status: approved
+reviewed_at: "2026-09-08"
 shadcn_initialized: true
 preset: b2fA (style base-nova, baseColor neutral, iconLibrary lucide, font geist)
 created: "2026-09-08"
@@ -211,12 +212,12 @@ No third-party registries declared; no blocks added. Registry vetting gate: not 
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: FLAG (focal point implicit — canvas-only scope, non-blocking)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: FLAG (honest Could-not-enumerate, non-exhaustive — non-blocking)
 
-**Approval:** pending
+**Approval:** approved 2026-09-08
