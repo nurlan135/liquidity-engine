@@ -9,7 +9,7 @@ Requirements for v2.1 milestone. Each maps to roadmap phases.
 
 ### Type Safety
 
-- [ ] **TYPE-01**: tsc passes with zero errors — pre-existing LayoutProps error in `app/layout.tsx` (from 3a3a1cb) is fixed without changing runtime behavior
+- [x] **TYPE-01**: tsc passes with zero errors — pre-existing LayoutProps error in `app/layout.tsx` (from 3a3a1cb) is fixed without changing runtime behavior
 
 ### Chart Rendering
 
@@ -57,7 +57,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TYPE-01 | Phase 10 | Pending |
+| TYPE-01 | Phase 10 | Complete |
 | CHRT-01 | Phase 11 | Pending |
 | CHRT-02 | Phase 11 | Pending |
 | DEPL-01 | Phase 12 | Pending |
@@ -66,6 +66,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HIST-01 | Phase 13 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 7 total
 - Mapped to phases: 7
 - Unmapped: 0
