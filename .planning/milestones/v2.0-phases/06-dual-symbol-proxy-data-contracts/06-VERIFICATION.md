@@ -31,7 +31,7 @@ covered_files:
   - components/dashboard/status-strip.tsx
   - components/dashboard/terminal-shell.tsx
   - src/terminal-shell.test.ts
-covered_digest: "v1:sha256:403fbff273cd3101c8bf3ae5e3f6a3a8a50fcadc2b4db5602b84cd0b7d787335"
+covered_digest: "v1:sha256:96fcb2b905c4d6702a433286f2832ff3e1a8f1804dd6dcdd9a03128fcda23b33"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -172,3 +172,22 @@ No gaps. The single prior root cause (orphaned `fetchIntraday` lane) is closed: 
 
 _Verified: 2026-09-07T10:00:00Z_
 _Verifier: Claude (gsd-verifier)_
+
+---
+
+## Re-verification (2026-09-08 — post-ICT-11 closure)
+
+**Trigger:** `init.manager` flagged this verification `stale` because `src/lib/store.ts` (listed in `covered_files`) changed in commit `571216a` (ICT-11 closure: `selectRange4H` selector added).
+
+**Scope analysis:** The `571216a` diff to `store.ts` is purely additive — one import extension (`aggregate1Hto4H`) plus one new `selectRange4H` selector block. No existing selector, refresher, timer, envelope guard, or strip/shell wiring was modified. Phase 6 core files are provably untouched since verification:
+
+- `git diff 4fcf919 HEAD -- src/lib/ict/join.ts src/lib/ict/types.ts` → empty (zero diff)
+- `git diff 4fcf919 HEAD -- app/api/yahoo/route.ts` → only the 06-05 gap-closure dispatch (`d368a3d`), already verified in the Gap Closure Confirmation above
+- `store.ts`/strip/shell diffs since `4fcf919` belong to Phases 7–9 (selectors, intraday legs, overlays) — none alter the dual-leg staggered store, per-leg stale envelopes, or coverage diagnostics verified here
+
+**Spot-checks re-run:** `npm test` 29 files, 283/283 passed (was 165/165 at verification; delta is Phase 7–9 + ICT-11 tests, zero regressions); `npx tsc --noEmit` exit 0.
+
+**Verdict:** All 16 verified truths + 1 correct deferral still hold. Status remains **passed**. No gaps introduced.
+
+_Re-verified: 2026-09-08_
+_Re-verifier: Claude (milestone-close remediation)_

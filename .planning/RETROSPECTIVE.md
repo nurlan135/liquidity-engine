@@ -43,6 +43,46 @@
 
 ---
 
+## Milestone: v2.0 — Modul 3 (Liquidity Sequencing & SMT)
+
+**Shipped:** 2026-09-08
+**Phases:** 4 (6, 7, 8, 9) | **Plans:** 14 | **Tasks:** 32 | **Timeline:** 3 days (2026-09-06 → 2026-09-08)
+
+### What Was Built
+- Dual-symbol proxy: parameterized `?symbol=&interval=` (ES=F daily + NQ/ES 1H/15M), per-leg stale envelopes, staggered 4-leg polling, timestamp inner-join with coverage
+- SMT comparator: time-anchored swing pairs, BULLISH/BEARISH/NO-SIGNAL, 20-day correlation gate, joint rollover suppression — both deferred review criticals fixed and wired
+- FVG map + sweep-then-reject ERL/IRL + §2 delivery sentence; NY-anchored 1H→4H synthesis consumed by `selectRange4H` §2 line (ICT-11 closure)
+- Asia Range (20:00–00:00 NY, DST triple-test) + three-gate London Judas (budget ≤25%) + AMD classifier fusing range+Judas+SMT
+- Live §3 (Liquidity Path, SMT Status, Session AMD) with verbatim reasons + Asia/Judas/SMT overlays + conviction tiers — drill 6/6 PASS, glance re-verify PASS human-confirmed
+- Audit remediation: retroactive 08/09 VERIFICATIONs, 06 re-verification (digest refresh), all 15 requirements Complete — suite 283/283, tsc clean
+
+### What Worked
+- Phase-level VERIFICATIONs (06/07) held up at audit — the two missing ones (08/09) were the only formal gaps, substance was green
+- Integration checker found the one real gap (orphaned 4H aggregate) that phase verifications each missed — cross-phase wiring checks earn their keep
+- covered_digest fingerprint caught a genuinely stale report (post-closure store.ts edit) — content-grounded staleness works, and recompute-via-node is the correct refresh path
+- Debug session discipline (es-poll-lifecycle): Bohrbug→Mandelbug reclassification with falsified suspect documented, not silently closed
+
+### What Was Inefficient
+- 06-VERIFICATION digest refresh took two attempts (PowerShell SHA256 reimplementation mismatched; node canonical recompute matched) — always recompute with the tool's own runtime
+- CLI `milestone.complete` misparsed completed phases (`--force` needed); MILESTONES.md got a duplicate empty entry requiring manual cleanup
+- 08/09 VERIFICATIONs missing at phase time repeated the v1.0 lesson (lesson 1, unverified) — the pattern is known, adherence is the gap
+
+### Patterns Established
+- Refuse-with-reason envelope for every selector: stale/empty/thin → null, reason rides in owning leg `lastError`, render reads verbatim
+- Slot-contract probing for live drills: assert presence paths, never live signal visibility (session-state dependent)
+- Fail-closed drill scripts (exit 1 on first failure, exit 2 on missing URL) — no partial PASS masquerades
+
+### Key Lessons
+1. Cross-phase handoff promises ("ready for Phase 8 selectors") need a consumer check at the producing phase's verification — otherwise orphans hide until audit.
+2. Fingerprint digests must be refreshed with the same runtime that verifies them — hand-rolled reimplementations drift.
+3. Retroactive verification is cheap when UAT + review-fix + security records exist — the expensive case is missing evidence, not missing files.
+
+### Cost Observations
+- Sessions: milestone spanned ~3 days, 14 plans, 32 tasks
+- Notable: audit remediation (ICT-11 closure + 2 VERIFICATIONs + re-verify) was ~1 session — far cheaper than v1.0's 5-plan retroactive gate, because evidence existed
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -50,13 +90,16 @@
 | Milestone | Sessions | Phases | Key Change |
 |-----------|----------|--------|------------|
 | v1.0 | ~3 days | 5 | Baseline: backend-first + truth-row gates + decimal insertions |
+| v2.0 | ~3 days | 4 | + integration checker catches cross-phase orphans; + fingerprint staleness; + fail-closed drills |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Coverage | Zero-Dep Additions |
 |-----------|-------|----------|-------------------|
 | v1.0 | 133/133 green, lint clean | 20/20 reqs, 5/5 flows | 0 new deps (chart-mapper helper only) |
+| v2.0 | 283/283 green, tsc clean | 15/15 reqs, 8/8 flows | 0 new deps |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. (Single milestone — cross-validation starts at v1.1)
+1. Write the verification gate in the same phase as the work — v1.0 paid 5 plans, v2.0 paid ~1 session (evidence existed both times; missing files are cheap, missing evidence is expensive).
+2. Flip verification status at UAT time — stale fields compounded into close-time friction in both milestones.

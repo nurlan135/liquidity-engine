@@ -1,5 +1,23 @@
 # Milestones
 
+## v2.0 Modul 3 (Liquidity Sequencing & SMT) (Shipped: 2026-09-08)
+
+**Phases completed:** 4 phases, 14 plans, 32 tasks
+
+**Key accomplishments:**
+
+- Route GET branches 1d to fetchSymbol and 1h/15m to fetchIntraday after the allowlist guards, closing the VERIFICATION.md root cause with two pinning route tests
+- Tracer plus hardening for the time-anchored SMT comparator: fractal-k swing matching, bps compare with sweeper label, 20-day correlation gate, and joint NQ/ES rollover suppression — 17/17 tests green, full suite 182/182
+- NQ D1 FVG inventory with close-through mitigation and a 20-gap bound, sweep-then-reject ERL/IRL flip, and a deterministic §2 delivery-sentence builder — all pure, all pinned by 16 vitest cases
+- Pure aggregate.ts synthesizes complete 4-candle 4H blocks on the 18:00 ET grid with per-candle IANA wall-clock resolution, emitting reused Candle shapes for unchanged range/bias math.
+- Asia Range 20:00-00:00 NY wick-to-wick tracer on 1H NQ rows with DST triple-test green, plus D-01 conforming edits in both canonical files
+- Three-gate London Judas detector (ICT-13) with candidate/confirmed/preRun vocabulary plus a seeded 60-session budget run at 16.7 percent confirmed — full suite 239/239 green
+- AMD phase classifier fusing Asia Range plus Judas plus read-only SMT with exact Azerbaijani reasons and an honest NY marker
+- Live rule-based report §3 (Engineered Liquidity Path, SMT Divergence Status, Session AMD Timing) with per-block verbatim reasons, Asia overlay + Judas/SMT markers, conviction tier line — drill 6/6 PASS on live Vercel URL, visual glance re-verify PASS human-confirmed
+- ICT-11 closure: `selectRange4H` wires the orphaned 4H aggregate into §2 (`s2-range-4h` line); 08/09 VERIFICATION.md written retroactively; all 15 requirements Complete; suite 283/283, tsc clean
+
+---
+
 ## v1.0 Live Terminal (Shipped: 2026-09-06)
 
 **Phases completed:** 5 phases, 16 plans, 36 tasks

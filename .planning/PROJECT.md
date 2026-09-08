@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that reads charts through ICT liquidity-engineering methodology — not retail chart patterns. v1.0 shipped: NQ=F daily candles via a resilient Yahoo Finance proxy (failover, backoff, serve-stale, 60s CDN TTL), D1 Dealing Range (Premium/Discount + EQ, quadrant/OTE levels, bias/DOL/regime, rollover tripwire) as pure functions, a live candlestick chart with zone overlays + level lines + rollover banner, and a rule-based (no LLM) institutional report shell — all in a dark 3-panel terminal, live on Vercel Hobby. Built on Next.js 16 App Router with Zustand state, Baku-timezone awareness, and zero budget on Vercel free tier.
+A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that reads charts through ICT liquidity-engineering methodology — not retail chart patterns. v1.0 shipped the D1 foundation (NQ=F daily proxy, dealing range, chart, report shell). v2.0 Modul 3 shipped liquidity sequencing: dual-symbol NQ+ES proxy (daily + 1H/15M intraday), time-anchored SMT divergence with correlation gate + rollover suppression, FVG map with sweep-then-reject ERL/IRL transition, NY-anchored 1H→4H synthesis, Baku-aware Asia Range + three-gate London Judas + AMD phase classifier — all fused into a live rule-based report §3 with Asia overlays and Judas/SMT markers, verified on the live Vercel URL. Built on Next.js 16 App Router with Zustand state, Baku-timezone awareness, and zero budget on Vercel free tier.
 
 ## Core Value
 
@@ -22,12 +22,20 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Asia/Baku timezone handling for session/date logic (March + November DST proven) — v1.0
 - ✓ Deployed on Vercel Hobby with cache headers, stale-serve drill, live-URL checklist green — v1.0
 
+### Validated (continued)
+
+- ✓ Dual-symbol Yahoo proxy (`?symbol=&interval=`): ES=F daily + NQ/ES 1H/15M intraday, per-leg stale envelopes, staggered polling, timestamp inner-join — v2.0
+- ✓ SMT divergence (NQ vs ES): time-anchored swing pairs, BULLISH/BEARISH/NO-SIGNAL, correlation-regime gate, joint rollover suppression — v2.0
+- ✓ FVG map + sweep-then-reject ERL/IRL transition + §2 delivery sentence — v2.0
+- ✓ 4H synthesis from NY-anchored 1H blocks + `selectRange4H` §2 line — v2.0
+- ✓ Asia Range (20:00–00:00 NY) + three-gate London Judas + AMD classifier fusing range+Judas+SMT — v2.0
+- ✓ Live report §3 (Liquidity Path, SMT Status, Session AMD) with verbatim reasons + Asia/Judas/SMT chart overlays + conviction tiers — v2.0
+- ✓ Vercel per-leg verify: drill 6/6 PASS, visual glance re-verify PASS (human-confirmed) — v2.0
+
 ### Active
 
-- [ ] Modul 3 SMT divergence (NQ vs ES): swing müqayisəsi, divergence siqnalı — v2.0
-- [ ] Modul 3 internal/external keçid məntiqi (4H/1H) — v2.0
-- [ ] Modul 3 tam AMD: Asia Range + London/NY Judas Swing — v2.0
-- [ ] Hesabat §3 canlı (Modul 3 nəticələri ilə) — v2.0
+- [ ] v3.0 Execution (Modul 4): WHY NOW trigger, order ticket, fatal flaw — scope after live observation
+- [ ] Pain Threshold map (§1 BSL/SSL projection) — gap closure candidate for v3.0 scoping
 
 ### Out of Scope
 
@@ -40,6 +48,7 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 ## Context
 
 Shipped v1.0 Live Terminal (2026-09-06): 5 phases, 16 plans, 152 commits, +26105/−906 across 158 files. 133/133 tests green, lint clean. Live at https://liquidity-engine-nine.vercel.app.
+Shipped v2.0 Modul 3 (2026-09-08): 4 phases, 14 plans, 32 tasks, 32 files +5141/−83. 283/283 tests green, tsc clean. Audit passed after remediation (ICT-11 closure + retroactive 08/09 VERIFICATIONs). Live observation period recommended before v3.0 scoping (Judas confirm rate, SMT rollover behavior, Asia live alignment, 09-07 Mandelbug recurrence watch).
 Tech stack: Next.js 16 App Router, Zustand 5, lightweight-charts v5 (dynamic ssr:false), date-fns-tz, Tailwind v4, shadcn primitives (button, dropdown-menu, dialog, toast, calendar, card).
 Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc LayoutProps error (app/layout.tsx), Vercel token + Deployment Protection + drill-preview branch leftovers, thinHistory display gap.
 - Brownfield origin: Next.js 16.3.4 + React 19 scaffold; home page was stock placeholder, replaced by dashboard in Phase 2.
@@ -79,8 +88,16 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [03.2] D-08 delete checkReanchor, rule-table rewritten on rolling recompute | Zero callers outside tests; rolling ANCHOR_WINDOW recompute carries re-anchoring (wick pierce extends with supersede comment) | ✓ 5 rewritten cases green |
 | [03.2] Pre-existing tsc LayoutProps error left untouched | From commit 3a3a1cb in app/layout.tsx, outside every 03.2 plan's files and scope | ⚠ Noted residual for a later phase |
 | [03.2] UAT visual glance passes: Q1/OTE lines legible | Canvas legibility judged by human per plan coverage D3 | ✓ 03.2-UAT 1/1 pass |
+| [v2.0] ICT-11 closure: selectRange4H + §2 4H line | aggregate1Hto4H had zero callers; §2 title already promised D1/4H | ✓ 283/283, wired end-to-end |
+| [v2.0] Retroactive 08/09 VERIFICATIONs | Missing artifacts blocked formal audit, substance was green | ✓ Both passed, audit flipped to passed |
+| [v2.0] Live observation before v3.0 | Synthetic fixtures prove mechanics, not methodology | — Pending (2–4 week watch: Judas rate, SMT rollover, Asia alignment, Mandelbug) |
 
-## Current Milestone: v2.0 Modul 3
+## Current State: v2.0 Shipped
+
+**Shipped 2026-09-08.** Next: live observation (2–4 weeks of daily §3-vs-market notes), then `/gsd-new-milestone` for v3.0 Execution with facts, not assumptions.
+
+<details>
+<summary>Previous milestone: v2.0 Modul 3 (goal + targets, archived)</summary>
 
 **Goal:** NQ vs ES SMT divergence və tam AMD (Asia Range + London/NY Judas) ilə 4H/1H likvidlik sekvensiyası — hesabat §3 canlı.
 
@@ -91,6 +108,8 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 - Tam AMD: Asia Range + London/NY Judas Swing detection (Baku-aware sessiya saatları)
 - Hesabat §3 canlı (Modul 3 nəticələri ilə), chart-da Asia Range overlay
 - Vercel deploy + verify (cache, timezone, §3 render)
+
+</details>
 
 ## Evolution
 
@@ -110,4 +129,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-06 after v2.0 milestone start*
+*Last updated: 2026-09-08 after v2.0 milestone ship*
