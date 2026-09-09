@@ -22,60 +22,76 @@
 ### v3.0 Execution (Modul 4)
 
 ### Phase 14: Audit Debt Cleanup + Purity Guard
+
 **Goal**: New execution code inherits a clean `ict/` surface — no dead args, no orphaned exports, purity enforced by a guard
 **Depends on**: Nothing (first phase; mechanical cleanup, zero behavior change)
 **Requirements**: DEBT-01, DEBT-02, DEBT-03
 **Success Criteria** (what must be TRUE):
+
   1. Terminal renders identically after the dead `thinHistory` arg is removed (dimming still flows via opacityScale)
   2. Thin-tier API has no orphaned public surface — `thinTier` export and `ThinBannerEntry` type are unexported or documented, and no external import breaks
   3. A purity guard (test or lint) fails on `Date.now` or store imports inside `src/lib/ict` and passes green on existing code
+
 **Plans**: 3 plans
 Plans:
-- [ ] 14-01-PLAN.md — Narrow zoneBands signature, trim nq-chart call, shrink test literals (DEBT-01)
+
+- [x] 14-01-PLAN.md — Narrow zoneBands signature, trim nq-chart call, shrink test literals (DEBT-01)
 - [ ] 14-02-PLAN.md — Unexport thinTier/ThinBannerEntry, migrate test pins to resolveThinTier (DEBT-02)
 - [ ] 14-03-PLAN.md — Co-located ict purity guard plus Asia fallback doc note (DEBT-03)
 
 ### Phase 15: WHY NOW Trigger Engine
+
 **Goal**: Users get an honest "why now" verdict — FIRE only when killzone timing, confirmed purge, and displacement all agree
 **Depends on**: Phase 14 (purity guard must be green before new `ict/` modules land)
 **Requirements**: TRIG-01, TRIG-02, TRIG-03, TRIG-04
 **Success Criteria** (what must be TRUE):
+
   1. User sees a FIRE_LONG / FIRE_SHORT / WAIT_FOR_MANIPULATION verdict from the three-gate engine (killzone timing + confirmed purge + displacement) with a verbatim Azerbaijani reason
   2. User sees an ARMED intermediate state when some (not all) gates pass, with per-session cooldown/dedup preventing repeat-fire spam
   3. User can inspect a firing log (capped ~50 entries, calibration-JSON export) recording each evaluation that reached ARMED or better
   4. All thresholds ship as exported `TRIGGER_*` constants pinned by boundary tests with `CALIBRATION-PROVISIONAL` comments; pre-agreed acceptance band is 1–4 fires/week
+
 **Plans**: TBD
 
 ### Phase 16: Fatal-Flaw Invalidation
+
 **Goal**: Users never act on a setup that a fatal flaw already killed — invalidation supersedes fire on the same snapshot
 **Depends on**: Phase 15 (flaw-wins ordering needs the real trigger snapshot, not a parallel-diverged shape)
 **Requirements**: FLAW-01, FLAW-02, FLAW-03
 **Success Criteria** (what must be TRUE):
+
   1. User sees an invalidated/not verdict from `checkFatalFlaw` evaluated on the same snapshot as the trigger — flaw deterministically supersedes fire, never flickers
   2. User sees HARD flaws (rollover/stale — kill the setup) distinguished from SOFT flaws (downgrade FIRING to ARMED with a stated unblock condition)
   3. User reads a falsifiable fatal-flaw sentence plus a challenge question from a fixed bank in live report §6
+
 **Plans**: TBD
 
 ### Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins
+
 **Goal**: Users see the full execution picture — deterministic paper ticket, live §§4–6, chart pins — that can never be mistaken for real brokerage
 **Depends on**: Phase 16 (SL is an input to R/R and R/R gates EXECUTE — the derivation chain has exactly one honest order)
 **Requirements**: TICK-01, TICK-02, TICK-03, TICK-04
 **Success Criteria** (what must be TRUE):
+
   1. User sees a paper ticket derived in fixed order — WHY NOW direction → OTE×FVG entry → invalidation SL → TP1/TP2/TP3 ladder → R/R ≥ 1:3 gate → EXECUTE / STAND ASIDE verdict
   2. User can set risk % and size inputs; ticket computes size as risk ÷ stop-distance and refuses with reason on degenerate inputs (zero stop distance, missing levels)
   3. User never mistakes paper for real — PAPER/SIMULATED vocabulary everywhere, persistent non-dismissible PAPER banner, banned-word test green (no Filled/Position/Submit Order/placeOrder identifiers)
   4. User sees live report §§4–6 blocks with verbatim reasons, three dashboard panels replacing the UNAVAILABLE cards, and chart trigger pin + entry/SL/TP lines
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 18: Verification + Calibration Harness
+
 **Goal**: Users can trust the execution layer's rates and cross-cutting honesty — fire band, kill rate, reason parity, stale degradation all proven on integrated pieces
 **Depends on**: Phase 17 (rate correctness and parity are population properties visible only once all pieces are integrated)
 **Requirements**: VERF-01, VERF-02, VERF-03
 **Success Criteria** (what must be TRUE):
+
   1. Bar-by-bar replay test proves monotonic trigger/flaw transitions (no flicker) on a 20-session population fixture with ≥1 FIRING and ≥1 INVALIDATED
   2. User sees §3-vs-trigger reason parity — trigger prose never contradicts AMD/SMT state on the same snapshot
   3. Stale-serve drill with ticket open proves graceful degradation — numbers degrade visibly with provenance, never a full-strength ticket on stale/thin inputs
+
 **Plans**: TBD
 
 ## Progress
