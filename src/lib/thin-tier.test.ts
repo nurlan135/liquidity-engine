@@ -5,7 +5,6 @@ import { MIN_CANDLES_FULL } from '@/src/lib/ict/regime';
 import {
   resolveThinTier,
   thinBannerOrder,
-  thinTier,
   thinTierCopy,
 } from '@/src/lib/thin-tier';
 
@@ -28,16 +27,16 @@ function anyRange(): DealingRange {
 
 describe('thin-tier: tier truth from math constants', () => {
   it('pins the boundary tiers: 19 thin, 20 degraded, 33 degraded, 34 full', () => {
-    expect(thinTier(19)).toBe('range-thin');
-    expect(thinTier(20)).toBe('regime-degraded');
-    expect(thinTier(33)).toBe('regime-degraded');
-    expect(thinTier(34)).toBe('full');
+    expect(resolveThinTier(flatSeries(19), anyRange())).toEqual({ tier: 'range-thin', closedCount: 19 });
+    expect(resolveThinTier(flatSeries(20), anyRange())).toEqual({ tier: 'regime-degraded', closedCount: 20 });
+    expect(resolveThinTier(flatSeries(33), anyRange())).toEqual({ tier: 'regime-degraded', closedCount: 33 });
+    expect(resolveThinTier(flatSeries(34), anyRange())).toEqual({ tier: 'full', closedCount: 34 });
   });
 
   it('range-thin holds exactly when closed count is below ANCHOR_WINDOW (same predicate as computeRange thinHistory)', () => {
     for (const n of [1, 5, 19, 20, 25, 33, 34, 40]) {
       const range = computeRange(flatSeries(n), '2026-03-01');
-      expect(thinTier(n) === 'range-thin').toBe(range.thinHistory);
+      expect(resolveThinTier(flatSeries(n), anyRange())?.tier === 'range-thin').toBe(range.thinHistory);
     }
   });
 

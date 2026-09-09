@@ -5,7 +5,7 @@ import { closedOnly } from '@/src/lib/ict/types';
 
 export type ThinTier = 'range-thin' | 'regime-degraded' | 'full';
 
-export function thinTier(closedCount: number): ThinTier {
+function thinTier(closedCount: number): ThinTier {
   if (closedCount < ANCHOR_WINDOW) return 'range-thin';
   if (closedCount < MIN_CANDLES_FULL) return 'regime-degraded';
   return 'full';
@@ -37,7 +37,7 @@ export function resolveThinTier(
   }
 }
 
-export type ThinBannerEntry = 'thin' | 'rollover';
+type ThinBannerEntry = 'thin' | 'rollover';
 
 export function thinBannerOrder(showThin: boolean, showRollover: boolean): ThinBannerEntry[] {
   const order: ThinBannerEntry[] = [];
