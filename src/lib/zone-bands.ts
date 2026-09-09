@@ -13,7 +13,7 @@ function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
-export function zoneBands(range: DealingRange): ZoneBands {
+export function zoneBands(range: Pick<DealingRange, 'high' | 'low' | 'eq'>): ZoneBands {
   if (!isFiniteNumber(range.high) || !isFiniteNumber(range.low) || !isFiniteNumber(range.eq)) {
     throw new Error('zoneBands requires finite high, low, and eq');
   }
