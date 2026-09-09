@@ -47,7 +47,7 @@ coverage:
 actuals:
   tokens: 875
   tasks: 3
-  commits: 6
+  commits: 8
 plan_head_before: 4d891fe809e3ba7fa8d56feb3e870f4a56ca2a70
 duration: ~5 min
 completed: 2026-09-09
@@ -62,7 +62,7 @@ Narrowed `zoneBands` from full `DealingRange` to `Pick<DealingRange, 'high' | 'l
 
 - **Duration:** ~5 min
 - **Tasks:** 3 completed
-- **Commits:** 6 total for the plan (3 task + 3 metadata, measured via `git rev-list --count 4d891fe..HEAD`)
+- **Commits:** 8 total for the plan (3 task + 5 metadata, measured via `git rev-list --count 4d891fe..HEAD`)
 - **Files:** 3 modified
 
 ## Accomplishments
