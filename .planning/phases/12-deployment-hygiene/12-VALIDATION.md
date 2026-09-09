@@ -3,8 +3,8 @@ phase: "12"
 slug: "deployment-hygiene"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
+status: validated
+nyquist_compliant: true
 wave_0_complete: false
 created: "2026-09-09"
 ---
@@ -77,4 +77,13 @@ created: "2026-09-09"
 - [ ] Feedback latency < seconds
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-09-09 — all map rows evidenced (12-01/12-02/12-03 SUMMARYs + verifier re-runs + UAT 6/6)
+
+## Validation Audit 2026-09-09
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Audit: all five automated map rows green via task evidence plus independent verifier re-runs (strict grep CLEAN, pickaxe empty outside .planning, ls-remote only-main, both kept scripts PASS/0); both Manual-Only rows discharged by dated user confirmations (`token deleted 2026-09-09`, Standard Protection + Vercel Authentication) and UAT 6/6 pass. No new test files needed — command-evidence phase by design; `npm test` 283/283 green at regression gate. No auditor spawn (no gaps).
