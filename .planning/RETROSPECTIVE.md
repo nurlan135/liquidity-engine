@@ -83,6 +83,44 @@
 
 ---
 
+## Milestone: v2.1 — Cleanup & Polish
+
+**Shipped:** 2026-09-09
+**Phases:** 4 (10, 11, 12, 13) | **Plans:** 7 | **Tasks:** 12 | **Commits:** 67 | **Timeline:** 2 days (2026-09-08 → 2026-09-09)
+
+### What Was Built
+- Zero-error TypeScript via one-line LayoutProps fix — clean-checkout `tsc --noEmit` green, prod build green, pixel-identical runtime
+- Crisp HiDPI chart: library-native autosize + view-lock + no-RO fallback gate, overlays/chrome byte-identical — UAT 6/6
+- Vercel hygiene: drill token deleted 2026-09-09, Standard Protection intentional + documented in PROJECT.md, drill-preview branch gone, prod 200/200, kept scripts green — UAT 6/6
+- Honest thin history: thin-tier truth module + persistent thin-first banner + uniform 0.5 zone/level dimming, Asia at accent/stale tone — 17/17 verified, UAT 2/2, 298/298 tests
+- Asia killzone 20:00–23:45 + last-completed-session fallback (en passant fix, edbc70a)
+
+### What Worked
+- Every phase wrote its VERIFICATION.md at phase time — zero retroactive gates for the third milestone running (v1.0's lesson 1 finally holding)
+- Milestone audit's 3-source cross-reference (VERIFICATION × SUMMARY frontmatter × REQUIREMENTS) caught genuinely stale checkboxes (CHRT-01/02) and flipped them with evidence cited
+- Integration checker confirmed Phase 13's chart edits coexist with Phase 11's autosize (zero viewport calls added, single-branch dimming) — ordered-after-11 sequencing paid off
+
+### What Was Inefficient
+- UAT scanner flags `status: passed` as gap while accepting `status: complete` — same false positive as v1.0's 02-UAT, requiring another acknowledge cycle (third occurrence; scanner convention still undocumented)
+- init.manager read phases 10–12 "stale" at close because the audit's own checkbox flips post-dated their digests — self-inflicted staleness from auditing before closing
+- 13-VALIDATION.md never reconciled (status=draft) — validate-phase skipped for the milestone's largest phase; coverage TODO carried as debt
+
+### Patterns Established
+- Order shared-component phases explicitly (polish first, dependent path after) — Phase 13 depended on 11 and merge friction was zero
+- Dashboard-verified states get a one-row PROJECT.md intentional-state record (Phase 12's D2) — settings outside the repo stay auditable
+- En passant fixes (Asia killzone edbc70a) ride with a named commit + audit note, not a new phase — proportionate to blast radius
+
+### Key Lessons
+1. Audit-then-close ordering creates digest staleness by construction — either freeze REQUIREMENTS.md before phase verifications or accept override_closeout as the normal path for audited milestones.
+2. The UAT `passed` vs `complete` status convention needs a single documented meaning — three milestones of false-positive acknowledges is a process bug, not bad luck.
+3. Small cleanup milestones (7 plans, 2 days) close with near-zero remediation when verification is written at phase time — the v1.0 tax is fully amortized.
+
+### Cost Observations
+- Sessions: milestone spanned 2 days, 7 plans, 67 commits, 61 files +6984/−95
+- Notable: close-time friction was two benign acknowledges (~15 min) vs v1.0's 5-plan retroactive gate — verification-at-phase-time is the whole difference
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -91,6 +129,7 @@
 |-----------|----------|--------|------------|
 | v1.0 | ~3 days | 5 | Baseline: backend-first + truth-row gates + decimal insertions |
 | v2.0 | ~3 days | 4 | + integration checker catches cross-phase orphans; + fingerprint staleness; + fail-closed drills |
+| v2.1 | 2 days | 4 | + verification-at-phase-time holds (zero retroactive gates); + 3-source audit cross-ref; + shared-component phase ordering |
 
 ### Cumulative Quality
 
@@ -98,6 +137,7 @@
 |-----------|-------|----------|-------------------|
 | v1.0 | 133/133 green, lint clean | 20/20 reqs, 5/5 flows | 0 new deps (chart-mapper helper only) |
 | v2.0 | 283/283 green, tsc clean | 15/15 reqs, 8/8 flows | 0 new deps |
+| v2.1 | 298/298 green, tsc clean | 7/7 reqs, 3/3 flows | 0 new deps |
 
 ### Top Lessons (Verified Across Milestones)
 

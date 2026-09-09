@@ -1,36 +1,36 @@
 ---
 gsd_state_version: "1.0"
 milestone: v2.1
-current_phase: 13
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 13 complete — all phases complete
-last_updated: "2026-09-09T10:50:29.182Z"
+last_updated: "2026-09-09T11:31:35.213Z"
 last_activity: 2026-09-09
-last_activity_desc: Phase 13 complete
-state_head: 751173526e9f849d0272a26de9a5b4f5d8525983
+last_activity_desc: Milestone v2.1 completed and archived
+state_head: f434a6186160ed0c99d4cc508e369b049cc1a47f
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 7
   completed_plans: 7
 milestone_name: Cleanup & Polish
+current_phase: 13
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-08 after v2.1 milestone start)
+See: .planning/PROJECT.md (updated 2026-09-09 after v2.1 milestone)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 13 — Thin History Honesty
+**Current focus:** Planning next milestone (v2.1 shipped 2026-09-09; live observation continues before v3.0 scoping)
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-09-09 — Phase 13 complete
+Phase: Milestone v2.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-09-09 — Milestone v2.1 completed and archived
 
 ## Performance Metrics
 
@@ -108,6 +108,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
+| uat_gaps | 10/10-UAT.md | passed, 0 pending scenarios (scanner status-label artifact — reviewed clean) | 2026-09-09 | v2.1 |
+| uat_gaps | 13/13-UAT.md | passed, 0 pending scenarios (scanner status-label artifact — reviewed clean) | 2026-09-09 | v2.1 |
 | uat_gaps | 02/02-UAT.md | passed | 2026-09-06 | v1.0 |
 
 ## Session Continuity
@@ -118,4 +120,4 @@ Resume file: .planning/phases/13-thin-history-honesty/13-UI-SPEC.md
 
 ## Operator Next Steps
 
-- Approve v2.1 roadmap, then start planning with /gsd-plan-phase 10
+- Start the next milestone with /gsd-new-milestone

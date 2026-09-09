@@ -1,5 +1,24 @@
 # Milestones
 
+## v2.1 Cleanup & Polish (Shipped: 2026-09-09)
+
+**Phases completed:** 4 phases, 7 plans, 12 tasks
+
+**Key accomplishments:**
+
+- Root layout props swapped to the plain children ReactNode form — clean-checkout tsc exits zero with zero runtime change.
+- Crisp HiDPI chart via library-native autosize with view-lock plus overlay; redraws cleanly on resize with zero console errors — UAT 6/6 pass.
+- Worktree CLEAN on strict gate, only refs/heads/main on authoritative ls-remote, token-free history outside planning docs, prod page + API 200 unauthenticated — zero files modified
+- Drill token deleted 2026-09-09, protection reads Standard Protection plus Vercel Authentication, shell history clean — user-confirmed per blocking-human gates
+- Both kept scripts green against live prod after the dashboard change, scripts byte-identical, one intentional-state row in PROJECT.md — DEPL-01/02/03 closed
+- Tested pure thin-tier truth module plus the persistent thin-history banner plumbed through the shell into the chart prop
+- Live zone opacity plus uniform provisional dimming on thin tiers, with markers, Asia, and candles at full strength
+- Asia killzone 20:00–23:45 plus fallback to last completed session (en passant fix, edbc70a)
+
+**Closeout:** override_closeout — Known verification overrides: 2 newly acknowledged (10-UAT.md, 13-UAT.md: both `passed` with 0 pending scenarios, scanner status-label artifacts reviewed clean), 1 carried forward from v1.0 (see STATE.md Deferred Items). Phases 10–12 read "stale" in init.manager only because the milestone audit's own CHRT-01/02 checkbox flips post-dated their recorded digests; all VERIFICATION.md files report passed (5/5, 9/9, 8/8, 17/17). Milestone audit v2.1-MILESTONE-AUDIT.md: 7/7 requirements, 9/9 integration, 3/3 flows; 7 non-blocking tech-debt items recorded.
+
+---
+
 ## v2.0 Modul 3 (Liquidity Sequencing & SMT) (Shipped: 2026-09-08)
 
 **Phases completed:** 4 phases, 14 plans, 32 tasks

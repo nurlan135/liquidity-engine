@@ -31,13 +31,13 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Asia Range (20:00–00:00 NY) + three-gate London Judas + AMD classifier fusing range+Judas+SMT — v2.0
 - ✓ Live report §3 (Liquidity Path, SMT Status, Session AMD) with verbatim reasons + Asia/Judas/SMT chart overlays + conviction tiers — v2.0
 - ✓ Vercel per-leg verify: drill 6/6 PASS, visual glance re-verify PASS (human-confirmed) — v2.0
+- ✓ Zero-error TypeScript: LayoutProps fix in `app/layout.tsx`, clean-checkout `tsc --noEmit` green, prod build green, zero runtime change — v2.1
+- ✓ Chart HiDPI/resize polish: library-native autosize with view-lock + fallback gate, overlays/chrome byte-identical, UAT 6/6 — v2.1
+- ✓ Vercel hygiene: drill token deleted 2026-09-09, Standard Protection intentional + documented, drill-preview branch gone, prod 200/200, kept scripts green — v2.1
+- ✓ Honest thin history: thin-tier truth + persistent banner + uniform 0.5 zone/level dimming, 17/17 verified, UAT 2/2, 298/298 tests — v2.1
 
 ### Active
 
-- [ ] v2.1: Fix pre-existing tsc LayoutProps error in `app/layout.tsx` (from 3a3a1cb) — zero tsc errors
-- [ ] v2.1: Chart HiDPI/resize polish — crisp rendering on high-DPI screens, clean redraw on window resize
-- [ ] v2.1: Remove Vercel leftovers — token, Deployment Protection, drill-preview branch remnants
-- [ ] v2.1: Close thinHistory display gap — honest rendering for thin history
 - [ ] v3.0 Execution (Modul 4): WHY NOW trigger, order ticket, fatal flaw — scope after live observation
 - [ ] Pain Threshold map (§1 BSL/SSL projection) — gap closure candidate for v3.0 scoping
 
@@ -53,6 +53,7 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 
 Shipped v1.0 Live Terminal (2026-09-06): 5 phases, 16 plans, 152 commits, +26105/−906 across 158 files. 133/133 tests green, lint clean. Live at https://liquidity-engine-nine.vercel.app.
 Shipped v2.0 Modul 3 (2026-09-08): 4 phases, 14 plans, 32 tasks, 32 files +5141/−83. 283/283 tests green, tsc clean. Audit passed after remediation (ICT-11 closure + retroactive 08/09 VERIFICATIONs). Live observation period recommended before v3.0 scoping (Judas confirm rate, SMT rollover behavior, Asia live alignment, 09-07 Mandelbug recurrence watch).
+Shipped v2.1 Cleanup & Polish (2026-09-09): 4 phases, 7 plans, 12 tasks, 61 files +6984/−95, 67 commits over 2 days. 298/298 tests green, tsc clean, all UAT green (1/1 + 6/6 + 6/6 + 2/2). Audit tech_debt with zero gaps (7/7 reqs, 9/9 integration, 3/3 flows); 7 non-blocking debt items carried (dead thinHistory arg, orphaned export/type, Nyquist process notes — see v2.1-MILESTONE-AUDIT.md).
 Tech stack: Next.js 16 App Router, Zustand 5, lightweight-charts v5 (dynamic ssr:false), date-fns-tz, Tailwind v4, shadcn primitives (button, dropdown-menu, dialog, toast, calendar, card).
 Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc LayoutProps error (app/layout.tsx), Vercel token + Deployment Protection + drill-preview branch leftovers, thinHistory display gap.
 - Brownfield origin: Next.js 16.3.4 + React 19 scaffold; home page was stock placeholder, replaced by dashboard in Phase 2.
@@ -96,8 +97,16 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [v2.0] Retroactive 08/09 VERIFICATIONs | Missing artifacts blocked formal audit, substance was green | ✓ Both passed, audit flipped to passed |
 | [v2.0] Live observation before v3.0 | Synthetic fixtures prove mechanics, not methodology | — Pending (2–4 week watch: Judas rate, SMT rollover, Asia alignment, Mandelbug) |
 | [12] Deploy hygiene: public prod + Vercel-login previews (Standard Protection); drill token deleted 2026-09-09; drill-preview branch gone | Intentional post-drill state, dashboard-verified | ✓ Done — DEPL-01/02/03 |
+| [11] Chart autosize via lightweight-charts native autoSize + autoSizeActive fallback gate; view-lock, overlays/chrome byte-identical | No-RO path near-dead but kept as fallback; Nyquist PARTIAL intentional (canvas pixels untestable in node-env, UAT 6/6 covers) | ✓ Good — crisp + resize-clean |
+| [13] Thin-tier truth module + persistent banner stacked thin-first; uniform 0.5 zone/level dimming, markers/Asia/candles full strength | Dead thinHistory arg in zoneBands call + orphaned thinTier export/type noted as minor debt; Asia fallback increases overlay frequency by design | ✓ Good — honest rendering holds |
+| [13] Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a) | Per-candle wall-clock session resolution; fallback makes selectAsia non-null more often, tone stays accent/stale by design | ✓ Good — en passant fix |
 
-## Current Milestone: v2.1 Cleanup & Polish
+## Current State: v2.1 Shipped
+
+**Shipped 2026-09-09.** Terminal is clean: zero tsc errors, crisp resize-clean chart, documented Vercel hygiene, honest thin-history rendering. Next: live observation continues (2–4 weeks of daily §3-vs-market notes), then `/gsd-new-milestone` for v3.0 Execution with facts, not assumptions.
+
+<details>
+<summary>Previous milestone: v2.1 Cleanup & Polish (goal + targets, archived)</summary>
 
 **Goal:** Pay down the four known-debt items left over from v1.0/v2.0 so the terminal is clean before v3.0 scoping.
 
@@ -107,9 +116,9 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 - Vercel leftovers removal — token, Deployment Protection, drill-preview branch remnants
 - thinHistory display gap closure — honest rendering for thin history
 
-## Current State: v2.0 Shipped
+Full detail: `.planning/milestones/v2.1-ROADMAP.md`
 
-**Shipped 2026-09-08.** Next: live observation (2–4 weeks of daily §3-vs-market notes), then `/gsd-new-milestone` for v3.0 Execution with facts, not assumptions.
+</details>
 
 <details>
 <summary>Previous milestone: v2.0 Modul 3 (goal + targets, archived)</summary>
@@ -144,4 +153,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-08 after v2.1 milestone start*
+*Last updated: 2026-09-09 after v2.1 milestone*
