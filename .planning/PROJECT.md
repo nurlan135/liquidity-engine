@@ -8,6 +8,16 @@ A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that r
 
 Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
 
+## Current Milestone: v3.0 Execution (Modul 4)
+
+**Goal:** Terminal oxumaqdan icraya keçir — vaxt+struktur şərti ödənəndə WHY NOW siqnalı, fatal-flaw invalidation, kağız order ticket.
+
+**Target features:**
+- Phase 1: v2.1 audit borcu təmizliyi (dead `thinHistory` arg, yetim export/type, Asia qeydi sənədləşməsi)
+- WHY NOW trigger — zaman+struktur şərti ödənəndə "niyə indi" siqnalı (kalibrlənəbilən threshold)
+- Fatal flaw — setup-u ləğv edən invalidation şərti
+- Order ticket (kağız) — giriş/çıxış səviyyələri, həcm, risk paneli; real broker bağlantısı yoxdur
+
 ## Requirements
 
 ### Validated
@@ -38,8 +48,8 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 
 ### Active
 
-- [ ] v3.0 Execution (Modul 4): WHY NOW trigger, order ticket, fatal flaw — scope after live observation
-- [ ] Pain Threshold map (§1 BSL/SSL projection) — gap closure candidate for v3.0 scoping
+- [ ] v3.0 Execution (Modul 4): WHY NOW trigger + fatal flaw + paper order ticket — live observation continues, thresholds calibratable
+- [ ] Pain Threshold map (§1 BSL/SSL projection) — deferred to v3.1, independent of execution chain
 
 ### Out of Scope
 
@@ -153,4 +163,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-09 after v2.1 milestone*
+*Last updated: 2026-09-09 after v3.0 milestone start*
