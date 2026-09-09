@@ -29,7 +29,11 @@
   1. Terminal renders identically after the dead `thinHistory` arg is removed (dimming still flows via opacityScale)
   2. Thin-tier API has no orphaned public surface — `thinTier` export and `ThinBannerEntry` type are unexported or documented, and no external import breaks
   3. A purity guard (test or lint) fails on `Date.now` or store imports inside `src/lib/ict` and passes green on existing code
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 14-01-PLAN.md — Narrow zoneBands signature, trim nq-chart call, shrink test literals (DEBT-01)
+- [ ] 14-02-PLAN.md — Unexport thinTier/ThinBannerEntry, migrate test pins to resolveThinTier (DEBT-02)
+- [ ] 14-03-PLAN.md — Co-located ict purity guard plus Asia fallback doc note (DEBT-03)
 
 ### Phase 15: WHY NOW Trigger Engine
 **Goal**: Users get an honest "why now" verdict — FIRE only when killzone timing, confirmed purge, and displacement all agree
