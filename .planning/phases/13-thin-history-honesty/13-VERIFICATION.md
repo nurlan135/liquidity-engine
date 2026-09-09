@@ -15,7 +15,7 @@ covered_files:
   - components/charts/zone-primitive.ts
   - components/charts/nq-chart.tsx
   - components/dashboard/terminal-shell.tsx
-covered_digest: "unavailable — no gsd-tools binary in this environment; file list above is authoritative"
+covered_digest: "v1:sha256:6e8213808569ff14edf98d6489d32ab39d29f8d854504e7351f55f99f1be3de7"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
