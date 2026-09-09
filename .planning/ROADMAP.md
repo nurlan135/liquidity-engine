@@ -70,7 +70,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 12-03-PLAN.md — Live-URL re-proof plus one-row PROJECT.md intentional-state record
+- [x] 12-03-PLAN.md — Live-URL re-proof plus one-row PROJECT.md intentional-state record
 
 ### Phase 13: Thin History Honesty
 

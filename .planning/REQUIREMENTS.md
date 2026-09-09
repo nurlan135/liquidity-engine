@@ -18,9 +18,9 @@ Requirements for v2.1 milestone. Each maps to roadmap phases.
 
 ### Deployment Hygiene
 
-- [ ] **DEPL-01**: Stale Vercel token removed — no unused/exposed token remains in env or config
-- [ ] **DEPL-02**: Deployment Protection leftovers resolved — protection state is intentional and documented
-- [ ] **DEPL-03**: drill-preview branch remnants removed — no dead branches, flags, or references to the drill preview
+- [x] **DEPL-01**: Stale Vercel token removed — no unused/exposed token remains in env or config
+- [x] **DEPL-02**: Deployment Protection leftovers resolved — protection state is intentional and documented
+- [x] **DEPL-03**: drill-preview branch remnants removed — no dead branches, flags, or references to the drill preview
 
 ### History Display
 
@@ -60,9 +60,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TYPE-01 | Phase 10 | Complete |
 | CHRT-01 | Phase 11 | Pending |
 | CHRT-02 | Phase 11 | Pending |
-| DEPL-01 | Phase 12 | Pending |
-| DEPL-02 | Phase 12 | Pending |
-| DEPL-03 | Phase 12 | Pending |
+| DEPL-01 | Phase 12 | Complete |
+| DEPL-02 | Phase 12 | Complete |
+| DEPL-03 | Phase 12 | Complete |
 | HIST-01 | Phase 13 | Pending |
 
 **Coverage:**

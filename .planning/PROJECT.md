@@ -95,6 +95,7 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [v2.0] ICT-11 closure: selectRange4H + §2 4H line | aggregate1Hto4H had zero callers; §2 title already promised D1/4H | ✓ 283/283, wired end-to-end |
 | [v2.0] Retroactive 08/09 VERIFICATIONs | Missing artifacts blocked formal audit, substance was green | ✓ Both passed, audit flipped to passed |
 | [v2.0] Live observation before v3.0 | Synthetic fixtures prove mechanics, not methodology | — Pending (2–4 week watch: Judas rate, SMT rollover, Asia alignment, Mandelbug) |
+| [12] Deploy hygiene: public prod + Vercel-login previews (Standard Protection); drill token deleted 2026-09-09; drill-preview branch gone | Intentional post-drill state, dashboard-verified | ✓ Done — DEPL-01/02/03 |
 
 ## Current Milestone: v2.1 Cleanup & Polish
 
