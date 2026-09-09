@@ -5,6 +5,7 @@ import type { LevelsOutput } from '@/src/lib/ict/levels';
 import type { JudasOutput } from '@/src/lib/ict/judas';
 import type { SmtOutput } from '@/src/lib/ict/smt';
 import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
+import type { ThinTier } from '@/src/lib/thin-tier';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
 
@@ -31,6 +32,7 @@ export interface NqChartProps {
   smt?: SmtOutput | null;
   smtBarDate?: string | null;
   overlayStale?: boolean;
+  thinTier?: ThinTier;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).
@@ -103,7 +105,7 @@ function buildOverlayMarkers(
   return markers;
 }
 
-export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false }: NqChartProps) {
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full' }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -121,11 +123,11 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   // Phase 9 series-markers plugin handle (v5 createSeriesMarkers form only).
   const markersPluginRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
-  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale });
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier });
   // Sync the latest props outside render so the zone-fill getter reads live
   // values without violating the react-hooks/refs render-phase rule.
   useEffect(() => {
-    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale };
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier };
   });
 
   // Create the chart once per container; lightweight-charts loads lazily so
@@ -283,7 +285,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
               eq: latest.eq,
               window: 0,
               asOf: '',
-              thinHistory: false,
+              thinHistory: latest.thinTier === 'range-thin',
             });
           } catch {
             return null;
@@ -458,7 +460,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       zoneRef.current.opacityScale = status === 'stale' ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
-  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale]);
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier]);
 
   const latest = candles.length > 0 ? candles[candles.length - 1] : null;
   const hasAsiaLines = asiaHigh !== null && asiaHigh !== undefined && asiaLow !== null && asiaLow !== undefined;
@@ -479,6 +481,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       <div
         ref={containerRef}
         data-slot="nq-chart"
+        data-thin-tier={thinTier}
         className="min-h-[400px] w-full"
         style={{
           // Terminal palette tokens; canvas colors resolve the same variables
