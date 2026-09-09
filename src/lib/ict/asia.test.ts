@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fromZonedTime } from 'date-fns-tz';
-import { asiaRange, ASIA_END_NY_HOUR, ASIA_START_NY_HOUR } from '@/src/lib/ict/asia';
+import { asiaRange, ASIA_END_NY_MINUTE, ASIA_START_NY_HOUR } from '@/src/lib/ict/asia';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
 import { toBakuYMD } from '@/src/lib/time';
 import type { IntradayCandle } from '@/src/lib/ict/types';
@@ -27,6 +27,16 @@ function nyHourEpoch(nyDate: string, nyHour: number): number {
   return Math.floor(fromZonedTime(`${nyDate} ${String(nyHour).padStart(2, '0')}:00:00`, NY_TZ).getTime() / 1000);
 }
 
+// Epoch seconds of a NY wall-clock minute on a given NY calendar date.
+function nyMinuteEpoch(nyDate: string, nyHour: number, nyMinute: number): number {
+  return Math.floor(
+    fromZonedTime(
+      `${nyDate} ${String(nyHour).padStart(2, '0')}:${String(nyMinute).padStart(2, '0')}:00`,
+      NY_TZ,
+    ).getTime() / 1000,
+  );
+}
+
 // Consecutive closed 1H rows starting at a NY wall-clock hour.
 function block(nyDate: string, startHour: number, count: number, price = BASE): IntradayCandle[] {
   const rows: IntradayCandle[] = [];
@@ -38,13 +48,14 @@ function block(nyDate: string, startHour: number, count: number, price = BASE): 
   return rows;
 }
 
-// Five-candle 20:00-00:00 window dates to the 20:00 NY open date.
+// Five-candle 20:00-00:00 input dates to the 20:00 NY open date; only the
+// 20/21/22/23 rows sit inside the 20:00-23:45 killzone window.
 const SESSION = '2026-06-15';
 
 describe('asia: clean five-candle window', () => {
-  it('resolves exact wick-to-wick high, low, and height on 20:00-00:00 rows', () => {
+  it('resolves exact wick-to-wick high, low, and height on 20:00-23:00 rows', () => {
     // block(SESSION, 20, 5) emits 20/21/22/23 plus a 00:00 row carrying the
-    // next NY calendar date — correctly excluded by the 00:00-exclusive edge.
+    // next NY calendar date — correctly excluded by the date equality.
     // In-window prices: 20000..20006; highs price+8, lows price-6.
     const rows = block(SESSION, 20, 5);
     const range = asiaRange(rows, SESSION);
@@ -54,12 +65,26 @@ describe('asia: clean five-candle window', () => {
     expect(range!.height).toBe(20);
     expect(range!.sessionDate).toBe(SESSION);
   });
+
+  it('excludes rows after the 23:45 killzone close on the same NY date', () => {
+    // A 23:45 row is in-window; a 23:46 row on the same date is out.
+    const inEdge = row(nyMinuteEpoch(SESSION, 23, 45), BASE);
+    const outEdge = row(nyMinuteEpoch(SESSION, 23, 46), BASE + 400, {
+      high: BASE + 900,
+      low: BASE - 900,
+    });
+    const rows = block(SESSION, 20, 4);
+    expect(asiaRange([...rows, inEdge], SESSION)).not.toBeNull();
+    expect(asiaRange([...rows, inEdge, outEdge], SESSION)).toEqual(
+      asiaRange([...rows, inEdge], SESSION),
+    );
+  });
 });
 
 describe('asia: constant pins', () => {
-  it('pins ASIA_START_NY_HOUR to 20 and ASIA_END_NY_HOUR to 24', () => {
+  it('pins ASIA_START_NY_HOUR to 20 and ASIA_END_NY_MINUTE to 23:45', () => {
     expect(ASIA_START_NY_HOUR).toBe(20);
-    expect(ASIA_END_NY_HOUR).toBe(24);
+    expect(ASIA_END_NY_MINUTE).toBe(23 * 60 + 45);
   });
 
   it('reuses NY_TZ America/New_York from the aggregate module', () => {
@@ -118,7 +143,7 @@ describe('asia: forming exclusion', () => {
 
 describe('asia: empty window', () => {
   it('returns null on input with no in-window rows instead of throwing', () => {
-    // Rows exist but land outside 20:00-00:00 (afternoon session).
+    // Rows exist but land outside 20:00-23:45 (afternoon session).
     const outside = block(SESSION, 14, 4);
     expect(asiaRange(outside, SESSION)).toBeNull();
     expect(asiaRange([], SESSION)).toBeNull();

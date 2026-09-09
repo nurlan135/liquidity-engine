@@ -4,7 +4,7 @@ import { closedOnlyIntraday } from '@/src/lib/ict/types';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
 
 // ICT-12 (D-01/D-02/D-03/D-04): Asia Range from 1H NQ closed candles on the
-// 20:00-00:00 NY wall-clock window (IANA per-candle resolution), wick-to-wick
+// 20:00-23:45 NY wall-clock killzone window (IANA per-candle resolution), wick-to-wick
 // extremes, gaps skipped without interpolation. Session membership is per-candle
 // NY wall-clock minutes — never a fixed UTC offset, never the Chicago display
 // clock. Pure: caller-supplied rows plus a sessionDate string only — no clock
@@ -12,8 +12,8 @@ import { NY_TZ } from '@/src/lib/ict/aggregate';
 
 /** Asia session start in NY wall-clock hours, inclusive (D-01). */
 export const ASIA_START_NY_HOUR = 20;
-/** Asia session end in NY wall-clock hours, exclusive (D-01/D-03). */
-export const ASIA_END_NY_HOUR = 24;
+/** Asia killzone end in NY wall-clock minutes since midnight, inclusive: 23:45. */
+export const ASIA_END_NY_MINUTE = 23 * 60 + 45;
 
 export interface AsiaRange {
   high: number;
@@ -61,10 +61,10 @@ function nyDateOf(timeSec: number): string {
 }
 
 // The Asia Range for one 20:00 NY open date: rows whose NY calendar date equals
-// sessionDate with wall-clock minutes at/after 20:00 (1200) and strictly before
-// 00:00 (1440). The end edge is vacuous for same-date rows but pins D-03
-// explicitly: post-midnight rows carry the next NY calendar date, so the date
-// equality alone excludes the 00:00-02:00 wicks from the range.
+// sessionDate with wall-clock minutes at/after 20:00 (1200) and at/before
+// 23:45 (1425) — the ICT Asia killzone close. Post-midnight rows carry the
+// next NY calendar date, so the date equality alone excludes the 00:00-02:00
+// wicks from the range.
 // WR-02: sessionDate is a contract input, not a filter value. An
 // undefined/null/malformed date must throw at the boundary instead of
 // falling through to an honest-looking null (empty window).
@@ -114,7 +114,7 @@ export function asiaRange(rows: IntradayCandle[], sessionDate: string): AsiaRang
     (r) =>
       nyDateOf(r.time) === sessionDate &&
       nyMinutesOf(r.time) >= ASIA_START_NY_HOUR * 60 &&
-      nyMinutesOf(r.time) < ASIA_END_NY_HOUR * 60,
+      nyMinutesOf(r.time) <= ASIA_END_NY_MINUTE,
   );
 
   // Honest degrade: an empty window returns null instead of throwing.

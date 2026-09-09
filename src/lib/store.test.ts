@@ -881,6 +881,40 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  it('asia-fallback: empty newest session falls back to the last completed Asia window', async () => {
+    const { useDashboard } = await resetDualState();
+    // Yesterday's completed 20:00-23:00 + today's morning rows (no 20:00 yet).
+    // fromZonedTime interprets wall time in NY_TZ (asia.test.ts precedent).
+    const { fromZonedTime } = await import('date-fns-tz');
+    const epoch = (s: string) => Math.floor(fromZonedTime(s, 'America/New_York').getTime() / 1000);
+    const mk = (time: number, i: number) => ({
+      time,
+      open: 20000 + i * 10,
+      high: 20000 + i * 10 + 15,
+      low: 20000 + i * 10 - 12,
+      close: 20000 + i * 10 + 5,
+    });
+    const h1 = [
+      mk(epoch('2026-02-08 20:00:00'), 0),
+      mk(epoch('2026-02-08 21:00:00'), 1),
+      mk(epoch('2026-02-08 22:00:00'), 2),
+      mk(epoch('2026-02-08 23:00:00'), 3),
+      mk(epoch('2026-02-09 06:00:00'), 4),
+      mk(epoch('2026-02-09 07:00:00'), 5),
+    ];
+    const h1Env = mockIntradayEnvelope(h1, 'NQ=F · 1H');
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(h1Env)));
+    await useDashboard.getState().refreshNQ1H();
+
+    const asia = useDashboard.getState().selectAsia();
+    expect(asia).not.toBeNull();
+    expect(asia!.sessionDate).toBe('2026-02-08');
+    expect(asia!.high).toBe(20000 + 3 * 10 + 15);
+    expect(asia!.low).toBe(20000 - 12);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('empty-refusal: empty legs force nulls without throwing', async () => {
     const { useDashboard } = await resetDualState();
 

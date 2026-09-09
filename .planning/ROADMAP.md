@@ -88,11 +88,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 13-01-PLAN.md — Tier truth plus persistent banner threaded into the chart
+- [x] 13-01-PLAN.md — Tier truth plus persistent banner threaded into the chart
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 13-02-PLAN.md — Zone snapshot fix plus uniform provisional dimming
+- [x] 13-02-PLAN.md — Zone snapshot fix plus uniform provisional dimming
 
 ## Progress
 

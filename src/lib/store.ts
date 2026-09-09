@@ -709,9 +709,23 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const closed = closedOnlyIntraday(nq1h.candles);
     if (closed.length === 0) return null;
     try {
-      const latest = [...closed].sort((a, b) => a.time - b.time)[closed.length - 1];
-      const sessionDate = formatInTimeZone(latest.time * 1000, NY_TZ, 'yyyy-MM-dd');
-      return asiaRange(nq1h.candles, sessionDate);
+      const sorted = [...closed].sort((a, b) => a.time - b.time);
+      // Candidate session dates, newest first: the latest candle's NY date,
+      // then the distinct earlier NY dates in the data (bounded walk — at
+      // most 8 back so a sparse leg cannot scan unbounded history). The
+      // newest date's Asia window is often still empty in the morning (the
+      // 20:00 open is hours away), so fall back to the most recent completed
+      // session instead of returning null.
+      const dates: string[] = [];
+      for (let i = sorted.length - 1; i >= 0 && dates.length < 8; i--) {
+        const d = formatInTimeZone(sorted[i].time * 1000, NY_TZ, 'yyyy-MM-dd');
+        if (dates[dates.length - 1] !== d) dates.push(d);
+      }
+      for (const sessionDate of dates) {
+        const range = asiaRange(nq1h.candles, sessionDate);
+        if (range !== null) return range;
+      }
+      return null;
     } catch {
       return null;
     }
