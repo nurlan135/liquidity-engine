@@ -1,20 +1,20 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: 1.0
 milestone: v2.1
+milestone_name: Cleanup & Polish
 current_phase: 12
 current_phase_name: Deployment Hygiene
 status: executing
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-09-09T06:39:04.025Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-09-09T06:48:01.835Z"
 last_activity: 2026-09-09
 last_activity_desc: Phase 12 execution resumed (wave continue)
-state_head: 6cfbe16b94d25071447eee0a9765c0d406657672
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 2
-milestone_name: Cleanup & Polish
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-09-08 after v2.1 milestone start)
 ## Current Position
 
 Phase: 12 (Deployment Hygiene) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 12
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-09-09 — Phase 12 execution resumed (wave continue)
 
 ## Performance Metrics
@@ -68,6 +68,7 @@ Last activity: 2026-09-09 — Phase 12 execution resumed (wave continue)
 |------|----------|-------|-------|
 | Phase 06 P03 | ~9 min | 2 tasks | 3 files |
 | Phase 06-dual-symbol-proxy-data-contracts P04 | ~60 min | 3 tasks | 5 files |
+| Phase 12 P01 | 12min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,7 @@ Recent decisions affecting current work:
 - [Phase 06]: [06-03] Join re-validates at its own boundary (forming + non-finite OHLC dropped pre-join) rather than trusting parser flags
 - [Phase 06]: [06-04] ES :30 stagger uses ((60 - sec) % 60) + 30 phase form to avoid the :30 zero-trap
 - [Phase 06]: [06-04] Stagger offsets recorded in zustand state (lastSchedule), never a module-level probe cell
+- [Phase ?]: 12-01: token pickaxe hits classified as expected-history planning-doc mentions (scoped non-planning re-scan empty, no token values)
 
 ### Pending Todos
 
@@ -110,9 +112,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-09T05:33:56.005Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-deployment-hygiene/12-UI-SPEC.md
+Last session: 2026-09-09T06:48:01.820Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

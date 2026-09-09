@@ -65,7 +65,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — Agent-run repo-clean proof: worktree, history, branches, prod baseline
+- [x] 12-01-PLAN.md — Agent-run repo-clean proof: worktree, history, branches, prod baseline
 - [ ] 12-02-PLAN.md — User dashboard checkpoints: token deletion plus protection switch and readback
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -91,7 +91,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 10. Type Safety Fix | 1/1 | Complete    | 2026-09-08 |
 | 11. Chart Rendering Polish | 1/1 | Verified (UAT 6/6) | 2026-09-08 |
-| 12. Deployment Hygiene | 0/0 | Not started | - |
+| 12. Deployment Hygiene | 1/3 | In Progress|  |
 | 13. Thin History Honesty | 0/0 | Not started | - |
 
 <details>
