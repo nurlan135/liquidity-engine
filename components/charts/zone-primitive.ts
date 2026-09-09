@@ -28,6 +28,11 @@ function readVar(name: string, fallback: string): string {
 
 export type ZoneBandsGetter = () => ZoneBands | null;
 
+// Live scale read: the renderer calls this getter on every draw so mutating
+// ZoneFillPrimitive.opacityScale after attach changes the applied alpha.
+// A plain number snapshot here would freeze the first value (Pitfall 1).
+export type ZoneOpacityScaleGetter = () => number;
+
 interface SeriesLike {
   priceToCoordinate(price: number): Coordinate | null;
 }
@@ -35,12 +40,12 @@ interface SeriesLike {
 class ZoneFillRenderer implements IPrimitivePaneRenderer {
   private readonly series: SeriesLike;
   private readonly getBands: ZoneBandsGetter;
-  private readonly opacityScale: number;
+  private readonly getOpacityScale: ZoneOpacityScaleGetter;
 
-  constructor(series: SeriesLike, getBands: ZoneBandsGetter, opacityScale: number) {
+  constructor(series: SeriesLike, getBands: ZoneBandsGetter, getOpacityScale: ZoneOpacityScaleGetter) {
     this.series = series;
     this.getBands = getBands;
-    this.opacityScale = opacityScale;
+    this.getOpacityScale = getOpacityScale;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -54,7 +59,7 @@ class ZoneFillRenderer implements IPrimitivePaneRenderer {
     if (premiumTop === null || premiumBottom === null || discountTop === null || discountBottom === null) {
       return;
     }
-    const opacityScale = this.opacityScale;
+    const opacityScale = this.getOpacityScale();
     target.useBitmapCoordinateSpace((scope) => {
       const width = scope.mediaSize.width;
       const ctx = scope.context;
@@ -74,8 +79,8 @@ class ZoneFillRenderer implements IPrimitivePaneRenderer {
 class ZoneFillView implements IPrimitivePaneView {
   private readonly rendererInstance: ZoneFillRenderer;
 
-  constructor(series: SeriesLike, getBands: ZoneBandsGetter, opacityScale: number) {
-    this.rendererInstance = new ZoneFillRenderer(series, getBands, opacityScale);
+  constructor(series: SeriesLike, getBands: ZoneBandsGetter, getOpacityScale: ZoneOpacityScaleGetter) {
+    this.rendererInstance = new ZoneFillRenderer(series, getBands, getOpacityScale);
   }
 
   renderer(): IPrimitivePaneRenderer {
@@ -104,7 +109,7 @@ export class ZoneFillPrimitive implements ISeriesPrimitive<Time> {
     this.chart = param.chart;
     this.requestUpdate = param.requestUpdate;
     this.views.length = 0;
-    this.views.push(new ZoneFillView(param.series, this.getBands, this.opacityScale));
+    this.views.push(new ZoneFillView(param.series, this.getBands, () => this.opacityScale));
   }
 
   detached(): void {
