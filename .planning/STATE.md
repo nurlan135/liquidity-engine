@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Execution (Modul 4)
 status: planning
-last_updated: "2026-09-09T11:58:30.407Z"
+last_updated: "2026-09-09T00:00:00.000Z"
 last_activity: 2026-09-09
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,55 +17,41 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-09 after v2.1 milestone)
+See: .planning/PROJECT.md (updated 2026-09-09 after v3.0 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Planning next milestone (v2.1 shipped 2026-09-09; live observation continues before v3.0 scoping)
+**Current focus:** v3.0 Execution (Modul 4) — roadmap created (Phases 14–18), awaiting approval; WHY NOW trigger + fatal flaw + paper ticket
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 14 (Audit Debt Cleanup + Purity Guard) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-09-09 — Milestone v3.0 started
+Status: Roadmap created, awaiting approval
+Last activity: 2026-09-09 — v3.0 roadmap created (Phases 14–18)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 27 (v1.0 carryover)
-- Average duration: ~25 min
-- Total execution time: ~0.4 hours
+- Total plans completed: 0 (v3.0); 37 cumulative across v1.0/v2.0/v2.1
+- Average duration: ~25 min (historical)
+- Total execution time: —
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 1 | ~25 min | ~25 min |
-| 02 | 4 | - | - |
-| 03 | 4 | - | - |
-| 03.2 | 4 | - | - |
-| 06 | 5 | - | - |
-| 07 | 3 | - | - |
-| 08 | 3 | - | - |
-| 10 | 1 | - | - |
-| 13 | 2 | - | - |
+| 14 | 0 | - | - |
+| 15 | 0 | - | - |
+| 16 | 0 | - | - |
+| 17 | 0 | - | - |
+| 18 | 0 | - | - |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (~25 min, 3 tasks, 4 commits)
-- Trend: on pace
+- v3.0 not started — no trend yet
 
 *Updated after each plan completion*
-| Phase 06 P01 | ~25 min | 3 tasks | 7 files |
-| Phase 06 P02 | ~20 min | 2 tasks | 3 files |
-**Per-Plan Metrics:**
-
-| Plan | Duration | Tasks | Files |
-|------|----------|-------|-------|
-| Phase 06 P03 | ~9 min | 2 tasks | 3 files |
-| Phase 06-dual-symbol-proxy-data-contracts P04 | ~60 min | 3 tasks | 5 files |
-| Phase 12 P01 | 12min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -74,20 +60,14 @@ Last activity: 2026-09-09 — Milestone v3.0 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap 2026-09-06]: v2.0 continues numbering at Phase 6 (v1.0 ended at Phase 5 counting 03.1/03.2 insertions); 4 phases from research order: proxy+contracts → SMT+sequencing math → AMD sessions → composition
-- [Roadmap 2026-09-06]: Phases 7 and 8 both depend only on Phase 6 (may interleave); Phase 9 needs both — SMT math and AMD sessions are independent after data contracts land
-- [Roadmap 2026-09-08]: v2.1 continues numbering at Phase 10 (v2.0 ended at Phase 9); 4 small phases from cleanup debt: tsc fix → chart polish → deploy hygiene → thin history (Phase 13 depends on 11, shares chart area)
-- [Phase 03.2]: Retroactive 01 gate passed 10/10 — ICT-01 claim recorded, all 8 audit partials resolved; pre-existing tsc LayoutProps error (3a3a1cb) left as noted residual
-- [Phase 08]: Asia window 20:00 NY inclusive / 00:00 exclusive via per-candle formatInTimeZone wall-clock; NY_TZ imported from aggregate module, never redefined (D-01/D-07)
+- [Roadmap 2026-09-09]: v3.0 continues numbering at Phase 14 (v2.1 ended at Phase 13); 5 phases from research order: debt cleanup + purity guard → WHY NOW trigger → fatal-flaw invalidation → paper ticket + §§4–6 UI + chart pins → verification + calibration harness
+- [Roadmap 2026-09-09]: Strictly sequential phases — trigger before flaw (flaw-wins ordering needs the real trigger snapshot), flaw before ticket (SL is an input to R/R, R/R gates EXECUTE), verification last (fire-rate/kill-rate/parity are population properties)
+- [Roadmap 2026-09-09]: Phase 17 carries `UI hint: yes` (§§4–6 panels + PAPER chrome + chart pins) — `/gsd-ui-phase` applies at plan time
+- [Research 2026-09-09]: WHY NOW thresholds ship as named `CALIBRATION-PROVISIONAL` constants + firing log in the same phase as the trigger; pre-agreed acceptance band 1–4 fires/week; 15M-close-gated execution, no 5M leg
+- [Research 2026-09-09]: Ticket math lives in `src/lib/ticket.ts` outside `ict/` (brokerage math, not ICT methodology — same precedent as `confluence.ts`); paper-only is an anti-feature gate (no broker identifiers, banned-word test)
+- [Phase 13]: Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a); dead `thinHistory` arg + orphaned `thinTier` export/type carried as v3.0 Phase 14 debt
 - [Phase 08]: London Judas three-gate conjunction with strict killzone inequality, Asia-height displacement denominator, first-sweep-wins; budget ≤25% confirmed pinned by seeded 60-session run
 - [Phase 08]: amdPhase gate order — clock skeleton, Judas promotion, SMT read-only tag, NY branch last; confirmed-with-unusable-sweepTime holds manipulation, never guesses distribution
-- [Phase ?]: 06-01: RANGE_FOR_INTERVAL pinned from live probe (1d 182d window, 1h 3mo, 15m 1mo); ES=F 1h 1800 rows, 15m 2419 rows, no truncation
-- [Phase ?]: 06-01: fetchSymbol parameterized proxy with composite cache keys and per-key singleflight; NQ default byte-identical via delegation
-- [Phase ?]: [06-02] Intraday path is a separate parse/fetch/cache lane, not a branch inside daily functions — D1 stays byte-identical
-- [Phase 06]: [06-03] Join re-validates at its own boundary (forming + non-finite OHLC dropped pre-join) rather than trusting parser flags
-- [Phase 06]: [06-04] ES :30 stagger uses ((60 - sec) % 60) + 30 phase form to avoid the :30 zero-trap
-- [Phase 06]: [06-04] Stagger offsets recorded in zustand state (lastSchedule), never a module-level probe cell
-- [Phase ?]: 12-01: token pickaxe hits classified as expected-history planning-doc mentions (scoped non-planning re-scan empty, no token values)
 
 ### Pending Todos
 
@@ -95,9 +75,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- v2.1 is a cleanup milestone — no new ICT math, no v3.0 Execution scope (live observation 2–4 weeks still running)
-- Phase 12 (Deployment Hygiene) may touch Vercel dashboard settings outside the repo — document anything that cannot be verified in code
-- Phase 13 (thinHistory) shares the chart component with Phase 11 — ordered after 11 to avoid merge friction
+- WHY NOW thresholds are uncalibrated (live observation deferred in v2.0) — mitigated by provisional-constant convention + firing log + 1–4/week band, not by tuning
+- 15M-vs-5M execution granularity + NY-session sweep semantics must be settled in Phase 15 kickoff — recommended 15M-first
+- Phase 16 HARD/SOFT flaw taxonomy is a methodology call with sparse authority — decide fast, measure via population test (Phase 18)
 
 ## Deferred Items
 
@@ -111,10 +91,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-09T08:02:29.722Z
-Stopped at: Phase 13 complete — all phases complete
-Resume file: .planning/phases/13-thin-history-honesty/13-UI-SPEC.md
+Last session: 2026-09-09
+Stopped at: v3.0 roadmap created — Phases 14–18 mapped, awaiting approval
+Resume file: — (no phase work started)
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review and approve the v3.0 roadmap, then start with `/gsd-plan-phase 14`

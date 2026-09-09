@@ -72,28 +72,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEBT-01 | TBD | Pending |
-| DEBT-02 | TBD | Pending |
-| DEBT-03 | TBD | Pending |
-| TRIG-01 | TBD | Pending |
-| TRIG-02 | TBD | Pending |
-| TRIG-03 | TBD | Pending |
-| TRIG-04 | TBD | Pending |
-| FLAW-01 | TBD | Pending |
-| FLAW-02 | TBD | Pending |
-| FLAW-03 | TBD | Pending |
-| TICK-01 | TBD | Pending |
-| TICK-02 | TBD | Pending |
-| TICK-03 | TBD | Pending |
-| TICK-04 | TBD | Pending |
-| VERF-01 | TBD | Pending |
-| VERF-02 | TBD | Pending |
-| VERF-03 | TBD | Pending |
+| DEBT-01 | Phase 14 | Pending |
+| DEBT-02 | Phase 14 | Pending |
+| DEBT-03 | Phase 14 | Pending |
+| TRIG-01 | Phase 15 | Pending |
+| TRIG-02 | Phase 15 | Pending |
+| TRIG-03 | Phase 15 | Pending |
+| TRIG-04 | Phase 15 | Pending |
+| FLAW-01 | Phase 16 | Pending |
+| FLAW-02 | Phase 16 | Pending |
+| FLAW-03 | Phase 16 | Pending |
+| TICK-01 | Phase 17 | Pending |
+| TICK-02 | Phase 17 | Pending |
+| TICK-03 | Phase 17 | Pending |
+| TICK-04 | Phase 17 | Pending |
+| VERF-01 | Phase 18 | Pending |
+| VERF-02 | Phase 18 | Pending |
+| VERF-03 | Phase 18 | Pending |
 
 **Coverage:**
 - v1 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-09-09*
