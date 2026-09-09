@@ -60,7 +60,13 @@ Plans:
   2. Deployment Protection state is intentional and its setting is documented
   3. No drill-preview branch, flag, or reference remains in repo, config, or dashboard
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 12-01-PLAN.md — Agent-run repo-clean proof: worktree, history, branches, prod baseline
+- [ ] 12-02-PLAN.md — User dashboard checkpoints: token deletion plus protection switch and readback
+- [ ] 12-03-PLAN.md — Live-URL re-proof plus one-row PROJECT.md intentional-state record
 
 ### Phase 13: Thin History Honesty
 
