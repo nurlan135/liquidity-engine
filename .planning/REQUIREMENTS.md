@@ -24,7 +24,7 @@ Requirements for v2.1 milestone. Each maps to roadmap phases.
 
 ### History Display
 
-- [ ] **HIST-01**: Thin history renders honestly — indicator or fallback shown when history is too thin for full chart, no silent empty/misleading display
+- [x] **HIST-01**: Thin history renders honestly — indicator or fallback shown when history is too thin for full chart, no silent empty/misleading display
 
 ## v2 Requirements
 
@@ -63,7 +63,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPL-01 | Phase 12 | Complete |
 | DEPL-02 | Phase 12 | Complete |
 | DEPL-03 | Phase 12 | Complete |
-| HIST-01 | Phase 13 | Pending |
+| HIST-01 | Phase 13 | Complete |
 
 **Coverage:**
 

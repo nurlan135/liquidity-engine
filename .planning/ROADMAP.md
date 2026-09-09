@@ -11,7 +11,7 @@
 - [x] **Phase 10: Type Safety Fix** - Zero tsc errors via LayoutProps fix (completed 2026-09-08)
 - [x] **Phase 11: Chart Rendering Polish** - Crisp HiDPI chart with clean resize (completed 2026-09-08)
 - [x] **Phase 12: Deployment Hygiene** - Vercel leftovers removed and documented (completed 2026-09-09)
-- [ ] **Phase 13: Thin History Honesty** - Honest rendering for thin history
+- [x] **Phase 13: Thin History Honesty** - Honest rendering for thin history (completed 2026-09-09)
 
 ## Phase Details
 
@@ -101,7 +101,7 @@ Plans:
 | 10. Type Safety Fix | 1/1 | Complete    | 2026-09-08 |
 | 11. Chart Rendering Polish | 1/1 | Verified (UAT 6/6) | 2026-09-08 |
 | 12. Deployment Hygiene | 3/3 | Verified (UAT 6/6) | 2026-09-09 |
-| 13. Thin History Honesty | 0/0 | Not started | - |
+| 13. Thin History Honesty | 2/2 | Complete    | 2026-09-09 |
 
 <details>
 <summary>✅ v1.0 Live Terminal (Phases 1–3 + 03.1, 03.2) — SHIPPED 2026-09-06</summary>
