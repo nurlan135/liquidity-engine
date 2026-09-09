@@ -63,9 +63,13 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 12-01-PLAN.md — Agent-run repo-clean proof: worktree, history, branches, prod baseline
 - [ ] 12-02-PLAN.md — User dashboard checkpoints: token deletion plus protection switch and readback
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 12-03-PLAN.md — Live-URL re-proof plus one-row PROJECT.md intentional-state record
 
 ### Phase 13: Thin History Honesty
