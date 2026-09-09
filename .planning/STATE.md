@@ -2,13 +2,13 @@
 gsd_state_version: "1.0"
 milestone: v2.1
 current_phase: 12
-current_phase_name: deployment-hygiene
-status: ready
+current_phase_name: Deployment Hygiene
+status: executing
 stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-09-09T06:33:37.087Z"
-last_activity: 2026-09-08
-last_activity_desc: Phase 11 UAT complete
-state_head: 3627ca9576e5a073b7064c18168b997d6cde691b
+last_updated: "2026-09-09T06:39:04.025Z"
+last_activity: 2026-09-09
+last_activity_desc: Phase 12 execution resumed (wave continue)
+state_head: 6cfbe16b94d25071447eee0a9765c0d406657672
 progress:
   total_phases: 4
   completed_phases: 0
@@ -24,14 +24,14 @@ milestone_name: Cleanup & Polish
 See: .planning/PROJECT.md (updated 2026-09-08 after v2.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 12 — deployment-hygiene
+**Current focus:** Phase 12 — Deployment Hygiene
 
 ## Current Position
 
-Phase: 12 (deployment-hygiene) — READY TO EXECUTE
-Plan: 0 of 0 (not planned yet)
-Status: Phase 11 verified (UAT 6/6); ready to plan Phase 12
-Last activity: 2026-09-08 — Phase 11 UAT complete
+Phase: 12 (Deployment Hygiene) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 12
+Last activity: 2026-09-09 — Phase 12 execution resumed (wave continue)
 
 ## Performance Metrics
 
