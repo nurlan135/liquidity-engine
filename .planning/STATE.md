@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Cleanup & Polish
-current_phase: 12
-current_phase_name: Deployment Hygiene
-status: executing
-stopped_at: Completed 12-01-PLAN.md
+current_phase: 13
+current_phase_name: Thin History Honesty
+status: ready
+stopped_at: Phase 12 complete (manual close 2026-09-09 — verification passed 8/8, UAT 6/6; auto phase.complete blocked by stale fingerprint, user-approved manual close)
 last_updated: "2026-09-09T06:48:01.835Z"
 last_activity: 2026-09-09
 last_activity_desc: Phase 12 execution resumed (wave continue)
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-08 after v2.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 12 — Deployment Hygiene
+**Current focus:** Phase 13 — Thin History Honesty
 
 ## Current Position
 
-Phase: 12 (Deployment Hygiene) — EXECUTING
-Plan: 2 of 3
+Phase: 13 (Thin History Honesty) — READY
+Plan: 0 of 0
 Status: Ready to execute
-Last activity: 2026-09-09 — Phase 12 execution resumed (wave continue)
+Last activity: 2026-09-09 — Phase 12 manually closed complete (user-approved; stale-fingerprint block bypassed)
 
 ## Performance Metrics
 
