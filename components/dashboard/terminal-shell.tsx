@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { deriveStatus, formatStripAge } from '@/src/lib/freshness';
 import { formatSessionLine } from '@/src/lib/session-line';
 import { useShallow } from 'zustand/react/shallow';
 import { useDashboard } from '@/src/lib/store';
+import { resolveThinTier, thinBannerOrder, thinTierCopy } from '@/src/lib/thin-tier';
 
 // Chart loads only on the client via the use client shell (never page.tsx).
 const NqChart = dynamic(() => import('@/components/charts/nq-chart').then((mod) => mod.NqChart), {
@@ -91,6 +92,43 @@ export function TerminalShell() {
     return () => clearInterval(id);
   }, []);
   const forming = candles.length > 0 && candles[candles.length - 1].forming === true;
+  // Thin-history honesty (Phase 13): tier derives during render from the
+  // range + closed candles; a throw in derivation degrades silently to
+  // no-banner + full-strength chart and never blanks candles.
+  const thinResolution = resolveThinTier(candles, range);
+  const thinTierValue = thinResolution?.tier ?? 'full';
+  const thinClosedCount = thinResolution?.closedCount ?? 0;
+  const showRolloverBanner =
+    rollover !== null && (rollover.rolloverSuspect || rollover.proximityWarning !== null);
+  // D-04 + skeleton guard: 1+ candles with a derived non-full tier and a
+  // resolved envelope; zero candles / skeleton / null range render zero
+  // banner DOM.
+  const showThinBanner =
+    lastUpdatedISO !== null &&
+    candles.length >= 1 &&
+    range !== null &&
+    thinResolution !== null &&
+    thinTierValue !== 'full';
+  const thinBlock = showThinBanner ? (
+    <div
+      data-slot="thin-history-banner"
+      role="status"
+      data-tier={thinTierValue}
+      data-closed-count={thinClosedCount}
+      className="rounded px-3 py-2 font-mono text-[11px] tracking-widest text-muted-foreground"
+    >
+      {thinTierCopy(thinTierValue, thinClosedCount)}
+    </div>
+  ) : null;
+  const rolloverBlock =
+    showRolloverBanner && rollover !== null ? (
+      <div data-slot="rollover-banner" role="status" className="rounded px-3 py-2 font-mono text-[11px] tracking-widest text-muted-foreground">
+        {rollover.rolloverSuspect
+          ? `ROLLOVER SUSPECT · ${rollover.contractHint} — range may span a contract roll; levels held on current extremes.`
+          : `ROLLOVER WATCH · ${rollover.contractHint}`}
+        {rollover.proximityWarning !== null ? <span>{` ${rollover.proximityWarning}`}</span> : null}
+      </div>
+    ) : null;
   // Chart overlay state derives from the same envelope truth as the strip:
   // weekend envelopes keep last closed candles with the closed ribbon.
   let chartStatus: 'live' | 'stale' | 'closed' = stale ? 'stale' : 'live';
@@ -242,14 +280,20 @@ export function TerminalShell() {
               </span>
             </CardHeader>
             <CardContent>
-              {rollover !== null && (rollover.rolloverSuspect || rollover.proximityWarning !== null) ? (
-                <div data-slot="rollover-banner" role="status" className="rounded px-3 py-2 font-mono text-[11px] tracking-widest text-muted-foreground">
-                  {rollover.rolloverSuspect
-                    ? `ROLLOVER SUSPECT · ${rollover.contractHint} — range may span a contract roll; levels held on current extremes.`
-                    : `ROLLOVER WATCH · ${rollover.contractHint}`}
-                  {rollover.proximityWarning !== null ? <span>{` ${rollover.proximityWarning}`}</span> : null}
-                </div>
-              ) : null}
+              {(() => {
+                const order = thinBannerOrder(showThinBanner, showRolloverBanner);
+                const nodes = order.map((entry) =>
+                  entry === 'thin' ? (
+                    <Fragment key="thin">{thinBlock}</Fragment>
+                  ) : (
+                    <Fragment key="rollover">{rolloverBlock}</Fragment>
+                  ),
+                );
+                if (order.length === 2) {
+                  return <div className="flex flex-col gap-2">{nodes}</div>;
+                }
+                return <Fragment>{nodes}</Fragment>;
+              })()}
               {lastUpdatedISO === null ? (
                 <div data-slot="chart-skeleton" className="min-h-[400px] animate-pulse" />
               ) : candles.length === 0 ? (
@@ -278,6 +322,7 @@ export function TerminalShell() {
                   smt={smt}
                   smtBarDate={smtBarDate}
                   overlayStale={overlayStale}
+                  thinTier={thinTierValue}
                 />
               ) : (
                 <div data-slot="chart-empty">
