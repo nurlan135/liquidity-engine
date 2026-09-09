@@ -1,8 +1,8 @@
-# Stack Research: v2.0 Modul 3 (Liquidity Sequencing, SMT, AMD)
+# Stack Research: v3.0 Execution (Modul 4) — WHY NOW Trigger + Fatal Flaw + Paper Order Ticket
 
-**Domain:** ICT liquidity-sequencing extension on existing NQ terminal (second symbol, intraday structure, session logic)
-**Researched:** 2026-09-06
-**Confidence:** MEDIUM
+**Domain:** Execution layer on existing NQ terminal (trigger engine, invalidation, paper ticket UI) — subsequent milestone, brownfield only
+**Researched:** 2026-09-09
+**Confidence:** HIGH
 
 ## Recommended Stack
 
@@ -10,97 +10,102 @@
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Next.js App Router route handler (extended) | 16.3.4 (installed, no change) | Serve ES=F + 1h intraday through the existing Yahoo proxy pattern | Zero new infra: the v1.0 `fetchNQDaily` already owns failover, backoff, singleflight, 60s TTL, serve-stale. Generalizing it to `(symbol, interval)` reuses every proven resilience behavior instead of building a second fetcher that can drift |
-| `src/lib/yahoo.ts` generalized fetcher | no version (own code) | One parameterized fetcher for NQ=F / ES=F × 1d / 1h | Yahoo v8 chart path is identical for futures symbols — only the symbol segment and `interval` param change. A single `fetchCandles(symbol, interval, now)` with allowlisted inputs keeps the symbol-mismatch guard, ordering guard, and validation contract in one place |
-| `src/lib/ict` pure functions (extended) | no version (own code) | 4H/1H internal/external transitions, SMT divergence, Asia Range / Judas Swing detectors | Purity constraint (no I/O, inject time) is what made v1.0 testable; all Modul 3 math is deterministic candle arithmetic, so no library is needed — new modules (`sessions.ts`, `smt.ts`, `internal.ts`, `amd.ts`) follow the existing `range.ts`/`bias.ts` shape |
-| date-fns-tz | ^3.2.0 (installed, no change) | Baku-aware Asia/London/NY session bucketing | `formatInTimeZone(ts, 'America/New_York', 'HH:mm')` buckets any candle into a killzone with DST-correct offsets via Intl; `getTimezoneOffset(tz, date)` gives the per-date offset so March/November DST shifts need no manual tables. The v1.0 March+Novermber DST proof transfers directly |
-| lightweight-charts v5 primitives | ^5.2.1 (installed, no change) | Asia Range background bands + Judas/SMT pins on the chart | v5's `series.attachPrimitive()` session-highlighting pattern (official plugin-examples: `timeToCoordinate` pane view + canvas `fillRect`, `zOrder: 'bottom'`) shades session bands with no new dependency; `createSeriesMarkers()` pins Judas swings and SMT signals. Copy the ~60-line primitive inline — do not depend on a third-party drawing plugin |
-| Zustand slices pattern | ^5.0.15 (installed, no change) | NQ slice + ES slice + derived SMT/AMD selectors in one store | Official slices pattern: one `StateCreator` per symbol domain, spread into a single `create()` store. SMT divergence and §3 report data stay **derived selectors** over both candle arrays (like `selectBias` today), never stored state — so the two symbols cannot desync |
+| `src/lib/ict` pure functions (extended: `trigger.ts`, `invalidation.ts`, `ticket.ts`) | no version (own code) | WHY NOW time+structure condition, fatal-flaw invalidation condition, paper position-size math | Purity constraint (no I/O, inject time) is what made v1.0/v2.0 testable with 298 green tests; trigger evaluation is deterministic candle arithmetic over data the store already holds (Judas confirmed + SMT aligned + AMD phase + dealing-range position). Same shape as `amd.ts`/`confluence.ts` — a fusion function over existing detector outputs, not a new detector. Fatal flaw is the mirror: a disjunction of invalidation predicates (e.g. opposite sweep, SMT flip, range break) returning `{ invalidated, reason }` verbatim for §3 |
+| Zustand derived selectors (`selectTrigger`, `selectFatalFlaw`, ticket slice) | ^5.0.15 (installed, verified in node_modules) | Trigger/flaw evaluation + ticket state as derived selectors over existing legs | v2.0 proved the pattern: `selectAMD`/`selectConfluence` derive from `nq`/`es`/`nq1h`/`nq15m` legs without storing derived state, so trigger can never desync from detectors. Thresholds (calibratable per milestone goal) live as plain store fields with setters — not derived — so UI sliders write them and selectors read them in the same render pass |
+| Calibratable thresholds as store fields + Base UI slider/number-field wrapper | `@base-ui/react` ^1.8.0 (installed; `slider/` and `number-field/` component dirs verified present) | UI control for trigger sensitivity (e.g. agreement-count gate, sweep-confirmation window) | Zero new installs: `@base-ui/react` already ships `slider` and `number-field`. Add one `components/ui/slider.tsx` wrapper following the existing `button.tsx`/`dialog.tsx` pattern (primitive re-export with `data-slot` + Tailwind classes). Thresholds stay numeric in the store with clamped setters; the slider is a thin view over them. This satisfies "kalibrlənəbilən threshold" with no form library |
+| Existing `dialog` + `card` + `button` + `toast` primitives | own wrappers over `@base-ui/react` (installed) | Paper order ticket modal (entry/SL/TP, size, risk panel) + WHY NOW alert toast | Ticket is a read mostly-modal: levels come from `selectLevels()` + trigger output, size is one division (risk $ ÷ stop distance). `dialog.tsx` already exists and is proven; `toast.tsx` is already wired in `app/page.tsx` (`<Toaster>`) and used for poll-failure alerts in `terminal-shell.tsx` (`toast.add(...)`), so the WHY NOW fire path is `toast.add({ title, description })` with zero new plumbing |
+| lightweight-charts v5 `createSeriesMarkers` + `createPriceLine` | ^5.2.1 (installed, verified) | Trigger/fire + fatal-flaw pins on chart; entry/SL/TP price lines on ticket confirm | `nq-chart.tsx` already owns both APIs: the v5 `createSeriesMarkers` import pattern (line ~232) drives Judas/SMT pins, and `createPriceLine` refs drive EQ/DOL/Asia lines. Trigger marker + flaw marker reuse the same markers handle (new shape/color only); ticket levels reuse `createPriceLine` refs. No chart-lib change, no new overlay primitive |
+| Manual `localStorage` helpers (`src/lib/ticket-storage.ts`, own code) | no version (own code) | Persist ticket drafts + threshold calibration across reloads | A 30-line guarded JSON read/write (try/catch parse, schema-version key, client-only access) avoids the zustand `persist` middleware SSR rehydration trap (Next.js 16 App Router renders server-first; `persist` needs `skipHydration` + rehydration dance). Ticket/threshold state is client-ephemeral by nature — manual helpers with lazy `useState` init keep hydration deterministic |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| (none) | — | — | **No new dependencies.** Every Modul 3 capability maps onto an installed package or pure own-code. This is the headline finding: the v1.0 stack already covers the milestone |
+| (none) | — | — | **No new dependencies.** Every v3.0 capability maps onto an installed package or pure own-code. Headline finding, same as v2.0: the existing stack already covers the milestone. The only new *file* (not package) is `components/ui/slider.tsx` composed from the already-installed `@base-ui/react/slider` |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| vitest | ^5.0.0 (installed) | Pin session-boundary DST cases (March + November Sundays), SMT fixture pairs, 4H aggregation from 1h rows — same pure-function test style as `range.test.ts` |
-| Existing Yahoo proxy test harness | own code (`yahoo.test.ts`) | Extend with ES=F symbol-mismatch, `interval=1h` path building, and per-key (`SYMBOL:INTERVAL`) cache isolation cases |
+| vitest | ^5.0.0 (installed) | Pin trigger truth-table (all Judas×SMT×AMD×position combos), fatal-flaw predicate table, ticket math (size = risk ÷ stop-distance, divide-by-zero → refuse), threshold-boundary cases — same pure-function style as `amd.test.ts`/`confluence.test.ts` |
+| Existing store test harness | own code (`store.test.ts`) | Add selector tests: trigger derives from legs (never stored), threshold setter clamps, stale-leg → trigger refuses null with owning-leg `lastError` verbatim (same refuse-with-reason envelope as Phase 9 §3 selectors) |
 
 ## Installation
 
 ```bash
 # No installs required — all capabilities are covered by installed packages:
-# next 16.3.4, zustand ^5.0.15, lightweight-charts ^5.2.1,
-# date-fns ^4.4.0, date-fns-tz ^3.2.0
+# next 16.3.4, react 19.2.8, zustand ^5.0.15, lightweight-charts ^5.2.1,
+# date-fns ^4.4.0, date-fns-tz ^3.2.0, @base-ui/react ^1.8.0
+# (slider + number-field primitives verified present in node_modules/@base-ui/react)
 ```
 
 ## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| Generalize `src/lib/yahoo.ts` with `(symbol, interval)` params | Separate `/api/es` route + separate fetcher module | Never for this milestone — a second fetcher duplicates failover/backoff/stale logic and the two copies will drift. If a third venue (e.g. XAUUSD per spec exception) arrives, revisit |
-| `?symbol=&interval=` query params on existing `/api/yahoo` | New route per symbol/interval | Only if Vercel cache-hit rates suffer from query-string variance — unlikely with `force-dynamic` + 60s `s-maxage` already in place |
-| Aggregate 4H candles from 1h rows in `src/lib/ict` | Fetch `interval=4h` from Yahoo | Yahoo does not offer a 4h interval; 4H structure **must** be folded from 1h rows (6 rows per 4H block on the ET clock). This is pure grouping code, not a stack decision |
-| Inline session-highlighting primitive (~60 lines, copied from official plugin-examples) | `lightweight-charts-drawing` / `line-tools-core` third-party plugin | Only if interactive drawing (drag/resize) is later required — Modul 3 needs static bands + markers, and third-party drawing deps add API-surface risk on a Hobby budget |
-| ET (`America/New_York`) as session-definition clock | Chicago (`America/Chicago`, existing `CME_TZ`) as session clock | Keep canonical ICT killzones in ET (Asia 20:00–00:00, London 02:00–05:00, NY 07:00–10:00 ET) and convert display to Baku; use Chicago only for the existing header clock. Mixing definition clocks is the classic off-by-one source |
+| Trigger as pure fusion over existing detector outputs (`trigger.ts` reads Judas/SMT/AMD/position) | New independent detector re-reading candles | Never for v3.0 — re-reading candles duplicates swing/session logic and the two copies will disagree. The trigger answers "WHY NOW" by fusing answers the terminal already computed; disagreement between trigger and §3 prose would destroy institutional credibility |
+| Thresholds as plain numeric store fields + slider view | URL search-params for thresholds | Only if shareable calibrated setups become a requirement (link-sharing a threshold config). For v3.0, store + localStorage is simpler and survives reload; URL params add parse/validate surface for zero milestone payoff |
+| Manual localStorage helpers | zustand `persist` middleware | Only if ticket state grows into a multi-slice domain needing cross-tab sync or versioned migrations. `persist` is built into zustand v5 (no new dep) but buys SSR rehydration complexity; a guarded 30-line helper is the smaller blast radius |
+| Uncontrolled/controlled inputs with one division for size | `react-hook-form` + `zod` for the ticket form | Never for a paper ticket with ~3 numeric fields — RHF+zod add two dependencies and a schema layer to validate what is essentially `risk ÷ distance`. Clamp + refuse-null on invalid input matches the codebase's existing honest-degrade contract |
+| `toast.add()` for WHY NOW fire alert | Browser Notification API / push service | Only if background alerts (tab closed) become a requirement — that needs a service worker + permission flow + (for mobile) a push service, all out of zero-budget scope. In-terminal toast is the honest scope: the terminal is an observation instrument, not an alerting service |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| React Query / SWR / any server-state lib | Second caching layer fights the proven 60s CDN TTL + module singleflight; adds bundle + invalidation semantics for zero gain | Existing `refresh()` + per-key cache entries |
-| luxon / moment / dayjs for sessions | date-fns-tz already proven DST-correct here (March + November cases green); a second date lib doubles DST-edge risk | `formatInTimeZone` + `getTimezoneOffset` (installed) |
-| `yfinance` (Python) or any scraper service | No Python runtime on Vercel Hobby; paid scrapers violate zero budget; direct v8 chart fetch already works | Extended `/api/yahoo` route |
-| TradingView widget / charting lib swap | v5 dynamic-import chart with overlays is shipped and green; migration cost with no Modul 3 payoff | lightweight-charts v5 primitives |
-| LLM calls for SMT/AMD signals | Determinism is a project constraint; swing comparison and session bucketing are codifiable rules | Pure `src/lib/ict` functions + rule-based §3 |
-| WebSocket / streaming intraday feed | Vercel Hobby has no cheap socket story; 60s-poll 1h candles are sufficient for session-range structure | Poll the generalized proxy at the existing cadence |
-| Third-party drawing-tools plugin for lightweight-charts | Unneeded API surface for static bands/markers; version skew risk against pinned v5.2.1 | Inline primitive copied from official plugin-examples |
+| Any broker/trading SDK (`ccxt`, broker REST clients) | Milestone is explicitly paper-only ("real broker bağlantısı yoxdur"); a broker dep invites credential handling, order-state machines, and fill reconciliation — an entire hidden milestone | Pure `ticket.ts` math (entry/SL/TP/size/risk-reward) rendered in the dialog; label every surface "Kağız" |
+| React Query / SWR / any server-state lib | Same verdict as v2.0: fights the proven 60s CDN TTL + per-leg singleflight; trigger reads from the store, not from a second cache | Existing legs + derived selectors |
+| `react-hook-form`, `zod`, any form/validation lib | Three numeric fields do not justify two dependencies; validation here is domain clamping (stop ≠ entry, risk > 0), not schema parsing | Controlled inputs + pure clamp/refuse helpers in `ticket.ts` |
+| WebSocket / streaming feed for "live" triggers | Vercel Hobby has no cheap socket story; trigger conditions evolve on closed-candle structure (1H/15M legs already poll at 60s), not tick data | Existing staggered four-leg poll; trigger re-derives on each store update for free |
+| LLM calls for WHY NOW narration | Determinism is a project constraint; "niyə indi" is a verbatim-reason render of which predicates fired (same locked-copy contract as §3 D-01/D-03/D-04) | Pure `trigger.ts` returning `{ fired, reasons[] }` rendered verbatim |
+| Backend DB (Prisma/Supabase/Neon) for ticket history | Zero-budget + no-auth project; a database buys a schema, migrations, and an auth story for a paper ticket log | `localStorage` ticket log (append-only array, bounded to last N) — exportable later if v3.1 wants it |
+| Auth / sessions / user accounts | Out of scope per PROJECT.md; paper tickets are single-operator local state | Nothing — local state only |
+| New charting library or drawing plugin | v5 markers + price lines already drive every overlay; trigger/flaw pins are new marker shapes, not a new rendering capability | Existing `nq-chart.tsx` handles |
 
 ## Stack Patterns by Variant
 
-**If Yahoo 1h row count for ES=F comes back sparse (futures overnight gaps, holiday sessions):**
-- Bucket sessions defensively: Asia Range = max/min of rows present in the window, require minimum 3 rows, else mark session `thinHistory`-style unavailable — same honest-degrade contract as D1
-- Because futures trade near-24h, Yahoo 1h rows include overnight action; gaps are real market closures, not fetch bugs
+**If trigger fires too often on live data (nuisance rate high during observation):**
+- Tighten via the calibratable threshold (require confirmed Judas + unsuppressed aligned SMT + AMD continuation, i.e. the `yüksək inam` tier as the fire gate) rather than adding hysteresis machinery
+- Because the observation period exists precisely to calibrate this; code the gate as a threshold, not as fixed logic
 
-**If 4 upstream combos (2 symbols × 2 intervals) strain the 15s `maxDuration`:**
-- Fetch combos with `Promise.all` server-side (or two parallel client `refresh` calls into the per-key singleflight), keep 4s per-fetch timeout; worst case stays under budget the same way v1.0's 4-attempt budget did
-- Because each combo has its own cache key + TTL, steady-state cost is one upstream fetch per combo per minute
+**If fatal-flaw predicates disagree with the trigger (flaw fires on the same bar as trigger):**
+- Flaw wins, always: evaluate flaw first in the selector and return `{ fired: false, suppressedBy: flawReason }` — a suppressed trigger renders as "Gözlənilir", never as a flip-flop
+- Because alternating fire/flaw on consecutive polls destroys trust faster than a missed setup
 
-**If NQ and ES timestamps misalign on 1h rows:**
-- Align SMT swing comparison on daily closes (date-string keys, already Baku-normalized) and use 1h only for per-symbol internal structure — never compare cross-symbol intraday bar-to-bar
-- Because cross-symbol bar alignment is the top false-signal source in SMT implementations
+**If ticket size math hits edge inputs (stop distance → 0, risk → 0/negative):**
+- Refuse with reason (return null + reason string), never clamp to a fake size — same honest-degrade contract as every Phase 9 selector
+- Because a paper ticket that invents a size when the math is undefined teaches the operator to distrust the risk panel
 
 ## Version Compatibility
 
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| lightweight-charts ^5.2.1 | `attachPrimitive` + `createSeriesMarkers` plugin API | Both APIs are v5-native; the session-highlighting example targets the v5 plugin-examples tree — no version bump needed |
-| date-fns-tz ^3.2.0 | date-fns ^4.4.0, `America/New_York` + `Asia/Baku` IANA zones | Already jointly proven in `time.ts` / `session-line.ts`; adding a third zone uses the same Intl path |
-| zustand ^5.0.15 | React 19.2.8, slices `StateCreator` generics | Slices pattern is documented for v5; no middleware types change unless `persist`/`devtools` is added (it should not be) |
-| Next 16.3.4 route handler | `force-dynamic` + `maxDuration = 15` + searchParams allowlist | Query-param extension needs no config change; validate `symbol`/`interval` against an allowlist and 502 otherwise (same `UpstreamError` shape) |
+| `@base-ui/react` ^1.8.0 `slider` / `number-field` | Existing `components/ui/*` wrapper pattern (`button.tsx`, `dialog.tsx` import from `@base-ui/react/*`) | New `slider.tsx` follows the identical re-export + `data-slot` + Tailwind recipe; no version bump, no new package |
+| zustand ^5.0.15 + React 19.2.8 | New selector + threshold-field additions to `useDashboard` | Same `create<DashboardState>()` store; stable selector-function subscription (per 03.2 lesson — no `useShallow` over fresh-object selectors) |
+| lightweight-charts ^5.2.1 | New marker shapes + 3 ticket price lines on existing handles | Markers handle and price-line refs already exist in `nq-chart.tsx`; additive only, existing overlays untouched |
+| Next 16.3.4 App Router | Ticket dialog + slider are client components (`'use client'`, like `report.tsx`) | No route changes; no API changes — Yahoo proxy legs are untouched by v3.0 |
 
 ## Integration Points with Existing Code
 
-| Existing piece | Modul 3 touchpoint | Change shape |
-|----------------|--------------------|--------------|
-| `src/lib/yahoo.ts` (`SYMBOL`, `ENCODED_SYMBOL`, `CACHE_KEY`, `fetchNQDaily`) | ES=F + `interval=1h` | Parameterize to `fetchCandles(symbol, interval, now)`; symbol allowlist `{NQ=F, ES=F}`, interval allowlist `{1d, 1h}`; cache key `${symbol}:${interval}`; keep mismatch/ordering guards per response |
-| `app/api/yahoo/route.ts` | `?symbol=&interval=` | Parse + allowlist-validate searchParams, default to `NQ=F`/`1d` (backward compatible); per-combo `Cache-Control` identical to today |
-| `src/lib/ict/*` (+ `types.ts` `Candle`) | `sessions.ts`, `smt.ts`, `internal.ts`, `amd.ts` | New pure modules reusing `Candle`/`closedOnly`; 4H folder groups 1h rows; SMT compares aligned daily swings; sessions bucket on ET clock with injected timestamps |
-| `src/lib/store.ts` (`useDashboard`) | ES candles + SMT/§3 selectors | Add `esCandles` + `esMeta` via slice or parallel fields; `selectSMT`, `selectAMD`, `selectSection3` as derived selectors calling new ict modules |
-| `src/lib/time.ts` + `session-line.ts` | Session clocks | Add `AMERICA_NEW_YORK` export alongside `BAKU_TZ`/`CME_TZ`; header line untouched |
-| Chart component (lightweight-charts v5, dynamic import) | Asia Range bands + markers | Attach inline session-highlight primitive + `createSeriesMarkers` for Judas/SMT pins; existing zone overlays untouched |
+| Existing piece | v3.0 touchpoint | Change shape |
+|---------------|-----------------|--------------|
+| `src/lib/ict/amd.ts`, `judas.ts`, `smt.ts` | `src/lib/ict/trigger.ts` (new) | Fusion function over existing outputs: `evaluateTrigger({ judas, smt, amd, position, thresholds })` → `{ fired, reasons[] }`; imports types only, re-derives nothing from candles |
+| `src/lib/ict/*` | `src/lib/ict/invalidation.ts` (new) | Disjunction of flaw predicates over the same inputs → `{ invalidated, reason }`; flaw-first ordering enforced in the selector, not in render |
+| `src/lib/ict/levels.ts` (`LevelsOutput`) | `src/lib/ict/ticket.ts` (new) | `size = riskAmount ÷ |entry − stop|` + R-multiple table from levels + trigger direction; pure, refuse-with-reason on degenerate inputs |
+| `src/lib/confluence.ts` (`deriveConvictionTier`) | Trigger fire gate | `yüksək inam` tier as the default fire gate — trigger fires only on the tier §3 already displays, so chart pin, §3 prose, and toast can never disagree |
+| `src/lib/store.ts` (`useDashboard`) | `selectTrigger`, `selectFatalFlaw`, threshold fields + setters, ticket draft fields | Derived selectors with the Phase 9 refuse-null envelope (stale/empty leg → null, reason in owning-leg `lastError`); thresholds as plain state with clamped setters |
+| `components/dashboard/report.tsx` (§3) | New WHY NOW / flaw block beside the five existing §3 blocks | Same locked-copy contract: detector reasons verbatim, `S3_EMPTY_COPY` fallback; flaw-suppressed trigger renders "Gözlənilir"-style copy, never a banner |
+| `components/charts/nq-chart.tsx` | Trigger + flaw markers; ticket entry/SL/TP price lines | Reuse `createSeriesMarkers` handle + `createPriceLine` refs; additive shapes/colors only |
+| `components/ui/dialog.tsx` + `card.tsx` + `button.tsx` | Order ticket modal | Compose existing primitives; add `components/ui/slider.tsx` (from installed `@base-ui/react/slider`) for threshold calibration + risk-amount input |
+| `components/ui/toast.tsx` (`toast.add`, wired in `app/page.tsx`) | WHY NOW fire alert | `toast.add({ title, description })` on fire-transition (edge-trigger in the component, not in the selector — selectors stay pure-derivation, fire-edge detection is view logic) |
+| `src/lib/ticket-storage.ts` (new, own code) | Ticket draft + threshold persistence | Guarded localStorage JSON helpers, client-only, versioned key; no `persist` middleware, no hydration risk |
 
 ## Sources
 
-- `/marnusw/date-fns-tz` (Context7) — `formatInTimeZone`, `getTimezoneOffset`, DST transition behavior — MEDIUM confidence
-- `/tradingview/lightweight-charts` (Context7) — series markers, session-highlighting `attachPrimitive` plugin example — MEDIUM confidence
-- `/pmndrs/zustand` (Context7) — slices pattern, cross-slice updates, derived selectors — MEDIUM confidence
-- Web (firecrawl search, verified) — Yahoo v8 `interval=60m/1h` support; intraday lookback ~60d, 1m ~7d/request; same path works for futures symbols — LOW/MEDIUM confidence, **spike-verify ES=F 1h row density in the first implementation phase**
+- Codebase (HIGH confidence) — `package.json` deps; `node_modules` verified: zustand 5.0.15, lightweight-charts 5.2.1, `@base-ui/react` with `slider/` + `number-field/` dirs; `src/lib/store.ts` selector patterns; `src/lib/confluence.ts` tier gate; `components/charts/nq-chart.tsx` markers + price-line handles; `components/ui/toast.tsx` + `app/page.tsx` `<Toaster>` wiring; `components/dashboard/report.tsx` §3 locked-copy contract
+- `.planning/research/STACK.md` v2.0 (HIGH confidence for "no new deps" precedent) — same headline finding transfers: installed stack covers the milestone
+- PROJECT.md v3.0 scope (HIGH) — paper-only ticket, calibratable thresholds, zero budget, no LLM, no broker
 
 ---
-*Stack research for: v2.0 Modul 3 (Liquidity Sequencing & SMT, NQ vs ES, full AMD)*
-*Researched: 2026-09-06*
+*Stack research for: v3.0 Execution (Modul 4) — WHY NOW trigger + fatal flaw + paper order ticket*
+*Researched: 2026-09-09*

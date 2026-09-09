@@ -1,236 +1,221 @@
-# Architecture Research: v2.0 Modul 3 (Liquidity Sequencing & SMT)
+# Architecture Research
 
-**Domain:** Brownfield extension — dual-symbol intraday ICT analytics on an existing single-symbol daily terminal
-**Researched:** 2026-09-06
-**Confidence:** HIGH (codebase read directly: store, proxy, chart, report, time, freshness; Yahoo interval semantics + ICT killzone windows verified via web)
+**Domain:** v3.0 Execution (Modul 4) on existing Liquidity Engine terminal — WHY NOW trigger + fatal-flaw invalidation + paper order ticket
+**Researched:** 2026-09-09
+**Confidence:** HIGH (direct codebase read: `src/lib/store.ts`, `src/lib/ict/amd.ts`, `src/lib/confluence.ts`, `components/dashboard/terminal-shell.tsx`, `components/dashboard/report.tsx`, `components/charts/nq-chart.tsx`, `src/lib/report.ts`, `app/api/yahoo/route.ts`)
 
-## Standard Architecture (existing v1.0 — do not redesign)
+## Standard Architecture
 
 ### System Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  CLIENT (Next.js 16 App Router, 'use client' TerminalShell)      │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐  │
-│  │ StatusStrip /│  │ NqChart      │  │ Report (§2 live,      │  │
-│  │ Sentiment /  │  │ (lightweight │  │  §3 UNAVAILABLE) +    │  │
-│  │ Calendar     │  │  charts v5,  │  │ module-3 / smt-row    │  │
-│  │ panels       │  │  ZoneFill    │  │ UNAVAILABLE cards     │  │
-│  │              │  │  Primitive)  │  │                       │  │
-│  └──────┬───────┘  └──────┬───────┘  └───────────┬───────────┘  │
-│         │                 │                      │               │
-│         └─────────────────┴──────────────────────┘               │
-│                           │ subscribe (selectors)                │
-├───────────────────────────┴──────────────────────────────────────┤
-│  STATE — src/lib/store.ts (Zustand 5, single store)              │
-│  candles[] · contractHint · stale · scenario · asOfBaku          │
-│  selectRange/selectBias/selectDOL/selectRegime/selectLevels/     │
-│  selectRollover → all delegate to src/lib/ict pure functions    │
-├──────────────────────────────────────────────────────────────────┤
-│  LOGIC — src/lib/ict/* (pure: no I/O, no Date.now, inject time)  │
-│  range · bias · dol · regime · rollover · levels · types         │
-│  MAPPERS — chart-mapper.ts · zone-bands.ts · freshness.ts ·      │
-│  session-line.ts · report.ts (constants) · time.ts (Baku/CME tz) │
-├──────────────────────────────────────────────────────────────────┤
-│  SERVER — app/api/yahoo/route.ts → src/lib/yahoo.ts              │
-│  NQ=F hardcoded · query1→query2 failover · backoff · serve-stale │
-│  60s CDN TTL · 15s maxDuration · per-instance Map cache          │
-└──────────────────────────────────────────────────────────────────┘
-```
+Existing v2.1 system — v3.0 adds no new layers, only new pure modules + selectors + panels inside the existing ones:
 
-Poll loop: `TerminalShell` owns the single 60s visibility-gated interval, calls `refresh()` (client singleflight via `inFlight`), which GETs `/api/yahoo` with `cache: no-store` and lets the server/CDN cache absorb the cost.
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Next.js 16 App Router                     │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐  │
+│  │ TerminalShell│  │    Report    │  │ Ticket / Exec /   │  │
+│  │ (3-panel grid│  │ (§1–§6 rule- │  │ Flaw panels (NEW, │  │
+│  │  + overlays) │  │  based prose)│  │  replace 3 cards) │  │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬──────────┘  │
+│         │                 │                   │              │
+├─────────┴─────────────────┴───────────────────┴──────────────┤
+│                    Zustand 5 store (`src/lib/store.ts`)      │
+│   legs (nq/es/nq1h/nq15m) + selectors (selectRange…selectAMD │
+│   + NEW selectTrigger/selectFatalFlaw/selectTicket)          │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  `src/lib/ict` pure fns (no I/O, inject time)        │    │
+│  │  range/bias/dol/regime/levels/rollover/join/smt/     │    │
+│  │  asia/judas/amd/fvg/aggregate                        │    │
+│  │  + NEW trigger.ts + invalidation.ts                   │    │
+│  │  `src/lib` selector-level: confluence/thin-tier/      │    │
+│  │  zone-bands/chart-mapper + NEW ticket.ts              │    │
+│  └─────────────────────────────────────────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│  Yahoo proxy (`app/api/yahoo`) 60s cache + serve-stale      │
+│  Dual-poll 4-leg grid (:00/:15/:30/:45) + NqChart (lw-c v5) │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Modul 3 impact |
-|-----------|----------------|----------------|
-| `app/api/yahoo/route.ts` | Upstream fetch, cache headers | MODIFY — parameterize by symbol+interval |
-| `src/lib/yahoo.ts` | Failover/backoff/stale/cache, NQ-hardcoded | MODIFY — multi-symbol, multi-interval, per-key cache |
-| `src/lib/store.ts` | Candles + derived selectors | MODIFY — ES + intraday slices, new selectors |
-| `src/lib/ict/*` | Pure domain math | EXTEND — new files, touch nothing existing |
-| `src/lib/chart-mapper.ts` | Proxy → chart row mapping | EXTEND — intraday epoch mapping |
-| `components/charts/nq-chart.tsx` | Candles + zone/level lines | MODIFY — Asia overlay primitive, second series (ES swing markers optional) |
-| `components/charts/zone-primitive.ts` | Zone fill pattern | EXTEND — sibling session-overlay primitive, same pattern |
-| `components/dashboard/terminal-shell.tsx` | Poll loop, panel wiring | MODIFY — parallel fetch, un-dim module-3/smt cards |
-| `components/dashboard/report.tsx` | §2 live, §3 unavailable | MODIFY — §3 live block, §2 delivery-cycle line dynamic |
-| `src/lib/report.ts` | Section-state constants | MODIFY — one flag flip (`index: 3 → live`) |
-| `src/lib/time.ts` | Baku/CME tz helpers | EXTEND — add `America/New_York` tz (see Pitfall 1) |
+| Component | Responsibility | Typical Implementation |
+|-----------|----------------|------------------------|
+| `src/lib/ict/trigger.ts` (NEW) | WHY NOW time+structure evaluator: Judas + AMD + SMT + regime → fired/not + verbatim reason + calibratable thresholds | Pure fn `evaluateTrigger(input): TriggerOutput`, exported `TRIGGER_*` consts, boundary validation throwing on malformed input (judasSwing/amdPhase precedent) |
+| `src/lib/ict/invalidation.ts` (NEW) | Fatal-flaw checker: conditions that cancel the setup → invalidated/not + verbatim reason | Pure fn `checkFatalFlaw(input): FatalFlawOutput`, same envelope discipline as trigger |
+| `src/lib/ticket.ts` (NEW, NOT in ict/) | Paper-ticket level math: entry/SL/TP from range+levels+bias+trigger direction + size/risk arithmetic | Pure fn `computeTicket(input): TicketLevels \| null`; lives beside `confluence.ts` because risk-sizing is not ICT methodology — keeps `ict/` purity narrative clean |
+| `store.ts` selectors (MODIFIED) | `selectTrigger`, `selectFatalFlaw`, `selectTicket`: refuse-null-on-stale + try/catch-never-throw, shared `asOf` derivation | Same shape as `selectAMD`/`selectConfluence`; ticket returns null when trigger not fired (honest empty, never zeroes) |
+| `report.ts` + `report.tsx` (MODIFIED) | Flip §4/§5/§6 `unavailable`→`live`; add three live blocks following the §3 precedent (verbatim reasons, locked fallbacks) | `REPORT_SECTIONS` state flip + per-section sub-blocks; no new composer module |
+| `ExecutionProtocol` / `TicketPanel` / `FatalFlaw` (NEW components) | Replace the three `UNAVAILABLE` cards in `terminal-shell.tsx` (`data-slot="execution-protocol"`, `"ticket"`, `"fatal-flaw"`) | Thin render components, math-free, reading store selectors only |
+| `NqChart` (MODIFIED, props-only) | One trigger pin + optional ticket entry/SL/TP lines | New optional props (`triggerBarDate`, `ticket`) reusing `buildOverlayMarkers` ordering + remove-then-create price-line cycle |
 
-## Recommended Project Structure (new files only)
+## Recommended Project Structure
 
 ```
-src/lib/ict/
-├── range.ts bias.ts dol.ts regime.ts rollover.ts levels.ts types.ts  # UNTOUCHED
-├── swings.ts        # NEW — fractal swing detection findSwings(candles, k)
-├── smt.ts           # NEW — detectSMT(nqSwings, esSwings) → divergence signal
-├── transition.ts    # NEW — classifyTransition(h4, h1, d1Range) → internal/external state
-├── sessions.ts      # NEW — Asia Range + Judas Swing detection (NY-anchored, tz-injected)
-└── aggregate.ts     # NEW — aggregateTo4H(h1Candles, tz) 60m→4H synthesis
-src/lib/
-├── yahoo.ts         # MODIFY — SYMBOLS allowlist, interval param, per-key cache
-├── store.ts         # MODIFY — esCandles, nqH1, nqM15, esH1 slices + selectors
-├── chart-mapper.ts  # EXTEND — mapIntradayToSeries (epoch passthrough)
-├── session-overlay.ts # NEW — Asia high/low band builder (zone-bands.ts sibling)
-└── time.ts          # EXTEND — NY_TZ constant + session helpers
-components/charts/
-├── nq-chart.tsx       # MODIFY — props + Asia primitive attach
-└── asia-primitive.ts  # NEW — clone of ZoneFillPrimitive geometry, time-window bands
+src/
+├── lib/ict/              # purity boundary: no I/O, no Date.now, inject time
+│   ├── trigger.ts        # NEW — evaluateTrigger + TRIGGER_* thresholds
+│   ├── trigger.test.ts   # NEW — gate table, threshold calibration pins
+│   ├── invalidation.ts   # NEW — checkFatalFlaw
+│   ├── invalidation.test.ts # NEW
+│   ├── amd.ts            # UNCHANGED (trigger reads its output, never edits it)
+│   ├── judas.ts          # UNCHANGED
+│   ├── smt.ts            # UNCHANGED
+│   └── types.ts          # MODIFIED only if shared Direction type needed
+├── lib/
+│   ├── ticket.ts         # NEW — computeTicket (selector-level, not ict/)
+│   ├── ticket.test.ts    # NEW
+│   ├── report.ts         # MODIFIED — §4/§5/§6 state flip
+│   ├── store.ts          # MODIFIED — 3 selectors + ticket-input slice
+│   └── chart-mapper.ts   # MODIFIED only if ticket-line input guard needed
+components/
+├── dashboard/
+│   ├── terminal-shell.tsx # MODIFIED — swap 3 UNAVAILABLE cards for live panels
+│   ├── report.tsx         # MODIFIED — §4/§5/§6 live blocks
+│   ├── execution-protocol.tsx # NEW — trigger status + reason verbatim
+│   ├── ticket-panel.tsx       # NEW — entry/SL/TP + size/risk inputs
+│   └── fatal-flaw.tsx         # NEW — invalidated/not + reason verbatim
+└── charts/
+    └── nq-chart.tsx       # MODIFIED — trigger marker + ticket lines (props-only)
 ```
 
 ### Structure Rationale
 
-- **`ict/` stays append-only.** Existing selectors are proven on live data; Modul 3 adds files, never edits `range.ts`/`bias.ts`/`dol.ts`. A regression in D1 math would silently corrupt §2 — the one thing v1.0 guarantees.
-- **One pure function per ICT concept.** `swings` → `smt`, `aggregate` → `transition`, `sessions` → AMD. Each is independently unit-testable with fixture candles, same as the v1.0 `*.test.ts` precedent (133/133 green).
-- **Overlay primitives mirror, don't fork.** `asia-primitive.ts` copies the `ZoneFillPrimitive` attach/detach/`updateBands` skeleton; the sanctioned `buildZoneOverlayFallback` LineSeries-pair pattern in `zone-primitive.ts` is the time-boxed fallback if the primitive spikes.
+- **`trigger.ts` + `invalidation.ts` inside `ict/`:** they fuse ICT detector outputs (Judas/AMD/SMT) under TIME>PRICE logic — same family as `amd.ts`/`confluence.ts` inputs. Purity constraint applies verbatim: injected `asOf`, boundary `throw`, no clock reads.
+- **`ticket.ts` outside `ict/`:** position-size and risk-reward arithmetic is brokerage math, not ICT methodology. Precedent is `confluence.ts` ("selector-level scoring lives here, never inside src/lib/ict, so ict purity holds") and `thin-tier.ts`/`zone-bands.ts`. Keeps a future monorepo extraction of `ict/` clean.
+- **No new route, no new poll leg, no new store file:** the four-leg grid (NQ daily, ES daily, NQ 1H, NQ 15M) already feeds every input the trigger needs. A 5M/1M leg is explicitly out (Yahoo allowlist + zero budget); the trigger is therefore **15M-close-gated by design** and §4 copy must say so honestly.
 
 ## Architectural Patterns
 
-### Pattern 1: Parameterized proxy, per-(symbol, interval) cache keys
+### Pattern 1: Detector → Evaluator → Selector → Verbatim Prose
 
-**What:** `GET /api/yahoo?symbol=NQ=F|ES=F&interval=1d|60m|15m` (default `NQ=F,1d` = backward compatible). `yahoo.ts` replaces the single `CACHE_KEY = 'NQ=F:D1'` with `` `${symbol}:${interval}` `` keys in both `payloadCache` and `inFlight` maps; `SYMBOL`/`ENCODED_SYMBOL` constants become an allowlist `{ 'NQ=F': 'NQ%3DF', 'ES=F': 'ES%3DF' }` with symbol-mismatch guard per key.
-
-**When to use:** This is the only sane shape — one route, uniform failover/backoff/stale logic, independent TTLs per slice.
-
-**Trade-offs:** 4 upstream fetches per poll cycle (NQ-D1, ES-D1, NQ-60m, NQ-15m; ES-60m added only if intraday SMT makes the cut — see Data Flow). Yahoo throttle risk is absorbed by the existing per-key serve-stale + `stale-while-revalidate`. Route `maxDuration: 15` still holds because slices fetch in parallel with the existing 4s timeout budget.
+**What:** New features copy the v2.0 §3 pipeline exactly: pure detector (`judasSwing` precedent) → pure fuser (`amdPhase` precedent) → store selector with refuse-null envelope (`selectAMD` precedent) → render component printing `.reason` verbatim with locked fallback copy (`report.tsx` S3 precedent).
+**When to use:** Trigger (§4) and fatal flaw (§6) — both are reasons-first outputs.
+**Trade-offs:** Pro: determinism, testability, UAT-verifiable prose; zero new data flow to invent. Con: three hops for a boolean — accepted, it is what makes §3 auditable today.
 
 **Example:**
 ```typescript
-// yahoo.ts — generalize, keep every resilience behavior identical per key
-const SYMBOLS = { 'NQ=F': 'NQ%3DF', 'ES=F': 'ES%3DF' } as const;
-type Symbol = keyof typeof SYMBOLS;
-type Interval = '1d' | '60m' | '15m';
-
-export async function fetchSlice(
-  symbol: Symbol, interval: Interval, now: Date,
-  fetchFn = fetch, sleep = realSleep,
-): Promise<Envelope> { /* same body as fetchNQDaily, key = `${symbol}:${interval}` */ }
-
-// fetchNQDaily becomes a thin wrapper → zero breakage for existing callers/tests
-export const fetchNQDaily = (now: Date, f = fetch, s = realSleep) =>
-  fetchSlice('NQ=F', '1d', now, f, s);
+// src/lib/ict/trigger.ts — shape follows amd.ts
+export interface TriggerInput {
+  judas: JudasOutput | null;
+  amd: AmdOutput | null;
+  smt: SmtOutput | null;
+  regime: RegimeOutput | null;
+  asOf: number; // injected, never Date.now()
+}
+export interface TriggerOutput {
+  fired: boolean;
+  reason: string; // verbatim-ready Azerbaijani sentence
+  inputs: { judas: JudasOutput | null; amd: AmdOutput | null; smt: SmtOutput | null };
+}
+export const TRIGGER_DISP_MIN = 0.5; // calibratable — exported, pinned by test
+export function evaluateTrigger(input: TriggerInput): TriggerOutput { /* gates */ }
 ```
 
-### Pattern 2: Synthesize 4H from 60m — never ask Yahoo for 4H
-
-**What:** Yahoo's interval vocabulary is `[1m,2m,5m,15m,30m,60m,90m,1h,1d,…]` — there is **no 4H interval** (verified HIGH). `aggregateTo4H(h1, tz)` groups 60m candles into 00/04/08/12/16/20 NY-anchored blocks (open=first open, high/low=extremes, close=last close). 1H = `60m` verbatim.
-
-**When to use:** Always for H4; the grouping boundary must be NY-local (ICT session semantics), so the function takes a `timeZone` param and uses `date-fns-tz` — no `Date.now`, Baku/NY now injected like `computeRange(candles, asOf)`.
-
-**Trade-offs:** Partial current block (only 2 of 4 hours elapsed) is a *forming* 4H candle — mark `forming: true` and exclude via the existing `closedOnly()` helper. Lookback cost: 4H × 20-block window needs ~80 × 60m rows ≈ 2 weeks; request `period1 = now − 30d` for 60m (Yahoo caps minute-interval ranges; 30d is safely inside the documented limit, MEDIUM confidence — verify in build with a live probe test).
-
-### Pattern 3: Dual-envelope store with partial degrade (NQ required, ES optional)
-
-**What:** Store holds independent slices — `candles` (NQ-D1, existing), `esCandles`, `nqH1`, `nqM15` (+ `esH1` only if intraday SMT is built) — each with its own `stale`/`lastUpdatedISO`. `refresh()` fires all slice fetches via `Promise.allSettled`: NQ-D1 failure keeps the v1.0 error path; ES/intraday failure sets only its slice stale and forces the dependent selectors (`selectSMT`, `selectAMD`) to `null` → existing UNAVAILABLE/empty copy renders. SMT/AMD must **never** take down §2 or the chart.
-
-**When to use:** Every dual-symbol fetch. Failure domains stay decoupled.
-
-**Trade-offs:** More store fields, but each slice reuses the proven `isValidEnvelope` guard parameterized by symbol. Intraday envelopes need a second guard (epoch timestamps, not Baku YMD strings) — see Anti-Pattern 2.
-
-**Example:**
 ```typescript
-// store.ts — new selectors delegate, same as v1.0 precedent
-selectSMT: () => {
-  const { candles, esCandles } = get();
-  if (candles.length === 0 || esCandles.length === 0) return null;
-  return detectSMT(findSwings(closedOnly(candles)), findSwings(closedOnly(esCandles)));
-},
-selectTransition: () => {
-  const range = get().selectRange();
-  const { nqH1 } = get();
-  if (range === null || nqH1.length === 0) return null;
-  return classifyTransition(range, aggregateTo4H(closedOnly(nqH1), NY_TZ), nqH1);
+// store.ts — shape follows selectAMD
+selectTrigger: () => {
+  try {
+    const judas = get().selectJudas();
+    const amd = get().selectAMD(); // shares the single asOf derivation
+    const smt = get().selectSMT();
+    const regime = get().selectRegime();
+    if (get().nq15m.stale || get().nq1h.stale) return null;
+    return evaluateTrigger({ judas, amd, smt, regime, asOf: sharedEpoch(get()) });
+  } catch { return null; }
 },
 ```
 
-### Pattern 4: NY-anchored session detection, Baku-rendered display
+### Pattern 2: Shared `asOf` Epoch (Trigger–AMD Coherence)
 
-**What:** `sessions.ts` defines killzones in **NY local** (`America/New_York`): Asia 19:00–00:00, London 02:00–05:00, NY 07:00–09:00/08:30–11:00 indices (verified MEDIUM — sources agree within 1h on Asia open; pin 19:00–00:00 NY and note the 20:00 variant in code comment). All window math via `formatInTimeZone(ts, NY_TZ, …)`. Asia Range = high/low of 15m rows inside the window; Judas Swing = wick beyond Asia high/low followed by close back inside during the subsequent London/NY window. Baku display (`Asia 04:00–09:00 Bakı` in winter) is derived at render, never stored.
+**What:** Extract the `selectAMD` epoch fallback (`nq1h.lastUpdatedISO` → `Date.now()`) into one module-scope helper `sharedEpoch(get)` used by both `selectAMD` and `selectTrigger`.
+**When to use:** Mandatory — trigger reads `amd` output; evaluating trigger at a different instant than AMD would let §3 say accumulation while §4 fires manipulation.
+**Trade-offs:** Pro: single time truth, no torn reads. Con: touches `selectAMD` (working code) — mitigated by Phase 1 ordering (debt cleanup first, then this mechanical extract with existing `store.test.ts` green as gate).
 
-**When to use:** All AMD logic. DST correctness falls out of `date-fns-tz` because NY observance is in the tz database — this is exactly why the v1.0 March/November Baku-DST tests exist; add NY-DST session fixtures the same way.
+### Pattern 3: Ticket as Derived-Null Selector + Local-Input Slice
+
+**What:** `selectTicket` derives from `selectTrigger + selectLevels + selectBias + selectRange`; returns `null` unless trigger fired and all inputs non-null. User inputs (direction lock, risk %, size) live in a small Zustand slice (`ticketInputs: { riskPct, size }` + setters), never in `ict/`.
+**When to use:** Paper ticket (§5) — levels are a pure derivation, size/risk are operator inputs.
+**Trade-offs:** Pro: no phantom tickets on stale/degraded data; inputs stay out of pure math (testable). Con: ticket panel needs both selector + slice subscriptions — follow the `selectLevels` stable-function-subscription precedent to avoid `useShallow` loops on fresh nested identities.
 
 ## Data Flow
 
-### Request Flow (modified poll)
+### Request Flow
 
 ```
-TerminalShell 60s visibility-gated tick (UNCHANGED cadence — zero budget)
-    ↓ refresh()
-Promise.allSettled([
-  GET /api/yahoo?symbol=NQ=F&interval=1d   (existing pipe, REQUIRED),
-  GET /api/yahoo?symbol=ES=F&interval=1d   (NEW, optional-degrade),
-  GET /api/yahoo?symbol=NQ=F&interval=60m  (NEW, optional-degrade),
-  GET /api/yahoo?symbol=NQ=F&interval=15m  (NEW, optional-degrade),
-]) — server per-key cache (60s) + CDN absorb repeat cost
-    ↓ per-slice isValidEnvelope guard
-Zustand slices → pure selectors → chart / panels / report §3
+60s staggered poll (unchanged: :00 NQ / :15 nq1h / :30 ES / :45 nq15m)
+    ↓ per-leg envelope → leg state (stale isolated per leg, never merged)
+Derived selectors (all during render, math-free components):
+  selectJudas / selectSMT / selectAMD (existing)
+    → selectTrigger (NEW: shared asOf, refuse-null on nq1h/nq15m stale)
+    → selectFatalFlaw (NEW: refuse-null on nq/es stale; runs even when trigger null —
+         invalidation must be able to cancel a forming setup, not just a fired one)
+    → selectTicket (NEW: null unless trigger fired + levels/bias/range live)
+Render:
+  §4 block ← selectTrigger.reason verbatim │ ExecutionProtocol panel (center col)
+  §6 block ← selectFatalFlaw.reason verbatim │ FatalFlaw panel (right col)
+  §5 block ← selectTicket levels verbatim    │ TicketPanel (right col, slice inputs)
+  NqChart ← trigger pin (bar-date mapped at caller, T-09-03 precedent) + ticket lines
 ```
-
-- **Daily SMT first, intraday SMT as stretch.** Daily NQ-vs-ES swing comparison ships on the two D1 slices (2 extra upstream calls: ES-D1 only). Intraday SMT needs ES-60m too; defer unless §3 needs it — the spec's SMT clause does not fix a timeframe, daily divergence is a legitimate accumulation/distribution read.
-- **15m Judas detection lags by design.** 60s poll on 15m candles means a Judas print is seen up to one bar late; the UI must say `Gözlənilir` (pending), never imply tick precision. No WebSocket, no shorter poll — Hobby + Yahoo throttle forbid it.
-- **Chart data flow unchanged for D1** (date-string BusinessDay passthrough). Intraday rows carry **epoch seconds** (`UTCTimestamp`) straight from Yahoo `timestamp[]` — no Baku conversion on the time axis (conversion would bucket-shift bars across the NY-midnight boundary). Asia overlay bands are *prices* (high/low), so Baku never enters geometry.
 
 ### State Management
 
 ```
-refresh() writes raw slices only (candles, esCandles, nqH1, nqM15)
+Zustand store (single file, single instance)
     ↓ subscribe
-stable selector-function subscription + derive-during-render
-    ↓ (the selectLevels precedent — see Anti-Pattern 3)
-NqChart props · module-3/smt-row cards · Report §3
+Components ←→ selectors (pure derivation) → leg state; ticketInputs slice → selectTicket
 ```
 
-New selectors (`selectSMT`, `selectTransition`, `selectAMD`, `selectAsiaRange`) return fresh nested objects → components must use the **stable selector-function pattern** (`const sel = useDashboard(s => s.selectSMT); const smt = sel();`), exactly as `selectLevels` does today.
+- Poll loop is untouched: no 5th timer, no 5M interval, no route change. `startDualPoll`/`stopDualPoll` and the mount-owns-first-poll discipline stay as-is.
+- Bar-date mapping for the trigger pin happens in `terminal-shell.tsx` at the caller (existing Judas `sweepTime`-epoch → containing D1 bar loop precedent), so marker `time` always equals a D1 candle date.
+- Overlay staleness reuses `overlayStale = nq1hStale || nq15mStale || esStale` — trigger pin desaturates to `MUTED_GRAY` with the existing tone, never clears (D-08 precedent).
 
 ### Key Data Flows
 
-1. **SMT divergence:** NQ-D1 + ES-D1 → `findSwings(k=2)` each → `detectSMT` compares the two most recent swing highs/lows (higher-high vs lower-high = bearish divergence, etc.) → `smt-row` card + §3 `SMT Divergence Status` line. Date-alignment guard: inner-join on `date`; both are CME so holidays align, but the join makes it assumption-free.
-2. **Internal/external transition:** NQ-D1 range (existing `selectRange`) + NQ-60m → `aggregateTo4H` → `classifyTransition`: price inside D1 range interacting with HTF structure = Internal; break + displacement into new 4H swing = External. Output feeds §2 `Delivery Cycle` (replaces hardcoded `Çatdırılma dövrü: D1`) and §3 `Engineered Liquidity Path`.
-3. **Session AMD:** NQ-15m → Asia high/low → Judas check in London/NY windows → `selectAMD { asiaHigh, asiaLow, swept, judasSide }` → Asia overlay primitive (price band) + §3 `Session AMD Timing` line (`Təmizlənib/Təmizlənməyib`, `Baş verib/Gözlənilir`).
+1. **Trigger evaluation flow:** nq15m (Judas) + nq1h (Asia/AMD) + NQ/ES daily (SMT) + NQ daily (regime) → `evaluateTrigger` → §4 + center execution panel + chart pin.
+2. **Invalidation flow:** bias + DOL + Judas + SMT + trigger → `checkFatalFlaw` → §6 + right flaw panel; when `invalidated`, ticket panel renders the flaw reason instead of levels (explicit precedence: flaw > ticket).
+3. **Ticket flow:** trigger fired + levels/bias/range + `ticketInputs` slice → `computeTicket` → §5 + right ticket panel + chart entry/SL/TP lines.
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| Current (Hobby, 1 operator) | 4 parallel slice fetches per 60s tick; per-instance Map cache + CDN 60s. No change needed. |
-| +N viewers | Same as v1.0: proxy cache absorbs it; Yahoo sees ~4 req/min/instance regardless of viewers. |
-| Intraday history growth | 60m/30d ≈ 500 rows, 15m/14d ≈ 1300 rows — trivial for Zustand + lightweight-charts. Cap `period1` windows, never `period1=0`. |
+| Current (single terminal, 4 legs × 60s) | No change needed. Trigger/flaw/ticket are O(candles) pure derivations during render — same cost class as existing selectors. |
+| More polling pressure (extra symbols) | Not in v3.0 scope; per-leg singleflight + independent stale already isolate failure. Do not add legs for Modul 4. |
+| Threshold calibration over live observation | Thresholds are exported consts (`TRIGGER_*`, flaw gates) pinned by tests — recalibration is a const change + test re-pin, never a shape change. |
 
 ### Scaling Priorities
 
-1. **First bottleneck:** Yahoo 429s on 4-slice fan-out. Mitigation already designed: per-key serve-stale (30-min `MAX_STALE_MS`), jittered backoff, `allSettled` partial degrade. If throttled in prod, drop NQ-15m cadence to 120s (separate interval in `TerminalShell`) before touching anything else.
-2. **Second bottleneck:** Route `maxDuration` 15s under parallel 4s-timeout retries. Slices fetch concurrently; worst case ≈ single-slice worst case. No action unless Vercel logs show 504s.
+1. **First bottleneck:** render-time derivation cost as selectors grow (7 → 10). Mitigation already proven: stable selector-function subscription + derivation during render (`selectLevels` precedent) — apply to all three new selectors, never `useShallow` on their outputs.
+2. **Second bottleneck:** none architectural. Yahoo quota is the ceiling and v3.0 adds zero requests.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Reusing `CME_TZ` (America/Chicago) for killzones
+### Anti-Pattern 1: Trigger Math Inside Components or the Store Body
 
-**What people do:** `time.ts` exports `CME_TZ = 'America/Chicago'` and the header labels it "NY". Reuse it for session windows.
-**Why it's wrong:** Chicago is CT (UTC−6/−5), New York is ET (UTC−5/−4) — every killzone lands 1h off, and Judas detection silently checks the wrong bars.
-**Do this instead:** Add `NY_TZ = 'America/New_York'`; `sessions.ts` imports only `NY_TZ`. Leave `CME_TZ` for the header clock.
+**What people do:** Compute fired/not inline in `execution-protocol.tsx` or inside the `create()` body with `Date.now()`.
+**Why it's wrong:** Violates the purity constraint (untestable, unextractable), duplicates gate logic between §4 and the panel, and tears time between AMD and trigger.
+**Do this instead:** `evaluateTrigger` in `src/lib/ict/trigger.ts` (injected `asOf`); store only orchestrates inputs; components only render `.reason`.
 
-### Anti-Pattern 2: Baku-YMD strings for intraday bars
+### Anti-Pattern 2: Merged Stale Boolean or Cross-Leg Substitution
 
-**What people do:** Reuse `toBakuYMD(ts)` in the intraday parser so all candles share the `Candle` shape.
-**Why it's wrong:** 96 × 15m bars/day collapse onto one date string → ascending-date guard throws, chart shows one bar. Time-of-day is the entire content of intraday data.
-**Do this instead:** New `IntradayCandle { t: number /* epoch sec */, open, high, low, close, forming? }` with epoch passthrough; separate `isValidIntradayEnvelope` (ascending `t`, finite OHLC). Daily `Candle` untouched.
+**What people do:** Add a top-level `stale` covering trigger inputs, or fall back to ES rows when NQ 15M is stale.
+**Why it's wrong:** D-06 violation the codebase explicitly guards per leg; a merged flag would fire triggers on half-stale data.
+**Do this instead:** Refuse `null` per owning leg (`nq15m.stale` → trigger null; `es.stale` → SMT null → trigger degrades honestly); reasons ride in `leg.lastError` verbatim per the §3 pattern.
 
-### Anti-Pattern 3: `useShallow` on the new nested selectors
+### Anti-Pattern 3: Numeric Conviction / Fake-Precision Ticket
 
-**What people do:** `useDashboard(useShallow(s => s.selectSMT()))` following the range/dol precedent.
-**Why it's wrong:** `selectSMT`/`selectAMD` return fresh nested objects per call — the exact `selectLevels` infinite-loop failure documented in PROJECT.md decisions [03.2].
-**Do this instead:** Stable selector-function subscription + derive during render (`const sel = useDashboard(s => s.selectSMT); const smt = sel();`).
+**What people do:** Score the trigger 0–100, show percentage fill probability, or render ticket levels from thin/degraded ranges without marking.
+**Why it's wrong:** `confluence.ts` no-fake-precision rule + thin-tier honesty (uniform 0.5 dimming, persistent banner). A 78% trigger or full-strength ticket on 12 candles destroys the terminal's honest-degrade contract.
+**Do this instead:** Discrete states only (`fired`/`waiting`, tier words from `deriveConvictionTier`); ticket inherits thin dimming and refuses null on `range-thin` unless explicitly designed otherwise in the phase plan.
 
-### Anti-Pattern 4: One combined NQ+ES envelope
+### Anti-Pattern 4: Broker-Shaped Abstractions
 
-**What people do:** Single `/api/yahoo?symbols=NQ,ES` returning both series to "save a round trip."
-**Why it's wrong:** Couples failure domains — an ES throttle takes down the NQ chart path; doubles payload; breaks the per-key stale contract (NQ fresh + ES stale can't be expressed in one `stale` flag).
-**Do this instead:** One slice per request, `allSettled`, per-slice `stale` flags (Pattern 3).
-
-### Anti-Pattern 5: SMT/AMD math inside components or the store
-
-**What people do:** Swing comparison inline in `report.tsx` or inside `refresh()`.
-**Why it's wrong:** Violates the `src/lib/ict` purity constraint (testability + monorepo extraction), untestable without a DOM, duplicates across cards.
-**Do this instead:** Pure `swings.ts`/`smt.ts`/`sessions.ts` + thin selectors, mirroring `computeRange`/`computeBias` exactly.
+**What people do:** `submitOrder()`, `OrderStatus`, broker adapter interfaces "for later".
+**Why it's wrong:** Paper ticket is explicitly no-broker (PROJECT.md out-of-scope lineage: fixtures over real APIs, rule-based over LLM). Dead abstraction rots and confuses the audit.
+**Do this instead:** `computeTicket` returns display levels + risk arithmetic only; panel copy says paper explicitly; no submit path, no status enum.
 
 ## Integration Points
 
@@ -238,35 +223,33 @@ New selectors (`selectSMT`, `selectTransition`, `selectAMD`, `selectAsiaRange`) 
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| Yahoo chart API (new intervals) | Same `HOSTS` failover path, `interval=60m/15m` + explicit `period1` windows (30d/14d) | 60m-range caps are the shakiest assumption (MEDIUM) — probe live in build; `90m` is NOT a substitute |
-| lightweight-charts v5 | Epoch `UTCTimestamp` rows for intraday; new `AsiaRangePrimitive` (clone of `ZoneFillPrimitive`); ES stays off-chart (markers optional stretch) | Primitives already proven; autoscale `null` precedent holds |
+| Yahoo proxy (`app/api/yahoo`) | No change — existing `?symbol=&interval=` legs reused | Do NOT add `5m`/`1m` intervals; allowlist + quota + zero-budget all forbid it. §4 copy must disclose 15M-close gating. |
+| Vercel Hobby | No change — zero new routes, zero new fetch volume | Trigger evaluation is client-side derivation; no `maxDuration` or cache-header work. |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| proxy ↔ store | 4 parallel GETs, `allSettled`, per-slice guards | NQ-D1 keeps v1.0 error/toast path; ES/intraday degrade silently to stale |
-| store ↔ ict | New selectors → new pure fns, time injected | `closedOnly()` reuse for forming-bar exclusion; `asOfBaku`/`NY_TZ` injected, never `Date.now()` |
-| store ↔ chart | New optional props (`asiaHigh/Low`, `smtMarkers?`) — existing props untouched | `[03.1]` precedent: smallest blast radius, conditional blocks only |
-| store ↔ report | `REPORT_SECTIONS[3] → live`; §3 block reads `selectSMT/selectAMD/selectTransition` | §2 delivery-cycle line becomes dynamic from `selectTransition`; everything else byte-identical |
-| TerminalShell ↔ panels | Un-dim `module-3` + `smt-row` cards (remove `pointer-events-none opacity-45` + UNAVAILABLE chip), wire live copy | Same dimming-pattern removal for each card; no layout change |
+| trigger.ts ↔ amd/judas/smt | Reads output objects, never mutates (amd `smtTag` read-only precedent) | Boundary `throw` on malformed Judas (amd `assertValidJudas` precedent, WR-05 lesson). |
+| invalidation.ts ↔ trigger | Reads `TriggerOutput`; flaw precedence over ticket decided in render, not inside either pure fn | Keeps both fns independently testable; precedence is a 3-line render branch. |
+| ticket.ts ↔ store | `computeTicket` takes plain inputs; `selectTicket` wires legs + slice | No store import inside `ticket.ts` (confluence precedent). |
+| report.tsx §4/§5/§6 ↔ selectors | Verbatim reasons + locked `Məlumat yoxdur`-family fallbacks + per-leg `lastError` | Copy the §3 block structure; add `S4_/S5_/S6_` constants, do not reuse `S3_EMPTY_COPY` across sections (grep-ability). |
+| nq-chart.tsx ↔ shell | New optional props only; `buildOverlayMarkers` gains trigger 3rd (Judas→SMT→Trigger order); ticket lines reuse remove-then-create cycle | Phase 1 FIRST fixes the dead `thinHistory` arg in the `zoneBands` getter call + orphaned `thinTier` export/type so new overlay work lands on clean code. `zoneBands()` itself ignores thin history (takes only high/low/eq) — dimming stays via `opacityScale`, never compounded. |
+| store.test.ts / selector tests | New gate tables for trigger thresholds, flaw precedence, ticket null-matrix | Threshold consts pinned by tests so live-observation recalibration is deliberate. |
 
-## Suggested Build Order (dependency-respecting)
+## Suggested Build Order (with v2.1 debt + dependencies)
 
-1. **ES-D1 vertical slice** — `yahoo.ts` parameterization + route query params + `esCandles` slice + `selectSMT` (daily). Proves the entire dual-symbol pipe; §3 gets its first live line. No intraday, no chart change.
-2. **`swings.ts` + `smt.ts` pure core** — fractal swings, divergence classification, date-join alignment; fixture tests incl. crafted divergence/non-divergence pairs. (Parallelizable with 1.)
-3. **Intraday fetch** — NQ-60m + NQ-15m slices, `IntradayCandle` + guard, live probe test for range caps. Store-only; no consumers yet.
-4. **`aggregate.ts` + `transition.ts`** — 4H synthesis (NY-anchored, forming-block handling) + internal/external classifier; §2 delivery-cycle line goes dynamic.
-5. **`sessions.ts` + NY tz** — Asia Range + Judas detection, NY-DST fixture tests (March + November, mirroring the Baku-DST precedent).
-6. **Chart overlays** — `asia-primitive.ts` + `NqChart` props + `mapIntradayToSeries`; Asia band on D1 chart (prices are timeframe-agnostic). Time-box the primitive; fallback is the sanctioned LineSeries pair.
-7. **Report §3 + panel go-live** — flip `REPORT_SECTIONS`, §3 block, un-dim module-3/smt-row cards, Azerbaijani copy lock. Deploy + verify (cache, NY-timezone, §3 render).
+1. **Phase 1 — Debt cleanup (unblocks everything touching the chart):** dead `thinHistory` arg in `nq-chart.tsx` zone-fill getter + orphaned `thinTier` export/type in `thin-tier.ts` (+ Asia note docs). Rationale: trigger pin + ticket lines edit the same effect blocks; landing debt first avoids merge-shape conflicts.
+2. **Trigger core:** `trigger.ts` + tests → `selectTrigger` (with `sharedEpoch` extract) → §4 live block → execution panel (replaces `data-slot="execution-protocol"` card) → chart pin. Rationale: everything else keys off `fired`.
+3. **Fatal flaw:** `invalidation.ts` + tests → `selectFatalFlaw` → §6 live block → flaw panel (replaces `data-slot="fatal-flaw"` card) + ticket-suppression branch. Rationale: independent pure fn but render precedence needs trigger present.
+4. **Paper ticket:** `ticket.ts` + tests → `ticketInputs` slice + `selectTicket` → §5 live block → ticket panel (replaces `data-slot="ticket"` card) → chart entry/SL/TP lines. Rationale: terminal step; depends on trigger + flaw precedence.
+5. **Calibration + UAT:** threshold review against live observation notes (Judas confirm rate, SMT rollover behavior per PROJECT.md), `REPORT_SECTIONS` flip verification, overlay staleness drill (stale leg → gray pin, never cleared).
 
 ## Sources
 
-- Codebase (HIGH): `src/lib/store.ts`, `src/lib/yahoo.ts`, `app/api/yahoo/route.ts`, `src/lib/ict/{types,range}.ts`, `src/lib/time.ts`, `src/lib/{freshness,session-line,report,chart-mapper}.ts`, `components/{charts/nq-chart,charts/zone-primitive,dashboard/terminal-shell,dashboard/report}.tsx`, `reference/institutional_rules.md` (Modul 3 spec, §3 format), `.planning/PROJECT.md` (v2.0 scope, [03.x] precedents)
-- Web (MEDIUM, cross-checked where load-bearing): Yahoo v8 `interval=[1m…1d]` vocabulary + minute-range limits (StackOverflow, Observable, Scrapfly 2026 guide); ICT killzone windows Asia 19/20:00–00:00 / London 02:00–05:00 / NY 07:00–09:00 (indices 08:30–11:00) NY-local (innercircletrader.net, tradingrage.com)
-- Open verification items for build phase: Yahoo 60m/15m max lookback probe; Asia-open 19:00 vs 20:00 NY pin (documented variant, either is defensible — pick one, comment the other)
+- Codebase direct reads (HIGH): `src/lib/store.ts` (selectors, 4-leg poll grid, refuse-null envelopes), `src/lib/ict/amd.ts` (fusion + boundary-throw precedent), `src/lib/confluence.ts` (selector-level purity precedent), `src/lib/report.ts` (§4/§5/§6 currently `unavailable`), `components/dashboard/report.tsx` (§3 verbatim prose precedent), `components/dashboard/terminal-shell.tsx` (3 replaceable UNAVAILABLE cards, bar-date mapping, `overlayStale`), `components/charts/nq-chart.tsx` (marker ordering, price-line cycle, dead `thinHistory` arg site), `src/lib/thin-tier.ts` (orphaned export site), `app/api/yahoo/route.ts` (allowlist, 60s cache).
+- `.planning/PROJECT.md` (HIGH): v3.0 goal, Phase 1 debt list, zero-budget/purity/Zustand constraints, no-broker scope.
 
 ---
-*Architecture research for: v2.0 Modul 3 (Liquidity Sequencing & SMT, NQ vs ES, full AMD)*
-*Researched: 2026-09-06*
+*Architecture research for: v3.0 Execution (Modul 4) — WHY NOW + fatal flaw + paper ticket*
+*Researched: 2026-09-09*
