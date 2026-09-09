@@ -92,8 +92,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-09-09
-Stopped at: v3.0 roadmap created — Phases 14–18 mapped, awaiting approval
-Resume file: — (no phase work started)
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-audit-debt-cleanup-purity-guard/14-CONTEXT.md
 
 ## Operator Next Steps
 
