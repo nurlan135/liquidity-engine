@@ -82,8 +82,17 @@ Plans:
   1. User with thin/insufficient history sees an honest indicator or fallback state
   2. Thin history never renders as a silent empty chart or a misleading full chart
 
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+
+- [ ] 13-01-PLAN.md — Tier truth plus persistent banner threaded into the chart
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 13-02-PLAN.md — Zone snapshot fix plus uniform provisional dimming
 
 ## Progress
 
