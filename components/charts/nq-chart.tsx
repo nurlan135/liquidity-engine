@@ -173,17 +173,27 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         createPriceLine: (opts: { price: number; color: string; lineWidth: number; lineStyle: unknown; title: string }) => unknown;
       };
       typed.setData(mapCandlesToSeries(props.candles));
+      // Thin-history dimming (D-05/D-06/D-10): single muted treatment for both
+      // thin tiers; stale plus thin never compound. Tier derivation sits in
+      // try/catch so a failure renders the full-strength chart (rule 5).
+      let dimmed = false;
+      try {
+        dimmed = props.thinTier !== undefined && props.thinTier !== 'full';
+      } catch {
+        dimmed = false;
+      }
+      const levelColor = dimmed ? MUTED_GRAY : accent;
       const inputs = priceLineInputs(props.eq, props.dolPrice);
       eqLineRef.current = typed.createPriceLine({
         price: inputs.eq,
-        color: accent,
+        color: levelColor,
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         title: 'EQ',
       });
       dolLineRef.current = typed.createPriceLine({
         price: inputs.dol,
-        color: accent,
+        color: levelColor,
         lineWidth: 1,
         lineStyle: LineStyle.Solid,
         title: props.dolName,
@@ -237,28 +247,28 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           const levelInputs = levelLineInputs(props.levels);
           q1LineRef.current = typed.createPriceLine({
             price: levelInputs.q1,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'Q1 0.25',
           });
           q3LineRef.current = typed.createPriceLine({
             price: levelInputs.q3,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'Q3 0.75',
           });
           oteBullLineRef.current = typed.createPriceLine({
             price: levelInputs.oteBull,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'OTE-B 0.62-0.79',
           });
           oteBearLineRef.current = typed.createPriceLine({
             price: levelInputs.oteBear,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'OTE-S 0.62-0.79',
@@ -292,7 +302,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           }
         },
       );
-      zoneRef.current.opacityScale = props.status === 'stale' ? 0.5 : 1;
+      zoneRef.current.opacityScale = props.status === 'stale' || dimmed ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
     void mount();
@@ -354,17 +364,26 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       asiaLowLineRef.current = null;
       const accent = readVar(VAR_ACCENT, '#00D9FF');
       const overlayTone = overlayStale ? MUTED_GRAY : accent;
+      // Thin-history dimming (D-05/D-06/D-10): mirrors the mount effect; a
+      // tier-derivation failure renders the full-strength chart (rule 5).
+      let dimmed = false;
+      try {
+        dimmed = thinTier !== undefined && thinTier !== 'full';
+      } catch {
+        dimmed = false;
+      }
+      const levelColor = dimmed ? MUTED_GRAY : accent;
       const inputs = priceLineInputs(eq, dolPrice);
       eqLineRef.current = live.createPriceLine({
         price: inputs.eq,
-        color: accent,
+        color: levelColor,
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         title: 'EQ',
       });
       dolLineRef.current = live.createPriceLine({
         price: inputs.dol,
-        color: accent,
+        color: levelColor,
         lineWidth: 1,
         lineStyle: LineStyle.Solid,
         title: dolName,
@@ -374,28 +393,28 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           const levelInputs = levelLineInputs(levels);
           q1LineRef.current = live.createPriceLine({
             price: levelInputs.q1,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'Q1 0.25',
           });
           q3LineRef.current = live.createPriceLine({
             price: levelInputs.q3,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'Q3 0.75',
           });
           oteBullLineRef.current = live.createPriceLine({
             price: levelInputs.oteBull,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'OTE-B 0.62-0.79',
           });
           oteBearLineRef.current = live.createPriceLine({
             price: levelInputs.oteBear,
-            color: accent,
+            color: levelColor,
             lineWidth: 1,
             lineStyle: LineStyle.Dashed,
             title: 'OTE-S 0.62-0.79',
@@ -455,9 +474,16 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         // Marker failures never block candles or price lines.
       }
     })();
-    // Recompute zone geometry on range change; stale desaturates fills.
+    // Recompute zone geometry on range change; stale or thin desaturates
+    // fills through one muted treatment, never compounded (D-10).
     if (zoneRef.current !== null) {
-      zoneRef.current.opacityScale = status === 'stale' ? 0.5 : 1;
+      let refreshDimmed = false;
+      try {
+        refreshDimmed = thinTier !== undefined && thinTier !== 'full';
+      } catch {
+        refreshDimmed = false;
+      }
+      zoneRef.current.opacityScale = status === 'stale' || refreshDimmed ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
   }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier]);
