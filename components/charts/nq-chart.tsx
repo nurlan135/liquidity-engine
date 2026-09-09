@@ -293,9 +293,6 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
               high: latest.rangeHigh,
               low: latest.rangeLow,
               eq: latest.eq,
-              window: 0,
-              asOf: '',
-              thinHistory: latest.thinTier === 'range-thin',
             });
           } catch {
             return null;
