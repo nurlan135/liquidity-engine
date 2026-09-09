@@ -1,13 +1,14 @@
 ---
 phase: 13-thin-history-honesty
-verified: 2026-09-09T13:45:00Z
-status: human_needed
-score: 15/17 must-haves verified
+verified: 2026-09-09T10:44:39Z
+status: passed
+score: 17/17 must-haves verified
 covered_files:
   - .planning/phases/13-thin-history-honesty/13-01-PLAN.md
   - .planning/phases/13-thin-history-honesty/13-02-PLAN.md
   - .planning/phases/13-thin-history-honesty/13-01-SUMMARY.md
   - .planning/phases/13-thin-history-honesty/13-02-SUMMARY.md
+  - .planning/phases/13-thin-history-honesty/13-UAT.md
   - src/lib/thin-tier.ts
   - src/lib/thin-tier.test.ts
   - src/lib/zone-bands.test.ts
@@ -15,32 +16,24 @@ covered_files:
   - components/charts/nq-chart.tsx
   - components/dashboard/terminal-shell.tsx
 covered_digest: "unavailable — no gsd-tools binary in this environment; file list above is authoritative"
-behavior_unverified: 2
+behavior_unverified: 0
 overrides_applied: 0
-behavior_unverified_items:
-  - truth: "Banner copy wraps within card width at narrow widths with no truncation or horizontal overflow holds on held-out visual verification per D-08"
-    test: "Seed 5 closed candles, narrow the chart card to ~360px width"
-    expected: "Tier-1 banner text wraps within the card, no truncation, no horizontal overflow"
-    why_human: "Backstop truth by plan design — no DOM/render test exists; wrapping is a visual property grep cannot see"
-  - truth: "Dimmed zones read as provisional while Judas and SMT markers hold full strength holds on held-out visual verification per D-08 and D-06"
-    test: "Seed 5, 25, and 40 closed candles in npm run dev per the D-08 protocol"
-    expected: "At 5 and 25, zone fills visibly muted and EQ/DOL/Q1/Q3/OTE-B/OTE-S titles muted gray while candles, Asia-H/Asia-L, J/J?, S marks hold full strength; at 40 everything full strength byte-identical to today; clean console"
-    why_human: "Backstop truth by plan design — node vitest cannot assert canvas pixels; needs the running chart in a browser"
-human_verification:
-  - test: "D-08 dev glance at 5/25/40 closed candles (full protocol in 13-02-SUMMARY.md Human Glance section)"
-    expected: "Tier-1 banner + muted zones/levels + full-strength marks at 5; Tier-2 banner + identical dimming at 25; zero banner DOM + byte-identical full chart at 40; MARKET CLOSED ribbon coexists without overlap; zero console errors/warnings across all three seeds"
-    why_human: "Headless executor honestly marked this pending; canvas-pixel honesty plus console cleanliness require a live browser"
-  - test: "Narrow-width banner wrap check (~360px card, thin tier)"
-    expected: "Banner copy wraps within card width, no truncation or horizontal overflow"
-    why_human: "Backstop truth — visual property only"
+re_verification:
+  previous_status: human_needed
+  previous_score: 15/17
+  gaps_closed:
+    - "Banner copy wraps within card width at narrow widths with no truncation or horizontal overflow (UAT item 2 PASS, user-verified 2026-09-09)"
+    - "Dimmed zones read as provisional while Judas and SMT markers hold full strength at 5/25/40 candles with clean console (UAT item 1 PASS, user-verified 2026-09-09)"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 13: Thin History Honesty Verification Report
 
 **Phase Goal:** Users with thin history see honest provisional rendering (persistent banner + dimmed zones/levels) instead of a confident-looking full chart; full tier renders byte-identical to today.
-**Verified:** 2026-09-09T13:45:00Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-09-09T10:44:39Z
+**Status:** passed
+**Re-verification:** Yes — after UAT closure of the 2 pending human items
 
 ## Goal Achievement
 
@@ -58,26 +51,26 @@ human_verification:
 | 8 | Single candle renders Tier-1 banner at natural width, no stretching | ✓ VERIFIED | Zero `fitContent`/`setVisibleLogicalRange`/`setVisibleRange`/`scrollToPosition` matches in `nq-chart.tsx`; no viewport logic added |
 | 9 | Tier-derivation throw degrades silently, never blanks candles | ✓ VERIFIED | `resolveThinTier` try/catch returns null (`thin-tier.ts:30-37`); test asserts null on null/undefined input; shell falls back to `thinTierValue = 'full'` (`:99`) |
 | 10 | Chart container carries the live tier | ✓ VERIFIED | `data-thin-tier={thinTier}` on `div[data-slot="nq-chart"]` (`nq-chart.tsx:510`); `thinTier` prop default `'full'`, synced via propsRef + dep array (`:126-131`, `:489`) |
-| 11 | Banner copy wraps at narrow widths, no truncation/overflow | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Present + wired; backstop truth — no test exercises it; see Human Verification |
-| 12 | Zones mute to 0.5 on both thin tiers; stale+thin never compound | ✓ VERIFIED | `stale \|\| dimmed ? 0.5 : 1` in mount (`:305`) and refresh (`:486`) scopes; live-read getter proven by 3 new `zone-bands.test.ts` tests (default full, 0.5 after mutation, restore to 1) |
+| 11 | Banner copy wraps at narrow widths, no truncation/overflow | ✓ VERIFIED | `13-UAT.md` item 2 result `[pass]` — user-verified 2026-09-09: banner copy wraps within card width at ~360px, no truncation or overflow |
+| 12 | Zones mute to 0.5 on both thin tiers; stale+thin never compound | ✓ VERIFIED | `stale \|\| dimmed ? 0.5 : 1` in mount (`:305`) and refresh (`:486`) scopes; live-read getter proven by 3 `zone-bands.test.ts` tests; re-confirmed present this run (9 `dimmed` occurrences) |
 | 13 | EQ/DOL/Q1/Q3/OTE-B/OTE-S mute to `#71717A`, widths/styles/titles unchanged | ✓ VERIFIED | `levelColor = dimmed ? MUTED_GRAY : accent` (`:185`, `:375`); all six creation sites keep `lineWidth: 1`, existing styles, existing titles; `dimmed` derived from `thinTier !== 'full'` in try/catch with full-strength fallback |
 | 14 | Asia lines, Judas/SMT markers, candles, wicks hold full strength on every tier | ✓ VERIFIED | Asia uses `overlayStale`-only tone (`:208`, `:436`); marker builder takes only `overlayStale` (`:238`, `:456`); zero `dimmed` references in Asia/marker paths; candle/wick colors untouched (`:161-165`) |
-| 15 | Full tier renders byte-identical to today | ✓ VERIFIED | With `thinTier === 'full'`, `dimmed === false` → accent colors + opacity 1 through unchanged code paths; no viewport calls (zero matches); pixel-identity itself covered by the D-08 40-candle glance (human item) |
-| 16 | Thin logic adds no viewport calls | ✓ VERIFIED | Zero matches for `fitContent\|setVisibleLogicalRange\|setVisibleRange\|scrollToPosition` in `nq-chart.tsx` |
-| 17 | Dimmed zones read as provisional while markers hold full strength (held-out visual) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Present + wired; backstop truth — canvas pixels need a browser; see Human Verification |
+| 15 | Full tier renders byte-identical to today | ✓ VERIFIED | With `thinTier === 'full'`, `dimmed === false` → accent colors + opacity 1 through unchanged code paths; zero viewport calls; 40-candle glance confirmed full-strength by user (`13-UAT.md` item 1 PASS) |
+| 16 | Thin logic adds no viewport calls | ✓ VERIFIED | Zero matches for `fitContent\|setVisibleLogicalRange\|setVisibleRange\|scrollToPosition` in `nq-chart.tsx` (re-grepped this run) |
+| 17 | Dimmed zones read as provisional while markers hold full strength at 5/25/40 | ✓ VERIFIED | `13-UAT.md` item 1 result `[pass]` — user-verified 2026-09-09: Tier-1 banner + muted zones/levels at 5, Tier-2 + identical dimming at 25, zero banner DOM + full-strength chart at 40, clean console; marker sub-check noted no Judas/SMT signals on those seeds (expected — signals rare; D-06 covered by code: marker paths carry zero `dimmed` references) |
 
-**Score:** 15/17 truths verified (2 present, behavior-unverified backstops)
+**Score:** 17/17 truths verified (0 present, behavior-unverified)
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
 | `src/lib/thin-tier.ts` | Tier truth + copy map + order predicate | ✓ VERIFIED | Exists, 47 lines, zero local threshold literals (imports only), exports `ThinTier`, `thinTier`, `thinTierCopy`, `resolveThinTier`, `thinBannerOrder` |
-| `src/lib/thin-tier.test.ts` | Boundary/forming/copy/order pins | ✓ VERIFIED | Exists, 10 tests, all pass; forming-exclusion, verbatim copy, order, pinned constants |
+| `src/lib/thin-tier.test.ts` | Boundary/forming/copy/order pins | ✓ VERIFIED | Exists, 10 tests, all pass within 298/298 suite |
 | `components/dashboard/terminal-shell.tsx` | Thin banner block, thin-first stacking | ✓ VERIFIED | Exists, substantive, wired: imports all three helpers, derives tier during render, passes `thinTier=` into `NqChart` |
-| `components/charts/nq-chart.tsx` | `thinTier` prop + single-branch dimming | ✓ VERIFIED | Exists, substantive, wired: prop + propsRef + dep array + `data-thin-tier`; one `dimmed` boolean per effect scope |
-| `components/charts/zone-primitive.ts` | Live opacity read on every draw | ✓ VERIFIED | Exists, substantive, wired: `ZoneOpacityScaleGetter` threaded primitive→view→renderer, draw-time read (`:62`), live closure at attach (`:112`) |
-| `src/lib/zone-bands.test.ts` | Alpha-mutation coverage | ✓ VERIFIED | 3 new live-read tests pass (default full, 0.5 after mutation, restore to 1) |
+| `components/charts/nq-chart.tsx` | `thinTier` prop + single-branch dimming | ✓ VERIFIED | Exists, substantive, wired: prop + propsRef + dep array + `data-thin-tier`; one `dimmed` boolean per effect scope (re-grepped this run) |
+| `components/charts/zone-primitive.ts` | Live opacity read on every draw | ✓ VERIFIED | Exists, substantive, wired: `ZoneOpacityScaleGetter` threaded primitive→view→renderer, draw-time read, live closure at attach (6 `opacityScale` references) |
+| `src/lib/zone-bands.test.ts` | Alpha-mutation coverage | ✓ VERIFIED | 3 live-read tests pass within 298/298 suite |
 
 ### Key Link Verification
 
@@ -102,12 +95,12 @@ human_verification:
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Typecheck | `npx tsc --noEmit` | exit 0, no errors | ✓ PASS |
-| Full suite | `npm test` | 30 files, 296 tests, all pass | ✓ PASS |
-| Production build | `npm run build` | Compiled successfully, static pages generated | ✓ PASS |
-| Tier tests | `npm test -- --run src/lib/thin-tier.test.ts` (covered by full suite) | 10/10 pass | ✓ PASS |
-| Zone live-read tests | `src/lib/zone-bands.test.ts` (covered by full suite) | 6/6 pass incl. 3 new | ✓ PASS |
-| D-08 visual glance | `npm run dev` at 5/25/40 candles | Not runnable headlessly | ? SKIP → human item |
+| Typecheck | `npx tsc --noEmit` | exit 0, no errors (re-run this verification) | ✓ PASS |
+| Full suite | `npm test` | 30 files, 298 tests, all pass (re-run this verification) | ✓ PASS |
+| Tier tests | `src/lib/thin-tier.test.ts` (in full suite) | 10/10 pass | ✓ PASS |
+| Zone live-read tests | `src/lib/zone-bands.test.ts` (in full suite) | 6/6 pass incl. 3 new | ✓ PASS |
+| UAT D-08 glance | `13-UAT.md` item 1 (user, browser) | PASS 2026-09-09 | ✓ PASS |
+| UAT narrow-width wrap | `13-UAT.md` item 2 (user, browser) | PASS 2026-09-09 | ✓ PASS |
 
 ### Probe Execution
 
@@ -117,38 +110,26 @@ No phase-declared or conventional probe scripts apply to this phase. Step 7c: SK
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|----------|
-| HIST-01 | 13-01, 13-02 | Thin history renders honestly — indicator or fallback, no silent empty/misleading display | ✓ SATISFIED (code) / pending visual confirm | Banner + dimming + guards verified above; D-08 glance is the final visual confirm |
+| HIST-01 | 13-01, 13-02 | Thin history renders honestly — indicator or fallback, no silent empty/misleading display | ✓ SATISFIED | Banner + dimming + guards verified in code; both backstop visual truths now user-confirmed via 13-UAT.md (2/2 PASS) |
 
-Orphaned requirements check: REQUIREMENTS.md maps HIST-01 to Phase 13 and both plans claim it. TYPE-01/CHRT-01/CHRT-02/DEPL-01/DEPL-02/DEPL-03 belong to Phases 10–12. Zero orphaned IDs.
+Orphaned requirements check: REQUIREMENTS.md maps HIST-01 to Phase 13 and both plans claim it. Zero orphaned IDs.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| — | — | No `TODO`/`FIXME`/`XXX`/`TBD`/placeholder/stub markers in any phase file | — | None — clean |
+| — | — | No `TODO`/`FIXME`/`XXX`/`TBD`/placeholder/stub markers in any phase file (re-grepped this run) | — | None — clean |
 | `src/lib/thin-tier.ts` | — | Numeric literals 20/34 outside imports | — | None found — D-11 holds |
 
-### Human Verification Required
+### Out-of-Scope but Compatible: Asia killzone/fallback fix
 
-Two items (the known-pending D-08 glance, split into its two backstop halves):
-
-### 1. D-08 dev glance at 5/25/40 closed candles
-
-**Test:** `npm run dev`, seed thin histories at 5, 25, and 40 closed candles.
-**Expected:** At 5, Tier-1 banner over muted zone fills with EQ/DOL/Q1/Q3/OTE-B/OTE-S titles in muted gray while candles, Asia-H/Asia-L, J/J?/S marks hold full strength; at 25, identical dimming under the Tier-2 banner; at 40, no banner and full-strength chart byte-identical to today; MARKET CLOSED ribbon coexists without overlap; DevTools console shows zero errors/warnings across all three seeds.
-**Why human:** Headless executor honestly marked this pending; canvas-pixel honesty plus console cleanliness require a live browser.
-
-### 2. Narrow-width banner wrap
-
-**Test:** With a thin tier seeded, narrow the chart card to ~360px.
-**Expected:** Banner copy wraps within card width, no truncation or horizontal overflow.
-**Why human:** Backstop truth — wrapping is a visual property grep cannot see.
+Commit `edbc70a` (landed after the prior verification) touches only `src/lib/ict/asia.ts` (`ASIA_END_NY_MINUTE`), `src/lib/store.ts` (`selectAsia` fallback), their two test files, plus `ROADMAP.md`/`STATE.md`. It is NOT a phase artifact. Compatibility evidence: no phase file references `ASIA_END_NY_MINUTE` or the old 24h edge; `nq-chart.tsx` Asia branches still select tone from `overlayStale` only (zero `dimmed` references in Asia paths, re-grepped this run); full suite is 298/298 green including the new Asia/store tests, so no phase test broke. Recorded here as compatible, not a gap.
 
 ### Gaps Summary
 
-No gaps. All 15 code-verifiable truths pass with automated evidence (tsc exit 0, 296/296 tests, production build green, zero viewport-call matches, zero debt markers, zero local threshold literals). The 2 remaining items are plan-designated backstop truths that by definition require held-out human visual verification — recorded above as `human_verification`, not gaps, per the phase instruction. SUMMARY.md claims were checked against the actual code file-by-file and held up, including the honestly-marked pending D-08 glance.
+No gaps. All 17 must-haves verified: 15 with automated evidence (tsc exit 0, 298/298 tests, zero viewport-call matches, zero debt markers, zero local threshold literals) plus the 2 former backstop truths now satisfied by user UAT (`13-UAT.md`, 2/2 PASS, 2026-09-09). SUMMARY.md claims were checked against the actual code file-by-file in the prior verification and held up; this re-verification re-confirmed artifact presence, dimming wiring, and compatibility with the intervening Asia fix.
 
 ---
 
-_Verified: 2026-09-09T13:45:00Z_
+_Verified: 2026-09-09T10:44:39Z_
 _Verifier: Claude (gsd-verifier)_
