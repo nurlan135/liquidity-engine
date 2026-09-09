@@ -80,7 +80,7 @@ Narrowed `zoneBands` from full `DealingRange` to `Pick<DealingRange, 'high' | 'l
 | 2 | Trim the nq-chart zone getter call to three keys | 62986aa | components/charts/nq-chart.tsx |
 | 3 | Shrink zone-bands.test.ts literals to minimal objects | 3b3af16 | src/lib/zone-bands.test.ts |
 
-Plan metadata commit: (pending — recorded after state updates)
+Plan metadata commit: ac6239f (`docs(14-01): complete zoneBands dead-arg cleanup plan`)
 
 ## Files Created/Modified
 
