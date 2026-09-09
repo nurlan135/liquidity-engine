@@ -66,7 +66,7 @@ Plans:
 **Wave 1**
 
 - [x] 12-01-PLAN.md — Agent-run repo-clean proof: worktree, history, branches, prod baseline
-- [ ] 12-02-PLAN.md — User dashboard checkpoints: token deletion plus protection switch and readback
+- [x] 12-02-PLAN.md — User dashboard checkpoints: token deletion plus protection switch and readback
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
