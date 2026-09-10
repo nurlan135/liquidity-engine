@@ -715,7 +715,9 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
       // most 8 back so a sparse leg cannot scan unbounded history). The
       // newest date's Asia window is often still empty in the morning (the
       // 20:00 open is hours away), so fall back to the most recent completed
-      // session instead of returning null.
+      // session instead of returning null. Asia killzone is 20:00-23:45 NY
+      // wall-clock (edbc70a): this increases overlay frequency by design,
+      // returning the last completed session rather than a morning gap.
       const dates: string[] = [];
       for (let i = sorted.length - 1; i >= 0 && dates.length < 8; i--) {
         const d = formatInTimeZone(sorted[i].time * 1000, NY_TZ, 'yyyy-MM-dd');
