@@ -55,8 +55,16 @@ Plans:
 
 **Plans**: 3 plans
 Plans:
+**Wave 1**
+
 - [ ] 15-01-PLAN.md — Tracer: pure evaluateTrigger core plus minimal selectTrigger and firing log (TRIG-01, TRIG-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 15-02-PLAN.md — ARMED matrix plus cooldown plus FVG downgrade plus boundary throws (TRIG-01, TRIG-02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 15-03-PLAN.md — Verbatim prose plus log serializer plus store tests plus calibration pins (TRIG-02, TRIG-03, TRIG-04)
 
 ### Phase 16: Fatal-Flaw Invalidation
