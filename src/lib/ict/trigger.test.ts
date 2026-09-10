@@ -425,7 +425,247 @@ describe('trigger: D-03 boundary pins', () => {
     expect(insideClose.verdict).toBe('FIRE_LONG');
   });
 });
-describe('trigger: suppressed SMT never blocks FIRE', () => {
+describe('trigger: D-06 cooldown matrix', () => {
+  it('downgrades an otherwise 3-of-3 LOW sweep to ARMED_ALREADY_FIRED with null entryFvg', () => {
+    const judas = fixtureTriggerJudas({
+      candidate: true,
+      confirmed: true,
+      sweepSide: 'LOW' as SweepSide,
+      sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+      displacementMult: 0.6,
+    });
+    const out = evaluateTrigger({
+      judas,
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: true,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_ALREADY_FIRED');
+    expect(out.reason).toBe(
+      'WHY NOW ARMED: Bu sessiyada siqnal artıq verilib — təkrar giriş yoxdur.',
+    );
+    expect(out.verdict).not.toBe('FIRE_LONG');
+    expect(out.verdict).not.toBe('FIRE_SHORT');
+    expect(out.entryFvg).toBeNull();
+    expect(out.gates).toEqual({ timing: true, purge: true, displacement: true });
+  });
+
+  it('fires FIRE_LONG on the alreadyFired false control', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.reasonKey).toBe('FIRE_LONG');
+    expect(out.entryFvg).not.toBeNull();
+  });
+});
+
+describe('trigger: D-04 no-FVG downgrade', () => {
+  it('caps null inventory at ARMED even at 3-of-3 otherwise', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: null,
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_MISSING_DISPLACEMENT');
+    expect(out.entryFvg).toBeNull();
+    expect(out.gates).toEqual({ timing: true, purge: true, displacement: false });
+  });
+
+  it('caps empty inventory at ARMED', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('caps wrong-polarity-only inventory at ARMED with the displacement key', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BEARISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_MISSING_DISPLACEMENT');
+    expect(out.entryFvg).toBeNull();
+    expect(out.gates.displacement).toBe(false);
+  });
+
+  it('caps mitigated-only inventory at ARMED', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10, { mitigated: true })],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('selects the most recent originDate BULLISH gap on FIRE preserving the ticket handle', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 8), fixtureFvg('BULLISH', 12)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.entryFvg).not.toBeNull();
+    expect(out.entryFvg?.originDate).toBe(dated(12));
+    expect(out.entryFvg?.polarity).toBe('BULLISH');
+    expect(out.entryFvg?.top).toBe(20060);
+    expect(out.entryFvg?.bottom).toBe(20040);
+  });
+});
+
+describe('trigger: SMT read-only agree tag', () => {
+  it('appends the agree suffix on concordant unsuppressed SMT without changing the verdict', () => {
+    const low = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(low.verdict).toBe('FIRE_LONG');
+    expect(low.reason).toBe(
+      'WHY NOW LONG: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır. SMT razılaşır.',
+    );
+    const high = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'HIGH' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BEARISH'),
+      fvg: [fixtureFvg('BEARISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(high.verdict).toBe('FIRE_SHORT');
+    expect(high.reason).toBe(
+      'WHY NOW SHORT: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır. SMT razılaşır.',
+    );
+  });
+
+  it('fires without the suffix on discordant SMT and on every ARMED and WAIT verdict entryFvg stays null', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BEARISH'),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.reason).toBe(
+      'WHY NOW LONG: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır.',
+    );
+    const armed = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: false,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(armed.verdict).toBe('ARMED');
+    expect(armed.entryFvg).toBeNull();
+    const wait = evaluateTrigger({
+      judas: null,
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '10:00'),
+      alreadyFired: false,
+    });
+    expect(wait.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(wait.entryFvg).toBeNull();
+  });
+
   it('fires without the agree suffix when SMT is suppressed', () => {
     const out = evaluateTrigger({
       judas: fixtureTriggerJudas({
