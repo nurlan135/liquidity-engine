@@ -10,8 +10,8 @@ Requirements for v3.0 milestone. Each maps to roadmap phases. Continues numberin
 ### Debt Cleanup
 
 - [x] **DEBT-01**: User sees no behavior change after dead `thinHistory` arg is removed from `nq-chart.tsx` zoneBands call (dimming still flows via opacityScale)
-- [ ] **DEBT-02**: User benefits from clean thin-tier API — orphaned `thinTier` export and `ThinBannerEntry` type are unexported or documented, no external import breaks
-- [ ] **DEBT-03**: New `ict/` files cannot violate purity — grep guard (test or lint) fails on `Date.now` or store imports inside `src/lib/ict`, green on existing code
+- [x] **DEBT-02**: User benefits from clean thin-tier API — orphaned `thinTier` export and `ThinBannerEntry` type are unexported or documented, no external import breaks
+- [x] **DEBT-03**: New `ict/` files cannot violate purity — grep guard (test or lint) fails on `Date.now` or store imports inside `src/lib/ict`, green on existing code
 
 ### WHY NOW Trigger
 
@@ -73,8 +73,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEBT-01 | Phase 14 | Complete |
-| DEBT-02 | Phase 14 | Pending |
-| DEBT-03 | Phase 14 | Pending |
+| DEBT-02 | Phase 14 | Complete |
+| DEBT-03 | Phase 14 | Complete |
 | TRIG-01 | Phase 15 | Pending |
 | TRIG-02 | Phase 15 | Pending |
 | TRIG-03 | Phase 15 | Pending |
@@ -98,4 +98,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-09-09*
-*Last updated: 2026-09-09 after initial definition*
+*Last updated: 2026-09-10 after Phase 14 completion*

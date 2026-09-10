@@ -11,7 +11,7 @@
 
 ### v3.0 Execution (Modul 4) — ACTIVE
 
-- [ ] **Phase 14: Audit Debt Cleanup + Purity Guard** - Dead code removed, purity grep guard green
+- [x] **Phase 14: Audit Debt Cleanup + Purity Guard** - Dead code removed, purity grep guard green (completed 2026-09-10)
 - [ ] **Phase 15: WHY NOW Trigger Engine** - Three-gate FIRE/ARMED/QUIET verdict with firing log
 - [ ] **Phase 16: Fatal-Flaw Invalidation** - Flaw-supersedes-fire on a shared snapshot, HARD/SOFT split
 - [ ] **Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins** - Deterministic ticket, live report blocks, PAPER chrome
@@ -37,7 +37,9 @@ Plans:
 
 - [x] 14-01-PLAN.md — Narrow zoneBands signature, trim nq-chart call, shrink test literals (DEBT-01)
 - [x] 14-02-PLAN.md — Unexport thinTier/ThinBannerEntry, migrate test pins to resolveThinTier (DEBT-02)
-- [ ] 14-03-PLAN.md — Co-located ict purity guard plus Asia fallback doc note (DEBT-03)
+- [x] 14-03-PLAN.md — Co-located ict purity guard plus Asia fallback doc note (DEBT-03)
+
+**Plans**: 3/3 plans complete
 
 ### Phase 15: WHY NOW Trigger Engine
 

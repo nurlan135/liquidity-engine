@@ -110,6 +110,7 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [11] Chart autosize via lightweight-charts native autoSize + autoSizeActive fallback gate; view-lock, overlays/chrome byte-identical | No-RO path near-dead but kept as fallback; Nyquist PARTIAL intentional (canvas pixels untestable in node-env, UAT 6/6 covers) | ✓ Good — crisp + resize-clean |
 | [13] Thin-tier truth module + persistent banner stacked thin-first; uniform 0.5 zone/level dimming, markers/Asia/candles full strength | Dead thinHistory arg in zoneBands call + orphaned thinTier export/type noted as minor debt; Asia fallback increases overlay frequency by design | ✓ Good — honest rendering holds |
 | [13] Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a) | Per-candle wall-clock session resolution; fallback makes selectAsia non-null more often, tone stays accent/stale by design | ✓ Good — en passant fix |
+| [14] Audit debt cleanup: zoneBands narrowed to high/low/eq, thin-tier surface shrunk to 4 public names, co-located ict purity guard green | Mechanical cleanup, zero behavior change; 300/300 tests, tsc clean, UAT 3/3 | ✓ Good — Phase 15 trigger code inherits a clean surface |
 
 ## Current State: v2.1 Shipped
 
@@ -163,4 +164,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-09 after v3.0 milestone start*
+*Last updated: 2026-09-10 after Phase 14*
