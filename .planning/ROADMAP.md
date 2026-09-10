@@ -53,7 +53,11 @@ Plans:
   3. User can inspect a firing log (capped ~50 entries, calibration-JSON export) recording each evaluation that reached ARMED or better
   4. All thresholds ship as exported `TRIGGER_*` constants pinned by boundary tests with `CALIBRATION-PROVISIONAL` comments; pre-agreed acceptance band is 1–4 fires/week
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 15-01-PLAN.md — Tracer: pure evaluateTrigger core plus minimal selectTrigger and firing log (TRIG-01, TRIG-04)
+- [ ] 15-02-PLAN.md — ARMED matrix plus cooldown plus FVG downgrade plus boundary throws (TRIG-01, TRIG-02)
+- [ ] 15-03-PLAN.md — Verbatim prose plus log serializer plus store tests plus calibration pins (TRIG-02, TRIG-03, TRIG-04)
 
 ### Phase 16: Fatal-Flaw Invalidation
 
