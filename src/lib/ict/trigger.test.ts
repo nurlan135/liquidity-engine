@@ -687,3 +687,143 @@ describe('trigger: SMT read-only agree tag', () => {
     );
   });
 });
+
+describe('trigger: malformed-input throws at the boundary', () => {
+  it('rejects a null input object', () => {
+    expect(() => evaluateTrigger(null as unknown as never)).toThrow(
+      'evaluateTrigger requires an input object, got',
+    );
+  });
+
+  it('rejects non-finite and non-positive asOf with got-string messages', () => {
+    const base = {
+      judas: fixtureTriggerJudas(),
+      amd: null,
+      smt: null,
+      fvg: null,
+      alreadyFired: false,
+    };
+    for (const asOf of [NaN, Infinity, 0, -1, 'abc']) {
+      expect(() =>
+        evaluateTrigger({ ...base, asOf: asOf as unknown as number }),
+      ).toThrow('evaluateTrigger requires a finite positive asOf epoch, got');
+    }
+  });
+
+  it('rejects malformed judas envelopes: candidate 1, string sweepTime, BOTH side', () => {
+    const asOf = nyMinuteEpoch(SESSION, '03:00');
+    expect(() =>
+      evaluateTrigger({
+        judas: { ...fixtureTriggerJudas({ candidate: true }), candidate: 1 } as unknown as JudasOutput,
+        amd: null,
+        smt: null,
+        fvg: null,
+        asOf,
+        alreadyFired: false,
+      }),
+    ).toThrow('evaluateTrigger requires boolean judas candidate/confirmed, got');
+    expect(() =>
+      evaluateTrigger({
+        judas: fixtureTriggerJudas({
+          candidate: true,
+          confirmed: true,
+          sweepTime: 'abc' as unknown as number,
+        }),
+        amd: null,
+        smt: null,
+        fvg: null,
+        asOf,
+        alreadyFired: false,
+      }),
+    ).toThrow('evaluateTrigger requires a finite positive judas sweepTime or null, got');
+    expect(() =>
+      evaluateTrigger({
+        judas: fixtureTriggerJudas({ candidate: true, sweepSide: 'BOTH' as unknown as SweepSide }),
+        amd: null,
+        smt: null,
+        fvg: null,
+        asOf,
+        alreadyFired: false,
+      }),
+    ).toThrow('evaluateTrigger requires judas sweepSide HIGH, LOW, or null, got');
+  });
+
+  it('rejects non-boolean alreadyFired', () => {
+    expect(() =>
+      evaluateTrigger({
+        judas: fixtureTriggerJudas(),
+        amd: null,
+        smt: null,
+        fvg: null,
+        asOf: nyMinuteEpoch(SESSION, '03:00'),
+        alreadyFired: 'yes' as unknown as boolean,
+      }),
+    ).toThrow('evaluateTrigger requires a boolean alreadyFired, got');
+  });
+
+  it('rejects non-finite FvgGap top or bottom', () => {
+    const asOf = nyMinuteEpoch(SESSION, '03:00');
+    expect(() =>
+      evaluateTrigger({
+        judas: fixtureTriggerJudas(),
+        amd: null,
+        smt: null,
+        fvg: [fixtureFvg('BULLISH', 10, { top: NaN })],
+        asOf,
+        alreadyFired: false,
+      }),
+    ).toThrow('evaluateTrigger requires finite gap bounds, got');
+    expect(() =>
+      evaluateTrigger({
+        judas: fixtureTriggerJudas(),
+        amd: null,
+        smt: null,
+        fvg: [fixtureFvg('BULLISH', 10, { bottom: Infinity })],
+        asOf,
+        alreadyFired: false,
+      }),
+    ).toThrow('evaluateTrigger requires finite gap bounds, got');
+  });
+
+  it('degrades null detectors to honest WAIT without throwing', () => {
+    const out = evaluateTrigger({
+      judas: null,
+      amd: null,
+      smt: null,
+      fvg: null,
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.reasonKey).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.gates).toEqual({ timing: true, purge: false, displacement: false });
+    expect(out.entryFvg).toBeNull();
+  });
+});
+
+describe('trigger: determinism', () => {
+  it('yields byte-identical verdict plus reason plus gates plus entryFvg on repeat evaluation', () => {
+    const input = {
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BULLISH', 8), fixtureFvg('BULLISH', 12)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    };
+    const first = evaluateTrigger(input);
+    const second = evaluateTrigger({ ...input, fvg: [...(input.fvg ?? [])] });
+    expect(second).toEqual(first);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+    expect(second.verdict).toBe(first.verdict);
+    expect(second.reason).toBe(first.reason);
+    expect(second.gates).toEqual(first.gates);
+    expect(second.entryFvg).toEqual(first.entryFvg);
+  });
+});
