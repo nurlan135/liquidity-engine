@@ -239,6 +239,192 @@ describe('trigger: D-01/D-02 NY sweep never fires', () => {
   });
 });
 
+describe('trigger: D-05 exactly-2-of-3 ARMED matrix', () => {
+  it('arms ARMED_MISSING_TIMING at 06:00 NY with purge plus displacement true', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '06:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_MISSING_TIMING');
+    expect(out.reason).toBe(
+      'WHY NOW ARMED: Quruluş hazırdır — killzone pəncərəsi gözlənilir.',
+    );
+    expect(out.gates).toEqual({ timing: false, purge: true, displacement: true });
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('arms ARMED_MISSING_PURGE on unconfirmed judas with timing plus displacement true', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: false,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_MISSING_PURGE');
+    expect(out.reason).toBe(
+      'WHY NOW ARMED: Quruluş hazırdır — London Judas təsdiqi gözlənilir.',
+    );
+    expect(out.gates).toEqual({ timing: true, purge: false, displacement: true });
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('arms ARMED_MISSING_DISPLACEMENT on weak displacement with timing plus purge true', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.2,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_MISSING_DISPLACEMENT');
+    expect(out.reason).toBe(
+      'WHY NOW ARMED: Quruluş hazırdır — displacement təsdiqi və giriş FVG gözlənilir.',
+    );
+    expect(out.gates).toEqual({ timing: true, purge: true, displacement: false });
+    expect(out.entryFvg).toBeNull();
+  });
+});
+
+describe('trigger: 0-to-1 gates stay WAIT_FOR_MANIPULATION', () => {
+  it('waits with a lone displacement gate outside the killzone on unconfirmed sweep', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: false,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '10:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.reasonKey).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.reason).toBe(
+      'WAIT FOR MANIPULATION: Zaman, süpürmə və displacement razılaşmır — manipulyasiya gözlənilir.',
+    );
+    expect(out.gates).toEqual({ timing: false, purge: false, displacement: true });
+    expect(out.entryFvg).toBeNull();
+  });
+});
+
+describe('trigger: D-03 boundary pins', () => {
+  it('reads displacement false just below 0.5 and true just above', () => {
+    const base = {
+      candidate: true,
+      confirmed: true,
+      sweepSide: 'LOW' as SweepSide,
+      sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+    };
+    const below = evaluateTrigger({
+      judas: fixtureTriggerJudas({ ...base, displacementMult: 0.499 }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(below.gates.displacement).toBe(false);
+    expect(below.verdict).toBe('ARMED');
+    expect(below.reasonKey).toBe('ARMED_MISSING_DISPLACEMENT');
+    expect(below.entryFvg).toBeNull();
+    const above = evaluateTrigger({
+      judas: fixtureTriggerJudas({ ...base, displacementMult: 0.501 }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(above.gates.displacement).toBe(true);
+    expect(above.verdict).toBe('FIRE_LONG');
+    expect(above.reasonKey).toBe('FIRE_LONG');
+  });
+
+  it('reads displacement true at exactly 0.5 via TOL_EPS tolerance', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.5,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.gates.displacement).toBe(true);
+    expect(out.verdict).toBe('FIRE_LONG');
+  });
+
+  it('reads timing false on killzone edges 120 and 300, true just inside at 121 and 299', () => {
+    const sweep = (mult = 0.6) =>
+      fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: mult,
+      });
+    const at = (hhmm: string) =>
+      evaluateTrigger({
+        judas: sweep(),
+        amd: null,
+        smt: null,
+        fvg: [fixtureFvg('BULLISH', 10)],
+        asOf: nyMinuteEpoch(SESSION, hhmm),
+        alreadyFired: false,
+      });
+    const open = at('02:00');
+    expect(open.gates.timing).toBe(false);
+    expect(open.verdict).toBe('ARMED');
+    expect(open.reasonKey).toBe('ARMED_MISSING_TIMING');
+    const close = at('05:00');
+    expect(close.gates.timing).toBe(false);
+    expect(close.verdict).toBe('ARMED');
+    expect(close.reasonKey).toBe('ARMED_MISSING_TIMING');
+    const insideOpen = at('02:01');
+    expect(insideOpen.gates.timing).toBe(true);
+    expect(insideOpen.verdict).toBe('FIRE_LONG');
+    const insideClose = at('04:59');
+    expect(insideClose.gates.timing).toBe(true);
+    expect(insideClose.verdict).toBe('FIRE_LONG');
+  });
+});
 describe('trigger: suppressed SMT never blocks FIRE', () => {
   it('fires without the agree suffix when SMT is suppressed', () => {
     const out = evaluateTrigger({
