@@ -1,0 +1,263 @@
+import { describe, expect, it } from 'vitest';
+import { fromZonedTime } from 'date-fns-tz';
+import { NY_TZ } from '@/src/lib/ict/aggregate';
+import {
+  TRIGGER_DISP_MULT,
+  TRIGGER_KZ_END_MIN,
+  TRIGGER_KZ_START_MIN,
+  TRIGGER_LOG_CAP,
+  evaluateTrigger,
+} from '@/src/lib/ict/trigger';
+import type { JudasOutput, SweepSide } from '@/src/lib/ict/judas';
+import type { SmtOutput } from '@/src/lib/ict/smt';
+import type { FvgGap } from '@/src/lib/ict/fvg';
+import type { IntradayCandle } from '@/src/lib/ict/types';
+
+const SESSION = '2026-06-15';
+
+function fixtureTriggerJudas(overrides: Partial<JudasOutput> = {}): JudasOutput {
+  return {
+    candidate: false,
+    confirmed: false,
+    preRun: false,
+    sweepSide: null,
+    sweepTime: null,
+    displacementMult: 0,
+    ...overrides,
+  };
+}
+
+function signalSmt(
+  direction: 'BULLISH' | 'BEARISH' | 'NO-SIGNAL' = 'BEARISH',
+): SmtOutput {
+  return {
+    suppressed: false,
+    direction,
+    sweeperLeg: 'NQ',
+    nqWindow: null,
+    esWindow: null,
+    bpsGap: 30,
+  };
+}
+
+function suppressedSmt(): SmtOutput {
+  return { suppressed: true, reason: 'CORR_DECOUPLED', corr: 0.4 };
+}
+
+// FVG list builder in the fvg.test.ts candle()+dated() style: dated origin
+// keys plus explicit gap bounds per polarity.
+function dated(day: number): string {
+  return `2026-06-${String(day).padStart(2, '0')}`;
+}
+
+function fixtureFvg(
+  polarity: 'BULLISH' | 'BEARISH',
+  originDay: number,
+  overrides: Partial<FvgGap> = {},
+): FvgGap {
+  return {
+    polarity,
+    top: polarity === 'BULLISH' ? 20060 : 20160,
+    bottom: polarity === 'BULLISH' ? 20040 : 20140,
+    originDate: dated(originDay),
+    mitigated: false,
+    ...overrides,
+  };
+}
+
+// Epoch builders mirroring the judas.test.ts idiom: DST-aware conversion
+// through fromZonedTime, no hand-rolled offsets, no new time builders.
+function nyHourEpoch(nyDate: string, nyHour: number): number {
+  return Math.floor(fromZonedTime(`${nyDate} ${String(nyHour).padStart(2, '0')}:00:00`, NY_TZ).getTime() / 1000);
+}
+
+function nyMinuteEpoch(nyDate: string, hhmm: string): number {
+  return Math.floor(fromZonedTime(`${nyDate} ${hhmm}:00`, NY_TZ).getTime() / 1000);
+}
+
+// Row builder in the judas.test.ts idiom: time plus price plus overrides.
+function row(time: number, price: number, overrides: Partial<IntradayCandle> = {}): IntradayCandle {
+  return {
+    time,
+    open: price,
+    high: price + 8,
+    low: price - 6,
+    close: price + 3,
+    ...overrides,
+  };
+}
+
+function fixtureRange(): { high: number; low: number; height: number } {
+  return { high: 20100, low: 20000, height: 100 };
+}
+
+describe('trigger: calibrated constants pinned', () => {
+  it('pins TRIGGER_DISP_MULT, the killzone window, and the log cap', () => {
+    expect(TRIGGER_DISP_MULT).toBe(0.5);
+    expect(TRIGGER_KZ_START_MIN).toBe(120);
+    expect(TRIGGER_KZ_END_MIN).toBe(300);
+    expect(TRIGGER_LOG_CAP).toBe(50);
+  });
+
+  it('keeps the row and range fixture idiom honest', () => {
+    const t = nyMinuteEpoch(SESSION, '02:00');
+    const r = row(t, 20050);
+    expect(r.time).toBe(t);
+    expect(r.open).toBe(20050);
+    expect(fixtureRange()).toEqual({ high: 20100, low: 20000, height: 100 });
+  });
+});
+
+describe('trigger: TRIG-01 happy paths', () => {
+  it('fires FIRE_LONG on a LOW sweep with 3 of 3 plus entry FVG', () => {
+    const judas = fixtureTriggerJudas({
+      candidate: true,
+      confirmed: true,
+      sweepSide: 'LOW' as SweepSide,
+      sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+      displacementMult: 0.6,
+    });
+    const smt = signalSmt('BULLISH');
+    const fvg = [fixtureFvg('BULLISH', 10)];
+    const out = evaluateTrigger({
+      judas,
+      amd: null,
+      smt,
+      fvg,
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.direction).toBe('LONG');
+    expect(out.reasonKey).toBe('FIRE_LONG');
+    expect(out.reason).toBe(
+      'WHY NOW LONG: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır. SMT razılaşır.',
+    );
+    expect(out.gates).toEqual({ timing: true, purge: true, displacement: true });
+    expect(out.entryFvg).not.toBeNull();
+    expect(out.entryFvg?.polarity).toBe('BULLISH');
+    expect(out.inputs.judas).toEqual(judas);
+    expect(out.inputs.amd).toBeNull();
+    expect(out.inputs.smt).toEqual(smt);
+  });
+
+  it('fires FIRE_SHORT on a HIGH sweep mirror', () => {
+    const judas = fixtureTriggerJudas({
+      candidate: true,
+      confirmed: true,
+      sweepSide: 'HIGH' as SweepSide,
+      sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+      displacementMult: 0.6,
+    });
+    const smt = signalSmt('BEARISH');
+    const out = evaluateTrigger({
+      judas,
+      amd: null,
+      smt,
+      fvg: [fixtureFvg('BEARISH', 10)],
+      asOf: nyHourEpoch(SESSION, 3),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_SHORT');
+    expect(out.direction).toBe('SHORT');
+    expect(out.reasonKey).toBe('FIRE_SHORT');
+    expect(out.reason).toBe(
+      'WHY NOW SHORT: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır. SMT razılaşır.',
+    );
+    expect(out.gates).toEqual({ timing: true, purge: true, displacement: true });
+    expect(out.entryFvg?.polarity).toBe('BEARISH');
+  });
+});
+
+describe('trigger: choppy-sideways spam guard stays QUIET', () => {
+  it('holds WAIT_FOR_MANIPULATION with 0 gates on null judas outside the killzone', () => {
+    // Price 20050 rows sit strictly inside the 20100/20000 anchor: no sweep.
+    const quiet = row(nyMinuteEpoch(SESSION, '10:00'), 20050);
+    expect(quiet.high).toBeLessThan(20100);
+    expect(quiet.low).toBeGreaterThan(20000);
+    const out = evaluateTrigger({
+      judas: null,
+      amd: null,
+      smt: null,
+      fvg: null,
+      asOf: nyMinuteEpoch(SESSION, '10:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.reasonKey).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.reason).toBe(
+      'WAIT FOR MANIPULATION: Zaman, süpürmə və displacement razılaşmır — manipulyasiya gözlənilir.',
+    );
+    expect(out.gates).toEqual({ timing: false, purge: false, displacement: false });
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('holds WAIT_FOR_MANIPULATION with 1 gate on unconfirmed judas inside the killzone', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: false,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.2,
+      }),
+      amd: null,
+      smt: null,
+      fvg: null,
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.gates).toEqual({ timing: true, purge: false, displacement: false });
+  });
+});
+
+describe('trigger: D-01/D-02 NY sweep never fires', () => {
+  it('holds purge false on a preRun-style NY-hours sweep', () => {
+    // 10:00 NY is past the killzone close: judasSwing marks such sweeps
+    // preRun with confirmed false by construction, so the purge gate reads
+    // confirmed alone with no NY session branch in trigger.ts.
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: false,
+        confirmed: false,
+        preRun: true,
+        sweepSide: 'HIGH' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '10:00'),
+        displacementMult: 0,
+      }),
+      amd: null,
+      smt: signalSmt('BEARISH'),
+      fvg: [fixtureFvg('BEARISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '10:00'),
+      alreadyFired: false,
+    });
+    expect(out.gates.purge).toBe(false);
+    expect(out.verdict).not.toBe('FIRE_LONG');
+    expect(out.verdict).not.toBe('FIRE_SHORT');
+    expect(out.verdict).toBe('WAIT_FOR_MANIPULATION');
+  });
+});
+
+describe('trigger: suppressed SMT never blocks FIRE', () => {
+  it('fires without the agree suffix when SMT is suppressed', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: suppressedSmt(),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.reason).toBe(
+      'WHY NOW LONG: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır.',
+    );
+  });
+});
