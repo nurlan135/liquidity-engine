@@ -15,6 +15,14 @@ import { judasSwing, type JudasOutput } from '@/src/lib/ict/judas';
 import { evaluateSMT, type SmtOutput } from '@/src/lib/ict/smt';
 import { amdPhase, type AmdOutput } from '@/src/lib/ict/amd';
 import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransition } from '@/src/lib/ict/fvg';
+import type { FvgGap } from '@/src/lib/ict/fvg';
+import {
+  TRIGGER_LOG_CAP,
+  evaluateTrigger,
+  nyDateOf,
+  type FiringLogEntry,
+  type TriggerOutput,
+} from '@/src/lib/ict/trigger';
 import { deriveConvictionTier, type ConvictionTier } from '@/src/lib/confluence';
 import { getAsOfBakuDate } from '@/src/lib/time';
 
@@ -233,6 +241,10 @@ export interface DashboardState {
   selectAsia: () => AsiaRange | null;
   selectJudas: () => JudasOutput | null;
   selectAMD: (asOf?: number) => AmdOutput | null;
+  selectTrigger: () => TriggerOutput | null;
+  firingLog: FiringLogEntry[];
+  firingLogOverflow: number;
+  appendFiringLog: (out: TriggerOutput, asOf: number) => void;
   selectConfluence: () => ConvictionTier;
   selectLiquidityPath: () => string | null;
 }
@@ -371,6 +383,16 @@ function clearDualTimers(): void {
   }
 }
 
+// Phase 15: single time truth for selectAMD plus selectTrigger. Extracted
+// from the selectAMD epoch IIFE: nq1h lastUpdatedISO with a Date fallback at
+// the caller boundary only (ict/ never reads clocks), so both selectors can
+// never disagree on time — no torn reads, no duplication.
+function sharedEpoch(get: () => DashboardState): number {
+  const iso = get().nq1h.lastUpdatedISO;
+  const parsed = iso === null ? NaN : new Date(iso).getTime();
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Math.floor(new Date().getTime() / 1000);
+}
+
 export const useDashboard = create<DashboardState>()((set, get) => ({
   candles: [],
   contractHint: '',
@@ -391,6 +413,8 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   inFlightNQ15M: false,
   coverage: { ...EMPTY_COVERAGE },
   lastSchedule: null,
+  firingLog: [],
+  firingLogOverflow: 0,
 
   refresh: async () => {
     // Client singleflight: coalesce parallel refresh calls, no torn writes.
@@ -752,16 +776,88 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
       const asia = get().selectAsia();
       const judas = get().selectJudas();
       const smt = get().selectSMT();
-      const epoch =
-        asOf ??
-        (() => {
-          const iso = get().nq1h.lastUpdatedISO;
-          const parsed = iso === null ? NaN : new Date(iso).getTime();
-          return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Math.floor(new Date().getTime() / 1000);
-        })();
+      const epoch = asOf ?? sharedEpoch(get);
       return amdPhase({ asia, judas, smt, asOf: epoch });
     } catch {
       return null;
+    }
+  },
+
+  // Phase 15 WHY NOW trigger: one poll-driven path from detectors through
+  // evaluateTrigger to the firing log. Refuse-with-null on stale or empty
+  // intraday legs; degraded detector outputs yield honest WAIT via
+  // evaluateTrigger (null only on the throw path). FVG derives inline from
+  // the same nq.candles the selectLiquidityPath precedent uses; empty or
+  // stale maps to fvg null so the displacement gate fails honestly.
+  selectTrigger: () => {
+    const { nq, nq1h, nq15m } = get();
+    if (nq1h.stale || nq15m.stale) return null;
+    if (closedOnlyIntraday(nq1h.candles).length === 0) return null;
+    if (closedOnlyIntraday(nq15m.candles).length === 0) return null;
+    try {
+      const epoch = sharedEpoch(get);
+      const judas = get().selectJudas();
+      const smt = get().selectSMT();
+      const amd = get().selectAMD(epoch);
+      let fvg: FvgGap[] | null = null;
+      if (!nq.stale && closedOnly(nq.candles).length > 0) {
+        try {
+          fvg = applyMitigation(detectFVGs(nq.candles), nq.candles);
+        } catch {
+          fvg = null;
+        }
+      }
+      const sessionDate = nyDateOf(epoch);
+      const alreadyFired = get().firingLog.some(
+        (entry) =>
+          entry.sessionDate === sessionDate &&
+          (entry.verdict === 'FIRE_LONG' || entry.verdict === 'FIRE_SHORT'),
+      );
+      const out = evaluateTrigger({ judas, amd, smt, fvg, asOf: epoch, alreadyFired });
+      if (out.verdict !== 'WAIT_FOR_MANIPULATION') {
+        get().appendFiringLog(out, epoch);
+      }
+      return out;
+    } catch {
+      return null;
+    }
+  },
+
+  // Phase 15 firing log (D-06/D-07): appends ARMED-or-better only, dedups
+  // FIRE per NY-date session, drops oldest beyond TRIGGER_LOG_CAP with an
+  // overflow counter (fvg.ts trailing-slice idiom).
+  appendFiringLog: (out, asOf) => {
+    if (out.verdict === 'WAIT_FOR_MANIPULATION') return;
+    const sessionDate = nyDateOf(asOf);
+    const { firingLog } = get();
+    const isFire = out.verdict === 'FIRE_LONG' || out.verdict === 'FIRE_SHORT';
+    if (
+      isFire &&
+      firingLog.some(
+        (entry) =>
+          entry.sessionDate === sessionDate &&
+          (entry.verdict === 'FIRE_LONG' || entry.verdict === 'FIRE_SHORT'),
+      )
+    ) {
+      return;
+    }
+    const entry: FiringLogEntry = {
+      asOf,
+      verdict: out.verdict,
+      gates: { ...out.gates },
+      direction: out.direction,
+      reasonKey: out.reasonKey,
+      sessionDate,
+    };
+    const next = [...firingLog, entry];
+    if (next.length > TRIGGER_LOG_CAP) {
+      const overflow = next.length - TRIGGER_LOG_CAP;
+      set({
+        firingLog: next.slice(-TRIGGER_LOG_CAP),
+        firingLogOverflow: get().firingLogOverflow + overflow,
+      });
+    } else {
+      set({ firingLog: next });
     }
   },
 
