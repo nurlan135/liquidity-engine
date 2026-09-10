@@ -36,7 +36,7 @@
 Plans:
 
 - [x] 14-01-PLAN.md — Narrow zoneBands signature, trim nq-chart call, shrink test literals (DEBT-01)
-- [ ] 14-02-PLAN.md — Unexport thinTier/ThinBannerEntry, migrate test pins to resolveThinTier (DEBT-02)
+- [x] 14-02-PLAN.md — Unexport thinTier/ThinBannerEntry, migrate test pins to resolveThinTier (DEBT-02)
 - [ ] 14-03-PLAN.md — Co-located ict purity guard plus Asia fallback doc note (DEBT-03)
 
 ### Phase 15: WHY NOW Trigger Engine
