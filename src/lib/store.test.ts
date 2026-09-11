@@ -1181,6 +1181,67 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  it('flaw-stale: stale nq15m forces selectFatalFlaw null without throwing', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // Live London confirmed-sweep state derives a flaw verdict, never throws.
+    let live: unknown = 'unset';
+    expect(() => {
+      live = useDashboard.getState().selectFatalFlaw();
+    }).not.toThrow();
+    expect(live).not.toBeNull();
+
+    // Stale legs force the trigger null too — the selector refuses with null,
+    // never a SOFT downgrade on no trigger (flaw purity at the boundary).
+    useDashboard.setState({
+      nq15m: { ...useDashboard.getState().nq15m, stale: true, lastError: '15m stale' },
+    });
+    expect(useDashboard.getState().selectTrigger()).toBeNull();
+    let staleFlaw: unknown = 'unset';
+    expect(() => {
+      staleFlaw = useDashboard.getState().selectFatalFlaw();
+    }).not.toThrow();
+    expect(staleFlaw).toBeNull();
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('flaw-coherence: back-to-back selectFatalFlaw calls share one epoch with the trigger', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // Consume the session FIRE first so both flaw derivations below read the
+    // same ARMED-after-fire trigger — back-to-back on one poll, never torn.
+    const trigger = useDashboard.getState().selectTrigger();
+    expect(trigger).not.toBeNull();
+    expect(trigger!.verdict).toBe('FIRE_LONG');
+
+    const first = useDashboard.getState().selectFatalFlaw();
+    const second = useDashboard.getState().selectFatalFlaw();
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    // Same state, back-to-back: byte-identical flaw outputs.
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+
+    // One time truth: the flaw asOf equals the shared epoch pinned by the
+    // seed (2026-02-09T08:00:00Z via nq1h lastUpdatedISO) — no second clock
+    // read, never re-derived inside the selector.
+    const expectedEpoch = Math.floor(new Date('2026-02-09T08:00:00.000Z').getTime() / 1000);
+    expect(first!.asOf).toBe(expectedEpoch);
+    expect(second!.asOf).toBe(expectedEpoch);
+
+    // Trigger verdict context rides along: a downgrade resume key or clean
+    // NONE — and §6 strings attach to every output including clean verdicts.
+    const carriesContext = first!.carriedArmedReason !== null || first!.reasonKey === 'NONE';
+    expect(carriesContext).toBe(true);
+    expect(first!.reason.length).toBeGreaterThan(0);
+    expect(first!.sentence.length).toBeGreaterThan(0);
+    expect(first!.challenge.length).toBeGreaterThan(0);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('trigger-fire: live London LOW sweep fires FIRE_LONG and appends one log entry', async () => {
     const { useDashboard } = await resetDualState();
     await seedTriggerFire(useDashboard);
