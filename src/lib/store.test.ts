@@ -93,6 +93,118 @@ function stubFourLegs(
   return { fetchFn, nqEnv, esEnv, h1Env, m15Env };
 }
 
+// Phase 15 trigger fixture: a live London LOW sweep that fires FIRE_LONG
+// end to end. Asia 2026-02-08 20:00-23:00 1H rows anchor high 20045 / low
+// 19988; twelve 15M rows span the 02:00-05:00 NY killzone on 2026-02-09 with
+// a 03:00 LOW sweep (low 19968) plus a 03:15 reversal close (20028, 40/57
+// displacement); the shared epoch pins 03:00 NY via nq1h lastUpdatedISO; D1
+// NQ rows carry one unmitigated BULLISH gap (top 20025, bottom 20010,
+// originDate 2026-01-21 — the entry handle). ES mirrors NQ so SMT
+// suppresses CORR_DECOUPLED honestly without blocking FIRE.
+async function seedTriggerFire(
+  useDashboard: typeof import('@/src/lib/store')['useDashboard'],
+) {
+  const { fromZonedTime } = await import('date-fns-tz');
+  const NY = 'America/New_York';
+  const epoch = (s: string) => Math.floor(fromZonedTime(s, NY).getTime() / 1000);
+  const asiaDate = '2026-02-08';
+  const fireDate = '2026-02-09';
+
+  const h1 = [
+    `${asiaDate} 20:00:00`,
+    `${asiaDate} 21:00:00`,
+    `${asiaDate} 22:00:00`,
+    `${asiaDate} 23:00:00`,
+  ].map((s, i) => ({
+    time: epoch(s),
+    open: 20000 + i * 10,
+    high: 20000 + i * 10 + 15,
+    low: 20000 + i * 10 - 12,
+    close: 20000 + i * 10 + 5,
+  }));
+  const asiaLow = 20000 - 12;
+
+  const quiet15 = (s: string) => ({
+    time: epoch(s),
+    open: 20010,
+    high: 20018,
+    low: 20004,
+    close: 20013,
+  });
+  const m15 = [
+    quiet15(`${fireDate} 02:00:00`),
+    quiet15(`${fireDate} 02:15:00`),
+    quiet15(`${fireDate} 02:30:00`),
+    quiet15(`${fireDate} 02:45:00`),
+    // 03:00 LOW sweep: low pierces strictly below the Asia low.
+    {
+      time: epoch(`${fireDate} 03:00:00`),
+      open: 20010,
+      high: 20040,
+      low: asiaLow - 20,
+      close: 19995,
+    },
+    // 03:15 reversal: closes back through the low with 40/57 displacement.
+    {
+      time: epoch(`${fireDate} 03:15:00`),
+      open: 20060,
+      high: 20068,
+      low: 20054,
+      close: asiaLow + 40,
+    },
+    quiet15(`${fireDate} 03:30:00`),
+    quiet15(`${fireDate} 03:45:00`),
+    quiet15(`${fireDate} 04:00:00`),
+    quiet15(`${fireDate} 04:15:00`),
+    quiet15(`${fireDate} 04:30:00`),
+    quiet15(`${fireDate} 04:45:00`),
+  ];
+
+  const candle = (date: string, price: number, overrides: Record<string, unknown> = {}) => ({
+    date,
+    open: price,
+    high: price + 15,
+    low: price - 12,
+    close: price + 5,
+    ...overrides,
+  });
+  const prev = candle('2026-01-20', 20000);
+  const mid = candle('2026-01-21', 20010);
+  const next = candle('2026-01-22', 20060, { low: prev.high + 10 });
+  const tail = candle('2026-01-23', 20100);
+  const nq = [prev, mid, next, tail];
+  const es = nq.map((c) => ({ ...c }));
+
+  // Shared epoch pins 03:00 NY (EST, UTC-5) — inside the killzone window.
+  const iso = '2026-02-09T08:00:00.000Z';
+  const envelope = (candles: unknown[], hint: string) => ({
+    candles,
+    contractHint: hint,
+    lastUpdatedISO: iso,
+    stale: false,
+    source: 'live',
+  });
+  const h1Env = envelope(h1, 'NQ=F · 1H');
+  const m15Env = envelope(m15, 'NQ=F · 15M');
+  const nqEnv = envelope(nq, 'NQ=F · CME');
+  const esEnv = envelope(es, 'ES=F · CME');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('interval=15m')) return Response.json(m15Env);
+      if (u.includes('interval=1h')) return Response.json(h1Env);
+      if (u.includes('symbol=ES')) return Response.json(esEnv);
+      return Response.json(nqEnv);
+    }),
+  );
+  await useDashboard.getState().refreshNQ();
+  await useDashboard.getState().refreshES();
+  await useDashboard.getState().refreshNQ1H();
+  await useDashboard.getState().refreshNQ15M();
+  vi.unstubAllGlobals();
+}
+
 describe('store: refresh writes envelope in one update', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -991,6 +1103,169 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     expect(range4H!.high).toBeGreaterThan(range4H!.low);
     expect(range4H!.window).toBe(20);
     expect(typeof range4H!.asOf).toBe('string');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-stale: stale nq15m or nq1h forces selectTrigger null', async () => {
+    const { useDashboard } = await resetDualState();
+    stubFourLegs();
+    await useDashboard.getState().refreshNQ();
+    await useDashboard.getState().refreshES();
+    await useDashboard.getState().refreshNQ1H();
+    await useDashboard.getState().refreshNQ15M();
+
+    useDashboard.setState({
+      nq15m: { ...useDashboard.getState().nq15m, stale: true, lastError: '15m stale' },
+    });
+    expect(useDashboard.getState().selectTrigger()).toBeNull();
+    expect(useDashboard.getState().nq15m.lastError).toBe('15m stale');
+
+    useDashboard.setState({
+      nq15m: { ...useDashboard.getState().nq15m, stale: false },
+      nq1h: { ...useDashboard.getState().nq1h, stale: true, lastError: '1h stale' },
+    });
+    expect(useDashboard.getState().selectTrigger()).toBeNull();
+    expect(useDashboard.getState().nq1h.lastError).toBe('1h stale');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-empty: empty legs force selectTrigger null without throwing', async () => {
+    const { useDashboard } = await resetDualState();
+
+    let trigger: unknown = 'unset';
+    expect(() => {
+      trigger = useDashboard.getState().selectTrigger();
+    }).not.toThrow();
+    expect(trigger).toBeNull();
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-coherence: selectTrigger shares its epoch with selectAMD on the same poll', async () => {
+    const { useDashboard } = await resetDualState();
+    stubFourLegs();
+    await useDashboard.getState().refreshNQ();
+    await useDashboard.getState().refreshES();
+    await useDashboard.getState().refreshNQ1H();
+    await useDashboard.getState().refreshNQ15M();
+
+    // Same state, back-to-back: the trigger-carried AMD snapshot equals the
+    // direct selectAMD derivation — both read sharedEpoch, never torn clocks.
+    const trigger = useDashboard.getState().selectTrigger();
+    expect(trigger).not.toBeNull();
+    expect(trigger!.inputs.amd).toEqual(useDashboard.getState().selectAMD());
+
+    // Epoch sensitivity: the selector genuinely consumes the shared epoch —
+    // the same detector inputs read timing false both before and after the
+    // nq1h clock moves, but the carried AMD snapshot follows the epoch: at
+    // 12:00Z (07:00 NY) amdPhase holds its clock-skeleton branch, and only an
+    // epoch change can move the trigger-carried snapshot with it.
+    const { fromZonedTime } = await import('date-fns-tz');
+    const before = useDashboard.getState().selectTrigger();
+    expect(before).not.toBeNull();
+    expect(before!.gates.timing).toBe(false);
+    const morning = new Date(fromZonedTime('2026-02-09 10:00:00', 'America/New_York')).toISOString();
+    useDashboard.setState({
+      nq1h: { ...useDashboard.getState().nq1h, lastUpdatedISO: morning },
+    });
+    const after = useDashboard.getState().selectTrigger();
+    expect(after).not.toBeNull();
+    expect(after!.gates.timing).toBe(false);
+    // The carried AMD snapshot tracks the moved epoch — both snapshots equal
+    // their same-poll direct selectAMD derivation, so trigger can never
+    // desync from selectAMD on time.
+    expect(after!.inputs.amd).toEqual(useDashboard.getState().selectAMD());
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-fire: live London LOW sweep fires FIRE_LONG and appends one log entry', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    const out = useDashboard.getState().selectTrigger();
+    expect(out).not.toBeNull();
+    expect(out!.verdict).toBe('FIRE_LONG');
+    expect(out!.direction).toBe('LONG');
+    expect(out!.reasonKey).toBe('FIRE_LONG');
+    expect(out!.reason).toBe(
+      'WHY NOW LONG: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır.',
+    );
+    expect(out!.gates).toEqual({ timing: true, purge: true, displacement: true });
+    expect(out!.entryFvg).not.toBeNull();
+    expect(out!.entryFvg!.polarity).toBe('BULLISH');
+
+    const state = useDashboard.getState();
+    expect(state.firingLog).toHaveLength(1);
+    expect(state.firingLog[0].verdict).toBe('FIRE_LONG');
+    expect(state.firingLog[0].gates).toEqual({ timing: true, purge: true, displacement: true });
+    expect(state.firingLog[0].direction).toBe('LONG');
+    expect(state.firingLog[0].reasonKey).toBe('FIRE_LONG');
+    expect(state.firingLog[0].sessionDate).toBe('2026-02-09');
+    expect(typeof state.firingLog[0].asOf).toBe('number');
+
+    // Same-session repeat poll downgrades to already-fired ARMED with no
+    // second append — the cooldown holds end to end.
+    const repeat = useDashboard.getState().selectTrigger();
+    expect(repeat).not.toBeNull();
+    expect(repeat!.verdict).toBe('ARMED');
+    expect(repeat!.reasonKey).toBe('ARMED_ALREADY_FIRED');
+    expect(useDashboard.getState().firingLog).toHaveLength(1);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-cap: 51 ARMED appends cap at 50 with oldest dropped and overflow counted', async () => {
+    const { useDashboard } = await resetDualState();
+
+    const armed = (asOf: number) => ({
+      verdict: 'ARMED' as const,
+      direction: 'LONG' as const,
+      reasonKey: 'ARMED_MISSING_TIMING' as const,
+      reason: 'x',
+      gates: { timing: false, purge: true, displacement: true },
+      entryFvg: null,
+      inputs: { judas: null, amd: null, smt: null },
+    });
+    for (let i = 0; i < 51; i++) {
+      useDashboard.getState().appendFiringLog(armed(1000 + i), 1000 + i);
+    }
+
+    const state = useDashboard.getState();
+    expect(state.firingLog).toHaveLength(50);
+    expect(state.firingLogOverflow).toBe(1);
+    // Oldest dropped: the surviving head is the second append (fvg.ts
+    // trailing-slice idiom — active.slice(-FVG_MAP_BOUND) precedent).
+    expect(state.firingLog[0].asOf).toBe(1001);
+    expect(state.firingLog[49].asOf).toBe(1050);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-serializer: firingLogToJson holds entries plus thresholds plus exportedAt', async () => {
+    const { firingLogToJson } = await import('@/src/lib/store');
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+    useDashboard.getState().selectTrigger();
+
+    const json = firingLogToJson(useDashboard.getState().firingLog, '2026-02-09T08:00:00.000Z');
+    const parsed = JSON.parse(json);
+    expect(parsed.thresholds).toEqual({
+      TRIGGER_DISP_MULT: 0.5,
+      TRIGGER_KZ_START_MIN: 120,
+      TRIGGER_KZ_END_MIN: 300,
+    });
+    expect(parsed.exportedAt).toBe('2026-02-09T08:00:00.000Z');
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.entries[0].verdict).toBe('FIRE_LONG');
+    expect(parsed.entries[0].sessionDate).toBe('2026-02-09');
+    // Payload carries verdicts plus gate booleans only — no account, risk,
+    // position, or P&L fields cross the calibration seam (T-15-07).
+    expect(parsed.entries[0]).not.toHaveProperty('account');
+    expect(parsed.entries[0]).not.toHaveProperty('risk');
+    expect(parsed.entries[0]).not.toHaveProperty('position');
 
     useDashboard.getState().stopDualPoll();
   });

@@ -99,6 +99,29 @@ describe('trigger: calibrated constants pinned', () => {
     expect(TRIGGER_LOG_CAP).toBe(50);
   });
 
+  it('carries a CALIBRATION-PROVISIONAL comment on every TRIGGER constant (TRIG-04)', async () => {
+    // Source-text pin via the same eager raw-text channel the co-located
+    // purity guard reads (import.meta.glob with ?raw) — no fs dependency,
+    // no new module declarations.
+    const modules = import.meta.glob('./trigger.ts', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>;
+    const src = Object.values(modules)[0] as string;
+    for (const name of [
+      'TRIGGER_KZ_START_MIN',
+      'TRIGGER_KZ_END_MIN',
+      'TRIGGER_DISP_MULT',
+      'TRIGGER_LOG_CAP',
+    ]) {
+      const idx = src.indexOf(`export const ${name}`);
+      expect(idx).toBeGreaterThan(-1);
+      const preceding = src.slice(Math.max(0, idx - 400), idx);
+      expect(preceding).toContain('CALIBRATION-PROVISIONAL');
+    }
+  });
+
   it('keeps the row and range fixture idiom honest', () => {
     const t = nyMinuteEpoch(SESSION, '02:00');
     const r = row(t, 20050);
