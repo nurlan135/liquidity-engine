@@ -1181,6 +1181,31 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  // The seed decouples correlation with four daily rows so evaluateSMT
+  // returns suppressed CORR_DECOUPLED while the trigger still fires because
+  // SMT is a read-only agree-tag that never blocks FIRE.
+  it('flaw-soft-live-smt: SMT-suppressed FIRE downgrades to SOFT ARMED live through selectFatalFlaw', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+    const { REASON_BY_KEY } = await import('@/src/lib/ict/invalidation');
+
+    // First derivation on this poll: never pre-call selectTrigger — the
+    // first selectTrigger consumes the session FIRE into ARMED_ALREADY_FIRED
+    // and the SOFT FIRING gate would then force clean (D-12).
+    const flaw = useDashboard.getState().selectFatalFlaw();
+    expect(flaw).not.toBeNull();
+    expect(flaw!.downgraded).toBe(true);
+    expect(flaw!.invalidated).toBe(false);
+    expect(flaw!.flawClass).toBe('SOFT');
+    expect(flaw!.reasonKey).toBe('SMT_SUPPRESSED');
+    expect(flaw!.carriedArmedReason).toBe('FIRE_LONG');
+    expect(flaw!.unblock.length).toBeGreaterThan(0);
+    expect(flaw!.unblock).toContain('0.70');
+    expect(flaw!.reason).toBe(REASON_BY_KEY['SMT_SUPPRESSED']);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('flaw-stale: stale nq15m forces selectFatalFlaw null without throwing', async () => {
     const { useDashboard } = await resetDualState();
     await seedTriggerFire(useDashboard);
