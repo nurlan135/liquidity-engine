@@ -53,9 +53,9 @@ export interface FatalFlawOutput {
   reason: string;
   /** Per-flaw re-arm condition (D-13); fixed template, empty when clean. */
   unblock: string;
-  /** Falsifiable §6 sentence (D-08 tracer minimum: neutral fallback; full table in 16-02). */
+  /** Falsifiable §6 sentence (D-08): SENTENCE_BY_KEY 4-cell direction-cross-sweepSide table with neutral fallback. */
   sentence: string;
-  /** §6 challenge question (D-09 tracer minimum: standing caution; full bank in 16-02). */
+  /** §6 challenge question (D-09): 3-entry bank with dominant-trap code-order selection. */
   challenge: string;
   /** The trigger reasonKey the SOFT downgrade resumes from (D-15); null unless downgraded. */
   carriedArmedReason: TriggerReasonKey | null;
@@ -63,40 +63,83 @@ export interface FatalFlawOutput {
   asOf: number;
 }
 
-// D-04 verbatim Azerbaijani reasons (tracer minimum): one base sentence per
-// non-NONE key, each naming its class. No number or price interpolation, no
-// banned vocabulary, never the bare generic label.
+// D-04 plus D-10 verbatim Azerbaijani reasons (locked, toBe-pinned): one
+// base sentence per reasonKey, each naming its class. No number or price
+// interpolation, no template-literal placeholders, no banned vocabulary,
+// never the bare generic label. NONE documents the clean verdict standing.
 const REASON_ROLLOVER_WEEK =
-  'FATAL FLAW (HARD): Rollover həftəsi korrupsiyası — boşluq müqavilə-roll artefaktı ola bilər, quraşdırma ləğv edildi.';
+  'FATAL FLAW (HARD): Rollover həftəsi korrupsiyası — kotirovka strukturu etibarsızdır, quraşdırma ləğv edildi.';
 const REASON_STALE_LEG =
-  'FATAL FLAW (HARD): Köhnə ayaq — məlumat təzə deyil, quraşdırma ləğv edildi.';
+  'FATAL FLAW (HARD): Ayaq bayatdır — qiymət axını köhnəlib, quraşdırma ləğv edildi.';
 const REASON_SMT_SUPPRESSED =
-  'FATAL FLAW (SOFT): SMT yatırılıb, korrelyasiya qırılıb — FIRING ARMED-ə endirildi.';
+  'FATAL FLAW (SOFT): SMT basdırılıb — korrelyasiya pozulub, atəş ARMED-ə endirildi.';
 const REASON_OPPOSITE_SWEEP =
-  'FATAL FLAW (SOFT): Əks istiqamətdə təsdiqlənmiş süpürmə — FIRING ARMED-ə endirildi.';
+  'FATAL FLAW (SOFT): Əks istiqamətli süpürmə təsdiqləndi — atəş ARMED-ə endirildi.';
+const REASON_NONE = 'Qüsur yoxdur: trigger hökmü qüvvədədir.';
 
-const REASON_BY_KEY: Record<Exclude<FlawReasonKey, 'NONE'>, string> = {
+export const REASON_BY_KEY: Record<FlawReasonKey, string> = {
   ROLLOVER_WEEK: REASON_ROLLOVER_WEEK,
   STALE_LEG: REASON_STALE_LEG,
   SMT_SUPPRESSED: REASON_SMT_SUPPRESSED,
   OPPOSITE_SWEEP: REASON_OPPOSITE_SWEEP,
+  NONE: REASON_NONE,
 };
 
 // D-13 per-flaw re-arm conditions: fixed templates. The SMT unblock names the
 // fixed "0.70" threshold string (CORR_MIN reuse) — never the live corr value.
-const UNBLOCK_BY_KEY: Record<Exclude<FlawReasonKey, 'NONE'>, string> = {
-  ROLLOVER_WEEK: 'Yenidən aktivləşmə: rollover həftəsi bitdikdən sonra yeni quraşdırma gözlənilir.',
-  STALE_LEG: 'Yenidən aktivləşmə: bütün ayaqlar təzələndikdən sonra yeni quraşdırma gözlənilir.',
-  SMT_SUPPRESSED: 'Yenidən aktivləşmə: korrelyasiya 0.70-dən yuxarı bərpa olunarsa.',
-  OPPOSITE_SWEEP: 'Yenidən aktivləşmə: istiqamətdə yeni təsdiqlənmiş süpürmə gözlənilir.',
+// NONE carries the empty string: a clean verdict has nothing to unblock.
+export const UNBLOCK_BY_KEY: Record<FlawReasonKey, string> = {
+  ROLLOVER_WEEK: 'Blok açılır: növbəti müqavilə həftəsi təmiz kəsir gətirəndə.',
+  STALE_LEG: 'Blok açılır: bütün ayaqlar təzə kotirovka göstərəndə.',
+  SMT_SUPPRESSED: 'Blok açılır: korrelyasiya 0.70-dən yuxarı bərpa olanda.',
+  OPPOSITE_SWEEP: 'Blok açılır: əks süpürmə təsdiqsiz qalıb istiqamət bərpa olunanda.',
+  NONE: '',
 };
 
-// D-08/D-09 tracer minimum (full 4-cell sentence table plus challenge bank
-// land in 16-02): one neutral fallback sentence plus one standing caution.
-const SENTENCE_FALLBACK =
-  'Yanlışlanma şərti: qiymət quraşdırma istiqamətində displacement ilə davam edərsə, bu hökm yanlışdır.';
-const CHALLENGE_STANDING =
-  'Çətin sual: bu quraşdırmanı indi əngəlləyən əsas tələ hansıdır?';
+// D-08 falsifiable sentence: 4-cell lookup on trigger.direction crossed with
+// judas.sweepSide, resolved purely from the D-05 snapshot — no new row reads.
+// LONG-LOW and SHORT-HIGH are the live cells; off-diagonal combinations share
+// the neutral fallback, as does any null-side input.
+const SENTENCE_LONG_LOW =
+  'FALSİFİKASİYA LONG: BSL reydi baş verməyibsə və qiymət premiumda qalırsa, LONG oxunuşu yanlışdır — BSL süpürməsi bu ssenarini təsdiqləyir.';
+const SENTENCE_SHORT_HIGH =
+  'FALSİFİKASİYA SHORT: SSL reydi baş verməyibsə və qiymət discountda qalırsa, SHORT oxunuşu yanlışdır — SSL süpürməsi bu ssenarini təsdiqləyir.';
+export const SENTENCE_FALLBACK =
+  'FALSİFİKASİYA: təsdiqlənmiş süpürmə istiqaməti qərəzlə uzlaşmır — əks istiqamətli qapanış bu ssenarini puç edir.';
+
+export const SENTENCE_BY_KEY: Record<string, string> = {
+  'LONG-LOW': SENTENCE_LONG_LOW,
+  'SHORT-HIGH': SENTENCE_SHORT_HIGH,
+  'LONG-HIGH': SENTENCE_FALLBACK,
+  'SHORT-LOW': SENTENCE_FALLBACK,
+};
+
+function sentenceFor(
+  direction: TriggerOutput['direction'],
+  sweepSide: JudasOutput['sweepSide'] | null | undefined,
+): string {
+  if (direction === 'LONG' && sweepSide === 'LOW') return SENTENCE_BY_KEY['LONG-LOW'];
+  if (direction === 'SHORT' && sweepSide === 'HIGH') return SENTENCE_BY_KEY['SHORT-HIGH'];
+  return SENTENCE_FALLBACK;
+}
+
+// D-09 challenge bank: exactly three fixed entries keyed by dominant trap.
+// Selection priority is a code-ordering fact (challengeFor below): SMT SOFT
+// flaw selects smt-divergence-ignored, else opposite-sweep SOFT flaw selects
+// premium-chase, else HARD flaw or clean selects pre-news-engineering as the
+// standing caution. No number or price interpolation.
+export const CHALLENGE_BY_KEY: Record<string, string> = {
+  'premium-chase': 'Sual: premium zonada qovmursanmı — giriş FVG-yə qayıdışı gözlədinmi?',
+  'pre-news-engineering': 'Sual: bu hərəkət xəbər-öncəsi mühəndislik deyilmi — təqvim pəncərəsini yoxladınmı?',
+  'smt-divergence-ignored':
+    'Sual: SMT fərqliliyini görməzdən gəlmirsənmi — korrelyasiya 0.70-i bərpa etməyibsə, niyə indi?',
+};
+
+function challengeFor(reasonKey: FlawReasonKey): string {
+  if (reasonKey === 'SMT_SUPPRESSED') return CHALLENGE_BY_KEY['smt-divergence-ignored'];
+  if (reasonKey === 'OPPOSITE_SWEEP') return CHALLENGE_BY_KEY['premium-chase'];
+  return CHALLENGE_BY_KEY['pre-news-engineering'];
+}
 
 // trigger.ts assertValidJudas/assertValidFvg precedent: malformed envelopes
 // fail at the boundary with got-string errors. Null degrades honestly
@@ -201,16 +244,16 @@ function isOppositeSweep(trigger: FatalFlawInput['trigger'], judas: FatalFlawInp
   return trigger.direction !== implied;
 }
 
-function cleanOutput(trigger: FatalFlawInput['trigger'], asOf: number): FatalFlawOutput {
+function cleanOutput(trigger: FatalFlawInput['trigger'], judas: FatalFlawInput['judas'], asOf: number): FatalFlawOutput {
   return {
     invalidated: false,
     downgraded: false,
     flawClass: null,
     reasonKey: 'NONE',
-    reason: trigger.reason,
-    unblock: '',
-    sentence: SENTENCE_FALLBACK,
-    challenge: CHALLENGE_STANDING,
+    reason: REASON_BY_KEY.NONE,
+    unblock: UNBLOCK_BY_KEY.NONE,
+    sentence: sentenceFor(trigger.direction, judas?.sweepSide),
+    challenge: challengeFor('NONE'),
     carriedArmedReason: null,
     asOf,
   };
@@ -222,6 +265,8 @@ function flawOutput(
   invalidated: boolean,
   downgraded: boolean,
   carriedArmedReason: TriggerReasonKey | null,
+  trigger: FatalFlawInput['trigger'],
+  judas: FatalFlawInput['judas'],
   asOf: number,
 ): FatalFlawOutput {
   return {
@@ -231,8 +276,8 @@ function flawOutput(
     reasonKey,
     reason: REASON_BY_KEY[reasonKey],
     unblock: UNBLOCK_BY_KEY[reasonKey],
-    sentence: SENTENCE_FALLBACK,
-    challenge: CHALLENGE_STANDING,
+    sentence: sentenceFor(trigger.direction, judas?.sweepSide),
+    challenge: challengeFor(reasonKey),
     carriedArmedReason,
     asOf,
   };
@@ -257,24 +302,24 @@ export function checkFatalFlaw(input: FatalFlawInput): FatalFlawOutput {
   // SOFT SMT, SOFT opposite-sweep, then clean. Order IS the precedence —
   // HARD always beats SOFT on identical inputs.
   if (rollover !== null && rollover !== undefined && rollover.rolloverSuspect === true) {
-    return flawOutput('ROLLOVER_WEEK', 'HARD', true, false, null, epoch);
+    return flawOutput('ROLLOVER_WEEK', 'HARD', true, false, null, trigger, judas, epoch);
   }
   if (stale.nq === true || stale.es === true || stale.nq1h === true || stale.nq15m === true) {
-    return flawOutput('STALE_LEG', 'HARD', true, false, null, epoch);
+    return flawOutput('STALE_LEG', 'HARD', true, false, null, trigger, judas, epoch);
   }
   // SOFT branches gate on FIRING only (D-12): on ARMED/WAIT the trigger
   // verdict stands and the flaw is noted but not applied.
   if (smt !== null && smt !== undefined && smt.suppressed === true) {
     if (!isFiring(trigger)) {
-      return cleanOutput(trigger, epoch);
+      return cleanOutput(trigger, judas, epoch);
     }
-    return flawOutput('SMT_SUPPRESSED', 'SOFT', false, true, trigger.reasonKey, epoch);
+    return flawOutput('SMT_SUPPRESSED', 'SOFT', false, true, trigger.reasonKey, trigger, judas, epoch);
   }
   if (isOppositeSweep(trigger, judas)) {
     if (!isFiring(trigger)) {
-      return cleanOutput(trigger, epoch);
+      return cleanOutput(trigger, judas, epoch);
     }
-    return flawOutput('OPPOSITE_SWEEP', 'SOFT', false, true, trigger.reasonKey, epoch);
+    return flawOutput('OPPOSITE_SWEEP', 'SOFT', false, true, trigger.reasonKey, trigger, judas, epoch);
   }
-  return cleanOutput(trigger, epoch);
+  return cleanOutput(trigger, judas, epoch);
 }
