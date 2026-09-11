@@ -26,11 +26,15 @@ import {
   type FiringLogEntry,
   type TriggerOutput,
 } from '@/src/lib/ict/trigger';
+import { checkFatalFlaw, type FatalFlawOutput } from '@/src/lib/ict/invalidation';
 
 // Re-exported so consumers read the log shape from the store slice owner;
 // the canonical definition stays beside the verdict in trigger.ts (moving it
 // here would force trigger.ts to import from the store — a purity violation).
 export type { FiringLogEntry } from '@/src/lib/ict/trigger';
+// Canonical flaw output lives in invalidation.ts; the store re-exports the
+// type only so selectors stay thin beside the verdict precedent above.
+export type { FatalFlawOutput } from '@/src/lib/ict/invalidation';
 import { deriveConvictionTier, type ConvictionTier } from '@/src/lib/confluence';
 import { getAsOfBakuDate } from '@/src/lib/time';
 
@@ -250,6 +254,7 @@ export interface DashboardState {
   selectJudas: () => JudasOutput | null;
   selectAMD: (asOf?: number) => AmdOutput | null;
   selectTrigger: () => TriggerOutput | null;
+  selectFatalFlaw: () => FatalFlawOutput | null;
   firingLog: FiringLogEntry[];
   firingLogOverflow: number;
   appendFiringLog: (out: TriggerOutput, asOf: number) => void;
@@ -863,6 +868,38 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
       // verdict so the selector never re-implements log policy.
       get().appendFiringLog(out, epoch);
       return out;
+    } catch {
+      return null;
+    }
+  },
+
+  // Phase 16 fatal-flaw invalidation: flaw-after-trigger on the same
+  // snapshot by function order. Refuse-with-null on stale or empty intraday
+  // legs; trigger null (stale legs or throw path) means degraded null — SOFT
+  // is never evaluated on null, HARD-on-null is planner-confirmed null in
+  // this tracer. Rollover derives inline at the boundary (FVG precedent):
+  // inner try/catch degrades to null meaning no HARD rollover signal. One
+  // sharedEpoch call only — never a second epoch, never re-sliced candles.
+  // Never throws into render: catch path returns null.
+  selectFatalFlaw: () => {
+    const { nq, es, nq1h, nq15m } = get();
+    if (nq1h.stale || nq15m.stale) return null;
+    if (closedOnlyIntraday(nq1h.candles).length === 0) return null;
+    if (closedOnlyIntraday(nq15m.candles).length === 0) return null;
+    try {
+      const epoch = sharedEpoch(get);
+      const trigger = get().selectTrigger();
+      if (trigger === null) return null;
+      const smt = get().selectSMT();
+      const judas = get().selectJudas();
+      let rollover: RolloverFlag | null = null;
+      try {
+        rollover = get().selectRollover();
+      } catch {
+        rollover = null;
+      }
+      const stale = { nq: nq.stale, es: es.stale, nq1h: nq1h.stale, nq15m: nq15m.stale };
+      return checkFatalFlaw({ trigger, smt, judas, rollover, stale, asOf: epoch });
     } catch {
       return null;
     }
