@@ -801,6 +801,155 @@ describe('trigger: malformed-input throws at the boundary', () => {
   });
 });
 
+describe('trigger: D-09 verbatim prose lock with suffix matrix', () => {
+  it('pins the bare FIRE_LONG base sentence on null SMT (suffix absent)', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: null,
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.reasonKey).toBe('FIRE_LONG');
+    expect(out.reason).toBe(
+      'WHY NOW LONG: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır.',
+    );
+  });
+
+  it('pins the bare FIRE_SHORT base sentence on discordant SMT (suffix absent)', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'HIGH' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BEARISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_SHORT');
+    expect(out.reasonKey).toBe('FIRE_SHORT');
+    expect(out.reason).toBe(
+      'WHY NOW SHORT: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır.',
+    );
+  });
+
+  it('pins the bare FIRE_SHORT base sentence on suppressed SMT (suffix absent)', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'HIGH' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: suppressedSmt(),
+      fvg: [fixtureFvg('BEARISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_SHORT');
+    expect(out.reasonKey).toBe('FIRE_SHORT');
+    expect(out.reason).toBe(
+      'WHY NOW SHORT: Asia Range Təmizlənib. London Judas Swing Baş verib — displacement təsdiqlidir, giriş FVG hazırdır.',
+    );
+  });
+
+  it('appends the agree suffix to an ARMED_MISSING_TIMING reason on concordant SMT', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '06:00'),
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_MISSING_TIMING');
+    expect(out.reason).toBe(
+      'WHY NOW ARMED: Quruluş hazırdır — killzone pəncərəsi gözlənilir. SMT razılaşır.',
+    );
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('appends the agree suffix to an ARMED_ALREADY_FIRED reason on concordant SMT', () => {
+    const out = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: true,
+    });
+    expect(out.verdict).toBe('ARMED');
+    expect(out.reasonKey).toBe('ARMED_ALREADY_FIRED');
+    expect(out.reason).toBe(
+      'WHY NOW ARMED: Bu sessiyada siqnal artıq verilib — təkrar giriş yoxdur. SMT razılaşır.',
+    );
+    expect(out.entryFvg).toBeNull();
+  });
+
+  it('holds ARMED and WAIT reasons bare on suppressed SMT (suffix absent beyond FIRE)', () => {
+    const armed = evaluateTrigger({
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: false,
+        sweepSide: 'LOW' as SweepSide,
+        sweepTime: nyMinuteEpoch(SESSION, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: suppressedSmt(),
+      fvg: [fixtureFvg('BULLISH', 10)],
+      asOf: nyMinuteEpoch(SESSION, '03:00'),
+      alreadyFired: false,
+    });
+    expect(armed.verdict).toBe('ARMED');
+    expect(armed.reasonKey).toBe('ARMED_MISSING_PURGE');
+    expect(armed.reason).toBe(
+      'WHY NOW ARMED: Quruluş hazırdır — London Judas təsdiqi gözlənilir.',
+    );
+    const wait = evaluateTrigger({
+      judas: null,
+      amd: null,
+      smt: suppressedSmt(),
+      fvg: null,
+      asOf: nyMinuteEpoch(SESSION, '10:00'),
+      alreadyFired: false,
+    });
+    expect(wait.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(wait.reasonKey).toBe('WAIT_FOR_MANIPULATION');
+    expect(wait.reason).toBe(
+      'WAIT FOR MANIPULATION: Zaman, süpürmə və displacement razılaşmır — manipulyasiya gözlənilir.',
+    );
+  });
+});
+
 describe('trigger: determinism', () => {
   it('yields byte-identical verdict plus reason plus gates plus entryFvg on repeat evaluation', () => {
     const input = {
