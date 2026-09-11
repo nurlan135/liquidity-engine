@@ -103,8 +103,13 @@ Plans:
   3. User never mistakes paper for real — PAPER/SIMULATED vocabulary everywhere, persistent non-dismissible PAPER banner, banned-word test green (no Filled/Position/Submit Order/placeOrder identifiers)
   4. User sees live report §§4–6 blocks with verbatim reasons, three dashboard panels replacing the UNAVAILABLE cards, and chart trigger pin + entry/SL/TP lines
 
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
+Plans:
+- [ ] 17-01-PLAN.md — Tracer: pure computeTicket plus ticketInputs plus selectTicket (TICK-01, TICK-02)
+- [ ] 17-02-PLAN.md — Banned-word quarantine plus REPORT_SECTIONS 4-6 live flip (TICK-03, TICK-04)
+- [ ] 17-03-PLAN.md — Three thin panels plus §§4-6 blocks plus PAPER banner plus shell wiring (TICK-04, TICK-03)
+- [ ] 17-04-PLAN.md — Chart T pin plus entry/SL/TP lines with STAND ASIDE clearing (TICK-04)
 
 ### Phase 18: Verification + Calibration Harness
 
