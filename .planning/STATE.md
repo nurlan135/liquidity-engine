@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v3.0
 milestone_name: Execution (Modul 4) — ACTIVE
-current_phase: 16
-current_phase_name: Fatal-Flaw Invalidation
-status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-09-11T07:34:51.045Z"
+current_phase: 17
+current_phase_name: Paper Ticket + §§4–6 Live UI + Chart Pins
+status: planning
+stopped_at: Phase 16 complete, ready to plan Phase 17
+last_updated: "2026-09-11T11:52:48.664Z"
 last_activity: 2026-09-11
-last_activity_desc: Phase 16 execution started
-state_head: 06ff61734d381704225fd26850d02a90fca9ea24
+last_activity_desc: Phase 16 complete, transitioned to Phase 17
+state_head: 1cbaca45644dd68b46dd2d08775c4794a2b4f783
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 8
-  completed_plans: 6
-  percent: 33
+  completed_phases: 2
+  total_plans: 9
+  completed_plans: 9
+  percent: 67
 ---
 
 # Project State
@@ -25,20 +25,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-09 after v3.0 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 16 — Fatal-Flaw Invalidation
+**Current focus:** Phase 16 — fatal-flaw-invalidation
 
 ## Current Position
 
-Phase: 16 (Fatal-Flaw Invalidation) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 16
-Last activity: 2026-09-11 — Phase 16 execution started
+Phase: 17 — Paper Ticket + §§4–6 Live UI + Chart Pins
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-11 — Phase 16 complete, transitioned to Phase 17
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0 (v3.0); 37 cumulative across v1.0/v2.0/v2.1
+- Total plans completed: 3 (v3.0); 37 cumulative across v1.0/v2.0/v2.1
 - Average duration: ~25 min (historical)
 - Total execution time: —
 
@@ -48,7 +48,7 @@ Last activity: 2026-09-11 — Phase 16 execution started
 |-------|-------|-------|----------|
 | 14 | 0 | - | - |
 | 15 | 0 | - | - |
-| 16 | 0 | - | - |
+| 16 | 3 | - | - |
 | 17 | 0 | - | - |
 | 18 | 0 | - | - |
 
@@ -102,7 +102,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-09-11T06:39:48.923Z
-Stopped at: Phase 16 context gathered
+Stopped at: Phase 16 complete, ready to plan Phase 17
 Resume file: .planning/phases/16-fatal-flaw-invalidation/16-CONTEXT.md
 
 ## Operator Next Steps

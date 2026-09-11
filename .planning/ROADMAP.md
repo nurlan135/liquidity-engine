@@ -13,7 +13,7 @@
 
 - [x] **Phase 14: Audit Debt Cleanup + Purity Guard** - Dead code removed, purity grep guard green (completed 2026-09-10)
 - [x] **Phase 15: WHY NOW Trigger Engine** - Three-gate FIRE/ARMED/QUIET verdict with firing log (completed 2026-09-11, verified PASS)
-- [ ] **Phase 16: Fatal-Flaw Invalidation** - Flaw-supersedes-fire on a shared snapshot, HARD/SOFT split
+- [x] **Phase 16: Fatal-Flaw Invalidation** - Flaw-supersedes-fire on a shared snapshot, HARD/SOFT split (completed 2026-09-11)
 - [ ] **Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins** - Deterministic ticket, live report blocks, PAPER chrome
 - [ ] **Phase 18: Verification + Calibration Harness** - Replay monotonicity, reason parity, stale drill, fire-rate band
 
@@ -89,7 +89,7 @@ Plans:
 
 **Gap closure** *(independent — wave 1, touches only invalidation.ts header plus invalidation.test.ts title plus store.test.ts)*
 
-- [ ] 16-03-PLAN.md — SMT SOFT proven live plus opposite-sweep impossibility documented (FLAW-02)
+- [x] 16-03-PLAN.md — SMT SOFT proven live plus opposite-sweep impossibility documented (FLAW-02)
 
 ### Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins
 
