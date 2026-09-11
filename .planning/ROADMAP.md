@@ -77,7 +77,10 @@ Plans:
   2. User sees HARD flaws (rollover/stale — kill the setup) distinguished from SOFT flaws (downgrade FIRING to ARMED with a stated unblock condition)
   3. User reads a falsifiable fatal-flaw sentence plus a challenge question from a fixed bank in live report §6
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 16-01-PLAN.md — Tracer: pure checkFatalFlaw core plus disjunction tests plus selectFatalFlaw (FLAW-01, FLAW-02)
+- [ ] 16-02-PLAN.md — Sentence table plus challenge bank prose lock plus store selector cases (FLAW-01, FLAW-03)
 
 ### Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins
 
