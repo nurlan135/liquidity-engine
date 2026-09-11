@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fromZonedTime } from 'date-fns-tz';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
-import { checkFatalFlaw } from '@/src/lib/ict/invalidation';
+import { CHALLENGE_BY_KEY, REASON_BY_KEY, SENTENCE_BY_KEY, SENTENCE_FALLBACK, UNBLOCK_BY_KEY, checkFatalFlaw } from '@/src/lib/ict/invalidation';
 import type { FatalFlawInput } from '@/src/lib/ict/invalidation';
 import type { TriggerOutput } from '@/src/lib/ict/trigger';
 import type { JudasOutput } from '@/src/lib/ict/judas';
@@ -172,7 +172,7 @@ describe('invalidation: taxonomy disjunction table', () => {
     expect(out.downgraded).toBe(false);
     expect(out.flawClass).toBeNull();
     expect(out.reasonKey).toBe('NONE');
-    expect(out.reason).toBe(armed.reason);
+    expect(out.reason).toBe('Qüsur yoxdur: trigger hökmü qüvvədədir.');
   });
 
   it('clean envelopes leave FIRE standing', () => {
@@ -228,6 +228,138 @@ describe('invalidation: determinism', () => {
     for (let i = 0; i < 100; i++) {
       expect(JSON.stringify(checkFatalFlaw(cleanInput({ smt: suppressedSmt() })))).toBe(first);
     }
+  });
+});
+
+describe('invalidation: prose verbatim pins plus bank discipline', () => {
+  it('pins every flaw reason with toBe equality against the locked strings', () => {
+    expect(
+      checkFatalFlaw(cleanInput({ rollover: fixtureRollover({ rolloverSuspect: true }) })).reason,
+    ).toBe(
+      'FATAL FLAW (HARD): Rollover həftəsi korrupsiyası — kotirovka strukturu etibarsızdır, quraşdırma ləğv edildi.',
+    );
+    expect(checkFatalFlaw(cleanInput({ stale: fixtureStale({ nq15m: true }) })).reason).toBe(
+      'FATAL FLAW (HARD): Ayaq bayatdır — qiymət axını köhnəlib, quraşdırma ləğv edildi.',
+    );
+    expect(checkFatalFlaw(cleanInput({ smt: suppressedSmt() })).reason).toBe(
+      'FATAL FLAW (SOFT): SMT basdırılıb — korrelyasiya pozulub, atəş ARMED-ə endirildi.',
+    );
+    expect(
+      checkFatalFlaw(
+        cleanInput({
+          judas: fixtureJudas({ candidate: true, confirmed: true, sweepSide: 'HIGH', displacementMult: 0.6 }),
+        }),
+      ).reason,
+    ).toBe('FATAL FLAW (SOFT): Əks istiqamətli süpürmə təsdiqləndi — atəş ARMED-ə endirildi.');
+    expect(checkFatalFlaw(cleanInput()).reason).toBe('Qüsur yoxdur: trigger hökmü qüvvədədir.');
+  });
+
+  it('pins every sentence-table cell including the null-sweepSide fallback', () => {
+    const longLow = checkFatalFlaw(cleanInput({ judas: fixtureJudas({ sweepSide: 'LOW' }) }));
+    expect(longLow.sentence).toBe(
+      'FALSİFİKASİYA LONG: BSL reydi baş verməyibsə və qiymət premiumda qalırsa, LONG oxunuşu yanlışdır — BSL süpürməsi bu ssenarini təsdiqləyir.',
+    );
+    const shortHigh = checkFatalFlaw(
+      cleanInput({
+        trigger: fixtureFlawTrigger({ verdict: 'FIRE_SHORT', direction: 'SHORT', reasonKey: 'FIRE_SHORT' }),
+        judas: fixtureJudas({ candidate: true, confirmed: false, sweepSide: 'HIGH' }),
+      }),
+    );
+    expect(shortHigh.sentence).toBe(
+      'FALSİFİKASİYA SHORT: SSL reydi baş verməyibsə və qiymət discountda qalırsa, SHORT oxunuşu yanlışdır — SSL süpürməsi bu ssenarini təsdiqləyir.',
+    );
+    const offDiagonal = checkFatalFlaw(
+      cleanInput({
+        trigger: fixtureFlawTrigger({ verdict: 'ARMED', direction: 'LONG', reasonKey: 'ARMED_MISSING_TIMING' }),
+        judas: fixtureJudas({ candidate: true, confirmed: false, sweepSide: 'HIGH' }),
+      }),
+    );
+    expect(offDiagonal.sentence).toBe(
+      'FALSİFİKASİYA: təsdiqlənmiş süpürmə istiqaməti qərəzlə uzlaşmır — əks istiqamətli qapanış bu ssenarini puç edir.',
+    );
+    const nullSide = checkFatalFlaw(cleanInput({ judas: fixtureJudas({ sweepSide: null }) }));
+    expect(nullSide.sentence).toBe(
+      'FALSİFİKASİYA: təsdiqlənmiş süpürmə istiqaməti qərəzlə uzlaşmır — əks istiqamətli qapanış bu ssenarini puç edir.',
+    );
+    expect(SENTENCE_BY_KEY['LONG-LOW']).toBe(longLow.sentence);
+    expect(SENTENCE_BY_KEY['SHORT-HIGH']).toBe(shortHigh.sentence);
+    expect(SENTENCE_BY_KEY['LONG-HIGH']).toBe(SENTENCE_FALLBACK);
+    expect(SENTENCE_BY_KEY['SHORT-LOW']).toBe(SENTENCE_FALLBACK);
+  });
+
+  it('pins every challenge-bank entry with dominant-trap priority', () => {
+    expect(checkFatalFlaw(cleanInput({ smt: suppressedSmt() })).challenge).toBe(
+      'Sual: SMT fərqliliyini görməzdən gəlmirsənmi — korrelyasiya 0.70-i bərpa etməyibsə, niyə indi?',
+    );
+    expect(
+      checkFatalFlaw(
+        cleanInput({
+          judas: fixtureJudas({ candidate: true, confirmed: true, sweepSide: 'HIGH', displacementMult: 0.6 }),
+        }),
+      ).challenge,
+    ).toBe('Sual: premium zonada qovmursanmı — giriş FVG-yə qayıdışı gözlədinmi?');
+    expect(checkFatalFlaw(cleanInput()).challenge).toBe(
+      'Sual: bu hərəkət xəbər-öncəsi mühəndislik deyilmi — təqvim pəncərəsini yoxladınmı?',
+    );
+    expect(
+      checkFatalFlaw(cleanInput({ rollover: fixtureRollover({ rolloverSuspect: true }) })).challenge,
+    ).toBe('Sual: bu hərəkət xəbər-öncəsi mühəndislik deyilmi — təqvim pəncərəsini yoxladınmı?');
+    expect(CHALLENGE_BY_KEY['smt-divergence-ignored']).toBe(
+      'Sual: SMT fərqliliyini görməzdən gəlmirsənmi — korrelyasiya 0.70-i bərpa etməyibsə, niyə indi?',
+    );
+    expect(CHALLENGE_BY_KEY['premium-chase']).toBe(
+      'Sual: premium zonada qovmursanmı — giriş FVG-yə qayıdışı gözlədinmi?',
+    );
+    expect(CHALLENGE_BY_KEY['pre-news-engineering']).toBe(
+      'Sual: bu hərəkət xəbər-öncəsi mühəndislik deyilmi — təqvim pəncərəsini yoxladınmı?',
+    );
+  });
+
+  it('holds exactly 3 bank entries and selects deterministically on repeat calls', () => {
+    expect(Object.keys(CHALLENGE_BY_KEY)).toHaveLength(3);
+    const smtFirst = checkFatalFlaw(cleanInput({ smt: suppressedSmt() })).challenge;
+    const smtSecond = checkFatalFlaw(cleanInput({ smt: suppressedSmt() })).challenge;
+    expect(smtSecond).toBe(smtFirst);
+    const sweepInput = () =>
+      cleanInput({
+        judas: fixtureJudas({ candidate: true, confirmed: true, sweepSide: 'HIGH', displacementMult: 0.6 }),
+      });
+    expect(checkFatalFlaw(sweepInput()).challenge).toBe(checkFatalFlaw(sweepInput()).challenge);
+  });
+
+  it('bans the generic label and keeps a non-empty unblock on every non-clean verdict', () => {
+    const verdicts = [
+      checkFatalFlaw(cleanInput({ rollover: fixtureRollover({ rolloverSuspect: true }) })),
+      checkFatalFlaw(cleanInput({ stale: fixtureStale({ nq15m: true }) })),
+      checkFatalFlaw(cleanInput({ smt: suppressedSmt() })),
+      checkFatalFlaw(
+        cleanInput({
+          judas: fixtureJudas({ candidate: true, confirmed: true, sweepSide: 'HIGH', displacementMult: 0.6 }),
+        }),
+      ),
+    ];
+    for (const out of verdicts) {
+      expect(out.reason).not.toBe('Invalidated');
+      expect(out.reason).toBe(REASON_BY_KEY[out.reasonKey]);
+      expect(out.unblock.length).toBeGreaterThan(0);
+      expect(out.unblock).toBe(UNBLOCK_BY_KEY[out.reasonKey]);
+    }
+    expect(checkFatalFlaw(cleanInput()).unblock).toBe('');
+  });
+
+  it('names the fixed 0.70 threshold and never interpolates a live reading', () => {
+    expect(UNBLOCK_BY_KEY.SMT_SUPPRESSED).toContain('0.70');
+    const lowCorr = checkFatalFlaw(
+      cleanInput({ smt: { suppressed: true, reason: 'CORR_DECOUPLED', corr: 0.4 } }),
+    );
+    const highishCorr = checkFatalFlaw(
+      cleanInput({ smt: { suppressed: true, reason: 'CORR_DECOUPLED', corr: 0.62 } }),
+    );
+    expect(lowCorr.unblock).toBe(highishCorr.unblock);
+    expect(lowCorr.unblock).not.toContain('0.4');
+    expect(lowCorr.unblock).not.toContain('0.62');
+    expect(lowCorr.challenge).not.toContain('0.4');
+    expect(lowCorr.sentence).not.toContain('0.4');
   });
 });
 
