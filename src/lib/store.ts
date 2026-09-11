@@ -17,12 +17,20 @@ import { amdPhase, type AmdOutput } from '@/src/lib/ict/amd';
 import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransition } from '@/src/lib/ict/fvg';
 import type { FvgGap } from '@/src/lib/ict/fvg';
 import {
+  TRIGGER_DISP_MULT,
+  TRIGGER_KZ_END_MIN,
+  TRIGGER_KZ_START_MIN,
   TRIGGER_LOG_CAP,
   evaluateTrigger,
   nyDateOf,
   type FiringLogEntry,
   type TriggerOutput,
 } from '@/src/lib/ict/trigger';
+
+// Re-exported so consumers read the log shape from the store slice owner;
+// the canonical definition stays beside the verdict in trigger.ts (moving it
+// here would force trigger.ts to import from the store — a purity violation).
+export type { FiringLogEntry } from '@/src/lib/ict/trigger';
 import { deriveConvictionTier, type ConvictionTier } from '@/src/lib/confluence';
 import { getAsOfBakuDate } from '@/src/lib/time';
 
@@ -381,6 +389,42 @@ function clearDualTimers(): void {
     clearInterval(nq15mInterval);
     nq15mInterval = null;
   }
+}
+
+// Phase 15 calibration export (D-08): pure serializer over firing-log
+// entries. Output holds entries plus the threshold versions the reviews map
+// fires to plus the caller-supplied exportedAt ISO — no account, risk,
+// position, or P&L fields, no prices beyond entry FVG bounds. Unit-testable
+// without rendering. No Blob, createObjectURL, or anchor code: the Phase 17
+// download click consumes this string without reshaping (the seam).
+export interface FiringLogCalibration {
+  entries: FiringLogEntry[];
+  thresholds: {
+    TRIGGER_DISP_MULT: number;
+    TRIGGER_KZ_START_MIN: number;
+    TRIGGER_KZ_END_MIN: number;
+  };
+  exportedAt: string;
+}
+
+export function firingLogToJson(entries: FiringLogEntry[], exportedAt: string): string {
+  const payload: FiringLogCalibration = {
+    entries: entries.map((entry) => ({
+      asOf: entry.asOf,
+      verdict: entry.verdict,
+      gates: { ...entry.gates },
+      direction: entry.direction,
+      reasonKey: entry.reasonKey,
+      sessionDate: entry.sessionDate,
+    })),
+    thresholds: {
+      TRIGGER_DISP_MULT,
+      TRIGGER_KZ_START_MIN,
+      TRIGGER_KZ_END_MIN,
+    },
+    exportedAt,
+  };
+  return JSON.stringify(payload);
 }
 
 // Phase 15: single time truth for selectAMD plus selectTrigger. Extracted
@@ -814,20 +858,25 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
           (entry.verdict === 'FIRE_LONG' || entry.verdict === 'FIRE_SHORT'),
       );
       const out = evaluateTrigger({ judas, amd, smt, fvg, asOf: epoch, alreadyFired });
-      if (out.verdict !== 'WAIT_FOR_MANIPULATION') {
-        get().appendFiringLog(out, epoch);
-      }
+      // appendFiringLog owns the WAIT skip, the FIRE session dedup, and the
+      // already-fired downgrade-repeat skip — call it on every derived
+      // verdict so the selector never re-implements log policy.
+      get().appendFiringLog(out, epoch);
       return out;
     } catch {
       return null;
     }
   },
 
-  // Phase 15 firing log (D-06/D-07): appends ARMED-or-better only, dedups
-  // FIRE per NY-date session, drops oldest beyond TRIGGER_LOG_CAP with an
-  // overflow counter (fvg.ts trailing-slice idiom).
+  // Phase 15 firing log (D-06/D-07/D-08): appends ARMED-or-better only,
+  // dedups FIRE per NY-date session, drops oldest beyond TRIGGER_LOG_CAP
+  // with an overflow counter (fvg.ts trailing-slice idiom). Already-fired
+  // ARMED downgrade repeats never append: the log already holds the session
+  // FIRE they echo, so appending would spam one entry per 60s poll without
+  // adding calibration signal.
   appendFiringLog: (out, asOf) => {
     if (out.verdict === 'WAIT_FOR_MANIPULATION') return;
+    if (out.reasonKey === 'ARMED_ALREADY_FIRED') return;
     const sessionDate = nyDateOf(asOf);
     const { firingLog } = get();
     const isFire = out.verdict === 'FIRE_LONG' || out.verdict === 'FIRE_SHORT';
