@@ -12,7 +12,7 @@
 ### v3.0 Execution (Modul 4) — ACTIVE
 
 - [x] **Phase 14: Audit Debt Cleanup + Purity Guard** - Dead code removed, purity grep guard green (completed 2026-09-10)
-- [ ] **Phase 15: WHY NOW Trigger Engine** - Three-gate FIRE/ARMED/QUIET verdict with firing log
+- [x] **Phase 15: WHY NOW Trigger Engine** - Three-gate FIRE/ARMED/QUIET verdict with firing log (completed 2026-09-11, verified PASS)
 - [ ] **Phase 16: Fatal-Flaw Invalidation** - Flaw-supersedes-fire on a shared snapshot, HARD/SOFT split
 - [ ] **Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins** - Deterministic ticket, live report blocks, PAPER chrome
 - [ ] **Phase 18: Verification + Calibration Harness** - Replay monotonicity, reason parity, stale drill, fire-rate band
@@ -53,19 +53,18 @@ Plans:
   3. User can inspect a firing log (capped ~50 entries, calibration-JSON export) recording each evaluation that reached ARMED or better
   4. All thresholds ship as exported `TRIGGER_*` constants pinned by boundary tests with `CALIBRATION-PROVISIONAL` comments; pre-agreed acceptance band is 1–4 fires/week
 
-**Plans**: 3 plans
-Plans:
+**Plans**: 3/3 plans complete
 **Wave 1**
 
-- [ ] 15-01-PLAN.md — Tracer: pure evaluateTrigger core plus minimal selectTrigger and firing log (TRIG-01, TRIG-04)
+- [x] 15-01-PLAN.md — Tracer: pure evaluateTrigger core plus minimal selectTrigger and firing log (TRIG-01, TRIG-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 15-02-PLAN.md — ARMED matrix plus cooldown plus FVG downgrade plus boundary throws (TRIG-01, TRIG-02)
+- [x] 15-02-PLAN.md — ARMED matrix plus cooldown plus FVG downgrade plus boundary throws (TRIG-01, TRIG-02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 15-03-PLAN.md — Verbatim prose plus log serializer plus store tests plus calibration pins (TRIG-02, TRIG-03, TRIG-04)
+- [x] 15-03-PLAN.md — Verbatim prose plus log serializer plus store tests plus calibration pins (TRIG-02, TRIG-03, TRIG-04)
 
 ### Phase 16: Fatal-Flaw Invalidation
 
