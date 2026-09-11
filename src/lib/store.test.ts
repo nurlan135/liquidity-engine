@@ -1206,6 +1206,38 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  // Same-snapshot trigger direction is a total function of judas
+  // sweepSide so the pure isOppositeSweep predicate is always false in
+  // production — Phase 17 must treat live SOFT as SMT-only.
+  it('flaw-opposite-impossible-live: live trigger direction always equals the sweep-implied direction', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // First flaw derivation on live state downgrades via SMT, never
+    // opposite-sweep — the SMT branch wins first-match-wins on FIRING.
+    const flawFirst = useDashboard.getState().selectFatalFlaw();
+    expect(flawFirst).not.toBeNull();
+    expect(flawFirst!.reasonKey).toBe('SMT_SUPPRESSED');
+
+    // Identical state: trigger direction equals the sweep-implied direction
+    // (LOW implies LONG, HIGH implies SHORT), so isOppositeSweep is false.
+    const trigger = useDashboard.getState().selectTrigger();
+    const judas = useDashboard.getState().selectJudas();
+    expect(trigger).not.toBeNull();
+    expect(judas).not.toBeNull();
+    const implied =
+      judas!.sweepSide === 'LOW' ? 'LONG' : judas!.sweepSide === 'HIGH' ? 'SHORT' : null;
+    expect(implied).not.toBeNull();
+    expect(trigger!.direction).toBe(implied);
+
+    // Once ARMED the flaw stands clean — still never OPPOSITE_SWEEP.
+    const flawSecond = useDashboard.getState().selectFatalFlaw();
+    expect(flawSecond).not.toBeNull();
+    expect(flawSecond!.reasonKey).not.toBe('OPPOSITE_SWEEP');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('flaw-stale: stale nq15m forces selectFatalFlaw null without throwing', async () => {
     const { useDashboard } = await resetDualState();
     await seedTriggerFire(useDashboard);

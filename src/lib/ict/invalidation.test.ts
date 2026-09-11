@@ -133,7 +133,10 @@ describe('invalidation: taxonomy disjunction table', () => {
     expect(out.carriedArmedReason).toBe('FIRE_LONG');
   });
 
-  it('confirmed opposite sweep downgrades FIRE_SHORT against a HIGH sweep', () => {
+  // The two opposite-sweep tests below use synthetically mismatched
+  // trigger-plus-judas envelopes unreachable via selectFatalFlaw — they pin
+  // pure-layer precedence only (first-match-wins order and SOFT gating).
+  it('confirmed opposite sweep downgrades FIRE_SHORT against a LOW sweep', () => {
     const out = checkFatalFlaw(
       cleanInput({
         trigger: fixtureFlawTrigger({

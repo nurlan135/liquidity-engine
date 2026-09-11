@@ -10,6 +10,10 @@ import type { RolloverFlag } from '@/src/lib/ict/types';
 // confirmed opposite-direction sweep downgrade FIRING to ARMED only (SOFT
 // never touches QUIET/ARMED/WAIT). INVALIDATED supersedes FIRING
 // deterministically by function order — no timestamp racing, no second poll.
+// SYNTHETIC-ONLY NOTE: the OPPOSITE_SWEEP SOFT branch fires only on
+// synthetically mismatched trigger-plus-judas envelopes and never through
+// selectFatalFlaw on the same snapshot, where trigger direction is a total
+// function of the sweep side — Phase 17 must treat live SOFT as SMT-only.
 // Closed-candle confirmation (D-03) is inherited from the consumed confirmed
 // and suppressed flags; a single closed candle suffices, no N-close depth.
 // Pure: caller-supplied trigger plus smt plus judas plus rollover plus stale
