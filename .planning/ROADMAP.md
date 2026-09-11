@@ -77,7 +77,7 @@ Plans:
   2. User sees HARD flaws (rollover/stale — kill the setup) distinguished from SOFT flaws (downgrade FIRING to ARMED with a stated unblock condition)
   3. User reads a falsifiable fatal-flaw sentence plus a challenge question from a fixed bank in live report §6
 
-**Plans**: 2 plans
+**Plans**: 3 plans
 Plans:
 **Wave 1**
 
@@ -86,6 +86,10 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 16-02-PLAN.md — Sentence table plus challenge bank prose lock plus store selector cases (FLAW-01, FLAW-03)
+
+**Gap closure** *(independent — wave 1, touches only invalidation.ts header plus invalidation.test.ts title plus store.test.ts)*
+
+- [ ] 16-03-PLAN.md — SMT SOFT proven live plus opposite-sweep impossibility documented (FLAW-02)
 
 ### Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins
 
