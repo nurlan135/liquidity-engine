@@ -347,19 +347,24 @@ expect(out.challenge).toBe('…challenge-bank entry…');
 
 **Handling:** A2 and A5 need planner/user confirmation before becoming locked; the rest are planner's discretion within locked D-01..D-15.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Rollover derivation at the `selectFatalFlaw` boundary**
+> All three questions resolved at plan time by 16-01-PLAN.md / 16-02-PLAN.md. Planner decisions recorded per question below.
+
+1. **Rollover derivation at the `selectFatalFlaw` boundary — RESOLVED**
+   - Planner decision: derive inline at the selector boundary following the FVG precedent (`selectTrigger` lines 846-853), wrapped in inner try/catch degrading to `rollover: null` (honest "no HARD rollover signal"). No separate `selectRollover` selector.
    - What we know: `detectRollover(candles, atr, asOf, hint)` needs closed D1 candles + ATR + date string [VERIFIED: src/lib/ict/rollover.ts:33-43]; `selectTrigger` already derives FVG inline from `nq.candles` with try/catch [VERIFIED: src/lib/store.ts:846-853]; SMT internally runs its own joint rollover check [VERIFIED: src/lib/ict/smt.ts:245-259].
    - What's unclear: whether a `selectRollover`-style selector already exists for reuse, or the flaw selector derives NQ (+ES?) rollover inline.
    - Recommendation: grep for existing rollover selectors at plan time; else derive inline following the FVG precedent (NQ leg minimum; ES leg if cheap), try/catch → `rollover: null` degrades to "no HARD rollover signal" honestly.
 
-2. **Exact HARD-stale leg set**
+2. **Exact HARD-stale leg set — RESOLVED**
+   - Planner decision: any-of-four HARD — any single stale leg (nq/es/nq1h/nq15m) kills the setup. Simplest, matches D-01 "non-negotiable".
    - What we know: per-leg `stale` booleans exist for nq/es/nq1h/nq15m [VERIFIED: src/lib/store.ts:92-129]; trigger refuse-nulls only on nq1h/nq15m [VERIFIED: src/lib/store.ts:838].
    - What's unclear: whether ANY stale leg (including nq daily) is HARD, or only legs feeding the flaw predicates.
    - Recommendation: any-of-four HARD — simplest, matches "kill the setup outright, non-negotiable," and stale daily already degrades trigger displacement honestly so the two can never disagree into flicker.
 
-3. **D-08 "nearest unswept pool" naming without live asia rows**
+3. **D-08 "nearest unswept pool" naming without live asia rows — RESOLVED**
+   - Planner decision: resolve purely from envelopes at plan-time prose drafting (16-02-PLAN.md 4-cell sentence table keyed on direction × sweepSide, verbatim Azerbaijani `toBe`-pinned per D-10). No new row reads; envelope widening via `trigger.inputs.amd.inputs.asia` only if a template needs more.
    - What we know: `amd.inputs.asia` and `trigger.inputs.judas` ride the envelopes [VERIFIED: src/lib/ict/trigger.ts:69; src/lib/ict/amd.ts:38-46].
    - What's unclear: whether the plan-time sentence templates need pool-side vocabulary (BSL/SSL) resolvable purely from sweepSide + asia extremes on the envelope.
    - Recommendation: resolve at plan time when drafting prose (D-10); if a template needs more than the envelopes carry, widen via `trigger.inputs.amd.inputs.asia` (already on the snapshot — not a new fetch), never via new row reads.

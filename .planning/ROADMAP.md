@@ -79,7 +79,12 @@ Plans:
 
 **Plans**: 2 plans
 Plans:
+**Wave 1**
+
 - [ ] 16-01-PLAN.md — Tracer: pure checkFatalFlaw core plus disjunction tests plus selectFatalFlaw (FLAW-01, FLAW-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 16-02-PLAN.md — Sentence table plus challenge bank prose lock plus store selector cases (FLAW-01, FLAW-03)
 
 ### Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins
