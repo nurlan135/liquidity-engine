@@ -284,49 +284,33 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       } catch {
         markersPluginRef.current = null;
       }
-      // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): guarded create like the
-      // Asia pair — EXECUTE verdict plus finite inputs only. A guard throw
-      // or non-EXECUTE verdict leaves all five refs null so no lines render
-      // and the chart never blocks. Stale legs desaturate to muted gray.
+      // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): per-leg create like the
+      // Asia pair — EXECUTE verdict only. Each leg renders independently:
+      // null or non-finite legs (legal on a partial TP ladder) are skipped,
+      // finite legs still render. A create throw nulls only that leg; the
+      // chart never blocks. Stale legs desaturate to muted gray.
       if (props.ticketVerdict === 'EXECUTE_LONG' || props.ticketVerdict === 'EXECUTE_SHORT') {
-        try {
-          const ticketColor = props.overlayStale ? MUTED_GRAY : accent;
-          const ticketPrices = [props.ticketEntry, props.ticketSL, props.ticketTP1, props.ticketTP2, props.ticketTP3];
-          for (const p of ticketPrices) {
-            if (typeof p !== 'number' || !Number.isFinite(p)) throw new Error(`ticket line requires finite price, got ${String(p)}`);
-          }
-          entryLineRef.current = typed.createPriceLine({
-            price: props.ticketEntry as number,
-            color: ticketColor,
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            title: 'Entry',
-          });
-          slLineRef.current = typed.createPriceLine({
-            price: props.ticketSL as number,
-            color: ticketColor,
-            lineWidth: 1,
-            lineStyle: LineStyle.Solid,
-            title: 'SL',
-          });
-          const tpValues = [props.ticketTP1 as number, props.ticketTP2 as number, props.ticketTP3 as number];
-          const tpRefs = [tp1LineRef, tp2LineRef, tp3LineRef];
-          const tpTitles = ['TP1', 'TP2', 'TP3'];
-          for (let i = 0; i < tpValues.length; i++) {
-            tpRefs[i].current = typed.createPriceLine({
-              price: tpValues[i],
+        const ticketColor = props.overlayStale ? MUTED_GRAY : accent;
+        const ticketLegs = [
+          { ref: entryLineRef, price: props.ticketEntry, title: 'Entry', style: LineStyle.Dashed },
+          { ref: slLineRef, price: props.ticketSL, title: 'SL', style: LineStyle.Solid },
+          { ref: tp1LineRef, price: props.ticketTP1, title: 'TP1', style: LineStyle.Dashed },
+          { ref: tp2LineRef, price: props.ticketTP2, title: 'TP2', style: LineStyle.Dashed },
+          { ref: tp3LineRef, price: props.ticketTP3, title: 'TP3', style: LineStyle.Dashed },
+        ];
+        for (const leg of ticketLegs) {
+          if (typeof leg.price !== 'number' || !Number.isFinite(leg.price)) continue;
+          try {
+            leg.ref.current = typed.createPriceLine({
+              price: leg.price,
               color: ticketColor,
               lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              title: tpTitles[i],
+              lineStyle: leg.style,
+              title: leg.title,
             });
+          } catch {
+            leg.ref.current = null;
           }
-        } catch {
-          entryLineRef.current = null;
-          slLineRef.current = null;
-          tp1LineRef.current = null;
-          tp2LineRef.current = null;
-          tp3LineRef.current = null;
         }
       }
       // Quadrant/OTE lines annotate the proven selector path; null levels (or
@@ -554,48 +538,32 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         }
       }
       // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): remove-then-create like the
-      // Asia pair. EXECUTE verdict plus five finite prices only; a guard
-      // throw or non-EXECUTE verdict renders no lines and never blocks the
-      // chart. Removal already happened unconditionally above, so STAND ASIDE
-      // and INVALIDATED leave zero ticket lines (D-10, Pitfall 6).
+      // Asia pair. EXECUTE verdict only; each leg renders independently —
+      // null or non-finite legs (legal on a partial TP ladder) are skipped
+      // while finite legs still render. Removal already happened
+      // unconditionally above, so STAND ASIDE and INVALIDATED leave zero
+      // ticket lines (D-10, Pitfall 6). A create throw nulls only that leg.
       if (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') {
-        try {
-          const ticketPrices = [ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3];
-          for (const p of ticketPrices) {
-            if (typeof p !== 'number' || !Number.isFinite(p)) throw new Error(`ticket line requires finite price, got ${String(p)}`);
-          }
-          entryLineRef.current = live.createPriceLine({
-            price: ticketEntry as number,
-            color: overlayTone,
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            title: 'Entry',
-          });
-          slLineRef.current = live.createPriceLine({
-            price: ticketSL as number,
-            color: overlayTone,
-            lineWidth: 1,
-            lineStyle: LineStyle.Solid,
-            title: 'SL',
-          });
-          const tpValues = [ticketTP1 as number, ticketTP2 as number, ticketTP3 as number];
-          const tpRefs = [tp1LineRef, tp2LineRef, tp3LineRef];
-          const tpTitles = ['TP1', 'TP2', 'TP3'];
-          for (let i = 0; i < tpValues.length; i++) {
-            tpRefs[i].current = live.createPriceLine({
-              price: tpValues[i],
+        const ticketLegs = [
+          { ref: entryLineRef, price: ticketEntry, title: 'Entry', style: LineStyle.Dashed },
+          { ref: slLineRef, price: ticketSL, title: 'SL', style: LineStyle.Solid },
+          { ref: tp1LineRef, price: ticketTP1, title: 'TP1', style: LineStyle.Dashed },
+          { ref: tp2LineRef, price: ticketTP2, title: 'TP2', style: LineStyle.Dashed },
+          { ref: tp3LineRef, price: ticketTP3, title: 'TP3', style: LineStyle.Dashed },
+        ];
+        for (const leg of ticketLegs) {
+          if (typeof leg.price !== 'number' || !Number.isFinite(leg.price)) continue;
+          try {
+            leg.ref.current = live.createPriceLine({
+              price: leg.price,
               color: overlayTone,
               lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              title: tpTitles[i],
+              lineStyle: leg.style,
+              title: leg.title,
             });
+          } catch {
+            leg.ref.current = null;
           }
-        } catch {
-          entryLineRef.current = null;
-          slLineRef.current = null;
-          tp1LineRef.current = null;
-          tp2LineRef.current = null;
-          tp3LineRef.current = null;
         }
       }
       // Marker refresh through the v5 plugin only (never the v4 series-dot
