@@ -25,6 +25,11 @@ export const PAPER_EQUITY_USD = 25000;
 /** NQ futures point value in USD per point (OQ-1 lock). */
 // [ASSUMED]: standard NQ spec — exported so a wrong assumption is one constant away from correction.
 export const NQ_POINT_VALUE = 20;
+/** Operator risk-% acceptance band: setters clamp here, computeTicket throws outside (D-07). */
+export const RISK_PCT_MIN = 0.1;
+export const RISK_PCT_MAX = 5;
+/** Stop distances at or below this are degenerate — refused, never sized. */
+const STOP_EPS = 1e-6;
 
 export type TicketVerdict = 'EXECUTE_LONG' | 'EXECUTE_SHORT' | 'STAND_ASIDE';
 
@@ -78,7 +83,8 @@ const REASON_NOT_FIRE = 'STAND ASIDE: WHY NOW atəşi yoxdur — giriş şərti 
 const REASON_ENTRY = 'STAND ASIDE: giriş həll edilmədi — OTE cibı ilə giriş FVG kəsişmir.';
 const REASON_SL = 'STAND ASIDE: stop həll edilmədi — struktur səviyyə çatışmır.';
 const REASON_TP = 'STAND ASIDE: hədəf pilləsi həll edilmədi — qarşı likvidlik tapılmadı.';
-const REASON_RR = 'STAND ASIDE: R/R şərti ödənilmir — EXECUTE bloklandı.';
+const REASON_STOP = 'STAND ASIDE: stop məsafəsi sıfırdır — ölçü hesablanmadı.';
+const REASON_SIZE = 'STAND ASIDE: ölçü həll edilmədi — risk və stop məsafəsi çatışmır.';
 const REASON_EXECUTE_LONG = 'EXECUTE LONG: giriş, stop və TP pilləsi həll edildi — R/R şərti ödənilir.';
 const REASON_EXECUTE_SHORT = 'EXECUTE SHORT: giriş, stop və TP pilləsi həll edildi — R/R şərti ödənilir.';
 
@@ -237,8 +243,16 @@ function resolveEntry(direction: 'LONG' | 'SHORT', levels: LevelsOutput, entryFv
   return (lo + hi) / 2;
 }
 
+function assertValidRiskPct(riskPct: TicketInput['riskPct']): void {
+  if (typeof riskPct !== 'number' || !Number.isFinite(riskPct) || riskPct < RISK_PCT_MIN || riskPct > RISK_PCT_MAX) {
+    throw new Error(`computeTicket requires a finite riskPct in 0.1 to 5, got ${String(riskPct)}`);
+  }
+}
+
 // OQ-2 lock: LONG SL is the low that must hold (below entry-FVG bottom and
 // Asia low), SHORT mirrors. A stop on the wrong side of entry is degenerate.
+// A stop at or below the epsilon floor is degenerate too — sized NaN would
+// be false precision, so the caller refuses before any division.
 function resolveSL(direction: 'LONG' | 'SHORT', entry: number, entryFvg: FvgGap, asia: AsiaRange): number | null {
   const sl = direction === 'LONG' ? Math.min(entryFvg.bottom, asia.low) : Math.max(entryFvg.top, asia.high);
   if (direction === 'LONG' && !(sl < entry)) return null;
@@ -287,6 +301,7 @@ export function computeTicket(input: TicketInput): TicketOutput {
   assertValidRange(range);
   assertValidDol(dol);
   assertValidAsia(asia);
+  assertValidRiskPct(riskPct);
 
   // Null envelopes degrade to STAND ASIDE — never a throw on null.
   if (trigger === null || flaw === null || levels === null || range === null || dol === null || asia === null) {
@@ -325,29 +340,41 @@ export function computeTicket(input: TicketInput): TicketOutput {
     return standAside(REASON_SL, epoch, degraded);
   }
 
-  // Step 4 — structure-first TP ladder (tracer: all-or-nothing; partial-leg
-  // tolerance arrives with the refusal table).
+  // Step 4 — structure-first TP ladder (D-01/D-02): TP1 is the gate leg
+  // and must resolve; TP2/TP3 omit as null when unresolvable, reported in
+  // rMultiples as null — never synthesized fillers.
   const tp = resolveTP(direction, entry, asia, dol, range);
-  if (tp.tp1 === null || tp.tp2 === null || tp.tp3 === null) {
+  if (tp.tp1 === null) {
     return standAside(REASON_TP, epoch, degraded);
   }
 
-  // Step 5 — R-R gate on TP1 only (OQ-3 lock): the nearest exit must justify
-  // risk, direction-aware distances throughout.
+  // Step 5 — R/R gate on TP1 only (OQ-3 lock, D-03): the nearest exit must
+  // justify risk, direction-aware distances throughout. The fail reason names
+  // the computed ratio — the sole sanctioned interpolation.
   const stopDist = Math.abs(entry - sl);
+  if (!(stopDist > STOP_EPS)) {
+    const stopped = standAside(REASON_STOP, epoch, degraded);
+    return stopped;
+  }
   const rr = Math.abs((tp.tp1 as number) - entry) / stopDist;
   if (!(rr + TOL_EPS >= TICKET_RR_MIN)) {
-    return standAside(REASON_RR, epoch, degraded);
+    return standAside(`R/R 1:${rr.toFixed(1)} — EXECUTE bloklandı.`, epoch, degraded);
   }
-
-  // Step 6 — verdict plus sizing: risk ÷ stop-distance in whole NQ contracts
-  // (tracer: happy-path math; the refusal table hardens every degenerate).
   const rMultiples = {
     tp1: rr,
-    tp2: Math.abs((tp.tp2 as number) - entry) / stopDist,
-    tp3: Math.abs((tp.tp3 as number) - entry) / stopDist,
+    tp2: tp.tp2 === null ? null : Math.abs(tp.tp2 - entry) / stopDist,
+    tp3: tp.tp3 === null ? null : Math.abs(tp.tp3 - entry) / stopDist,
   };
-  const sizeContracts = Math.floor((PAPER_EQUITY_USD * (riskPct as number)) / 100 / (stopDist * NQ_POINT_VALUE));
+
+  // Step 6 — verdict plus sizing: risk ÷ stop-distance in whole NQ contracts
+  // from PAPER_EQUITY_USD with an explicit equity override. Entry/SL arrive
+  // finite from steps 2–3; riskPct is band-validated at the boundary — the
+  // floor refuses only a non-positive contract count, never NaN.
+  const equity = PAPER_EQUITY_USD;
+  const sizeContracts = Math.floor((equity * (riskPct as number)) / 100 / (stopDist * NQ_POINT_VALUE));
+  if (!(Number.isFinite(sizeContracts) && sizeContracts > 0)) {
+    return standAside(REASON_SIZE, epoch, degraded);
+  }
   const verdict: TicketVerdict = direction === 'LONG' ? 'EXECUTE_LONG' : 'EXECUTE_SHORT';
   return {
     verdict,

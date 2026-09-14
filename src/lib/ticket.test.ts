@@ -155,8 +155,17 @@ describe('ticket: R-R TP1 gate plus sizing plus refusal table', () => {
   });
 
   it('zero stop distance yields STAND ASIDE refusal with null sizeContracts, never NaN', () => {
-    // Asia low pinned to the entry-FVG bottom: SL equals entry, stop is zero.
-    const out = computeTicket(fixtureInput({ asia: fixtureAsia({ low: 20090 }) }));
+    // Hairline entry-FVG (top exceeds bottom by 1e-9, inside the finite-gap
+    // guards) with Asia low above the gap: SL clamps to the gap bottom and
+    // the stop falls below the epsilon floor.
+    const hairline = fixtureEntryFvg({ top: 20090.000000001, bottom: 20090 });
+    const out = computeTicket(
+      fixtureInput({
+        trigger: fixtureTrigger({ entryFvg: hairline }),
+        levels: fixtureLevels({ bullOTE: { lo: 20062.5, hi: 20105 } }),
+        asia: fixtureAsia({ high: 20210, low: 20100 }),
+      }),
+    );
     expect(out.verdict).toBe('STAND_ASIDE');
     expect(out.reason).toBe('STAND ASIDE: stop məsafəsi sıfırdır — ölçü hesablanmadı.');
     expect(out.sizeContracts).toBeNull();
