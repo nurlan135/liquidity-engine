@@ -103,7 +103,7 @@ Plans:
   3. User never mistakes paper for real — PAPER/SIMULATED vocabulary everywhere, persistent non-dismissible PAPER banner, banned-word test green (no Filled/Position/Submit Order/placeOrder identifiers)
   4. User sees live report §§4–6 blocks with verbatim reasons, three dashboard panels replacing the UNAVAILABLE cards, and chart trigger pin + entry/SL/TP lines
 
-**Plans**: 4 plans
+**Plans**: 5 plans
 **UI hint**: yes
 Plans:
 **Wave 1**
@@ -118,6 +118,10 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 17-04-PLAN.md — Chart T pin plus entry/SL/TP lines with STAND ASIDE clearing (TICK-04)
+
+**Gap closure** *(independent — wave 1, touches only store.ts plus store.test.ts)*
+
+- [ ] 17-05-PLAN.md — Pure trigger derivation plus single-snapshot flaw and ticket plus snapshot-equality regression (TICK-01, TICK-04)
 
 ### Phase 18: Verification + Calibration Harness
 
