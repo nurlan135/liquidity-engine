@@ -75,8 +75,10 @@ interface OverlayMarker {
 const MUTED_GRAY = '#71717A';
 
 // Build the marker array from resolved detector outputs: Judas first, then
-// SMT. Null, unresolved, NO-SIGNAL, or suppressed inputs contribute nothing;
-// empty input returns [] so the caller clears via an empty marker set.
+// SMT, then the ticket trigger pin (J-S-T order per D-09). Null,
+// unresolved, NO-SIGNAL, suppressed, or non-EXECUTE inputs contribute
+// nothing; empty input returns [] so the caller clears via an empty marker
+// set (D-10).
 function buildOverlayMarkers(
   judas: JudasOutput | null | undefined,
   judasBarDate: string | null | undefined,
@@ -84,6 +86,9 @@ function buildOverlayMarkers(
   smtBarDate: string | null | undefined,
   overlayStale: boolean,
   accent: string,
+  ticketVerdict?: 'EXECUTE_LONG' | 'EXECUTE_SHORT' | 'STAND_ASIDE' | null,
+  ticketDirection?: 'LONG' | 'SHORT' | null,
+  fireBarDate?: string | null,
 ): OverlayMarker[] {
   const markers: OverlayMarker[] = [];
   const tone = overlayStale ? MUTED_GRAY : accent;
@@ -116,10 +121,28 @@ function buildOverlayMarkers(
       });
     }
   }
+  // Ticket trigger pin (D-09): third in J-S-T order on the FIRE bar, EXECUTE
+  // only. LONG pins below the bar (arrowUp), SHORT above (arrowDown), accent
+  // tone with MUTED_GRAY stale fallback. STAND ASIDE, INVALIDATED, null, or
+  // missing fireBarDate contribute nothing so the empty-marker-set path
+  // clears the pin (D-10).
+  if (
+    (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') &&
+    (ticketDirection === 'LONG' || ticketDirection === 'SHORT') &&
+    fireBarDate !== null && fireBarDate !== undefined
+  ) {
+    markers.push({
+      time: fireBarDate,
+      position: ticketDirection === 'LONG' ? 'belowBar' : 'aboveBar',
+      shape: ticketDirection === 'LONG' ? 'arrowUp' : 'arrowDown',
+      color: tone,
+      text: 'T',
+    });
+  }
   return markers;
 }
 
-export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full' }: NqChartProps) {
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full', ticketVerdict = null, ticketDirection = null, ticketEntry = null, ticketSL = null, ticketTP1 = null, ticketTP2 = null, ticketTP3 = null, fireBarDate = null }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -134,14 +157,20 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   // Phase 9 Asia line pair refs (D-05): remove-then-create like EQ/DOL.
   const asiaHighLineRef = useRef<unknown>(null);
   const asiaLowLineRef = useRef<unknown>(null);
+  // Phase 17 ticket price lines (D-09): Entry/SL/TP1/TP2/TP3 remove-then-create like the Asia pair.
+  const entryLineRef = useRef<unknown>(null);
+  const slLineRef = useRef<unknown>(null);
+  const tp1LineRef = useRef<unknown>(null);
+  const tp2LineRef = useRef<unknown>(null);
+  const tp3LineRef = useRef<unknown>(null);
   // Phase 9 series-markers plugin handle (v5 createSeriesMarkers form only).
   const markersPluginRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
-  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier });
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate });
   // Sync the latest props outside render so the zone-fill getter reads live
   // values without violating the react-hooks/refs render-phase rule.
   useEffect(() => {
-    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier };
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate };
   });
 
   // Create the chart once per container; lightweight-charts loads lazily so
@@ -239,9 +268,10 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
-      // Overlay markers via the v5 plugin form (D-06/D-07): Judas first, then
-      // SMT; empty input sets an empty array so candles render clean. Stale
-      // persists desaturated with the STALE badge, never cleared (D-08).
+      // Overlay markers via the v5 plugin form (D-06/D-07 plus Phase 17 T
+      // pin): Judas first, then SMT, then the ticket trigger pin; empty
+      // input sets an empty array so candles render clean. Stale persists
+      // desaturated with the STALE badge, never cleared (D-08).
       try {
         const { createSeriesMarkers } = await import('lightweight-charts');
         const plugin = (
@@ -249,10 +279,55 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
             series: unknown,
             markers: OverlayMarker[],
           ) => { setMarkers: (markers: OverlayMarker[]) => void }
-        )(series, buildOverlayMarkers(props.judas, props.judasBarDate, props.smt, props.smtBarDate, props.overlayStale === true, accent));
+        )(series, buildOverlayMarkers(props.judas, props.judasBarDate, props.smt, props.smtBarDate, props.overlayStale === true, accent, props.ticketVerdict, props.ticketDirection, props.fireBarDate));
         markersPluginRef.current = plugin;
       } catch {
         markersPluginRef.current = null;
+      }
+      // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): guarded create like the
+      // Asia pair — EXECUTE verdict plus finite inputs only. A guard throw
+      // or non-EXECUTE verdict leaves all five refs null so no lines render
+      // and the chart never blocks. Stale legs desaturate to muted gray.
+      if (props.ticketVerdict === 'EXECUTE_LONG' || props.ticketVerdict === 'EXECUTE_SHORT') {
+        try {
+          const ticketColor = props.overlayStale ? MUTED_GRAY : accent;
+          const ticketPrices = [props.ticketEntry, props.ticketSL, props.ticketTP1, props.ticketTP2, props.ticketTP3];
+          for (const p of ticketPrices) {
+            if (typeof p !== 'number' || !Number.isFinite(p)) throw new Error(`ticket line requires finite price, got ${String(p)}`);
+          }
+          entryLineRef.current = typed.createPriceLine({
+            price: props.ticketEntry as number,
+            color: ticketColor,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Entry',
+          });
+          slLineRef.current = typed.createPriceLine({
+            price: props.ticketSL as number,
+            color: ticketColor,
+            lineWidth: 1,
+            lineStyle: LineStyle.Solid,
+            title: 'SL',
+          });
+          const tpValues = [props.ticketTP1 as number, props.ticketTP2 as number, props.ticketTP3 as number];
+          const tpRefs = [tp1LineRef, tp2LineRef, tp3LineRef];
+          const tpTitles = ['TP1', 'TP2', 'TP3'];
+          for (let i = 0; i < tpValues.length; i++) {
+            tpRefs[i].current = typed.createPriceLine({
+              price: tpValues[i],
+              color: ticketColor,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: tpTitles[i],
+            });
+          }
+        } catch {
+          entryLineRef.current = null;
+          slLineRef.current = null;
+          tp1LineRef.current = null;
+          tp2LineRef.current = null;
+          tp3LineRef.current = null;
+        }
       }
       // Quadrant/OTE lines annotate the proven selector path; null levels (or
       // a guard throw) render no new lines and never block the chart.
@@ -340,6 +415,11 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       oteBearLineRef.current = null;
       asiaHighLineRef.current = null;
       asiaLowLineRef.current = null;
+      entryLineRef.current = null;
+      slLineRef.current = null;
+      tp1LineRef.current = null;
+      tp2LineRef.current = null;
+      tp3LineRef.current = null;
       markersPluginRef.current = null;
     };
   }, []);
@@ -367,12 +447,24 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       if (oteBearLineRef.current !== null) live.removePriceLine(oteBearLineRef.current);
       if (asiaHighLineRef.current !== null) live.removePriceLine(asiaHighLineRef.current);
       if (asiaLowLineRef.current !== null) live.removePriceLine(asiaLowLineRef.current);
+      // Ticket lines remove unconditionally first (D-10): skipping creation
+      // alone leaves ghost what-if levels after a verdict flip to STAND ASIDE.
+      if (entryLineRef.current !== null) live.removePriceLine(entryLineRef.current);
+      if (slLineRef.current !== null) live.removePriceLine(slLineRef.current);
+      if (tp1LineRef.current !== null) live.removePriceLine(tp1LineRef.current);
+      if (tp2LineRef.current !== null) live.removePriceLine(tp2LineRef.current);
+      if (tp3LineRef.current !== null) live.removePriceLine(tp3LineRef.current);
       q1LineRef.current = null;
       q3LineRef.current = null;
       oteBullLineRef.current = null;
       oteBearLineRef.current = null;
       asiaHighLineRef.current = null;
       asiaLowLineRef.current = null;
+      entryLineRef.current = null;
+      slLineRef.current = null;
+      tp1LineRef.current = null;
+      tp2LineRef.current = null;
+      tp3LineRef.current = null;
       const accent = readVar(VAR_ACCENT, '#00D9FF');
       const overlayTone = overlayStale ? MUTED_GRAY : accent;
       // Thin-history dimming (D-05/D-06/D-10): mirrors the mount effect; a
@@ -461,10 +553,55 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
+      // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): remove-then-create like the
+      // Asia pair. EXECUTE verdict plus five finite prices only; a guard
+      // throw or non-EXECUTE verdict renders no lines and never blocks the
+      // chart. Removal already happened unconditionally above, so STAND ASIDE
+      // and INVALIDATED leave zero ticket lines (D-10, Pitfall 6).
+      if (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') {
+        try {
+          const ticketPrices = [ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3];
+          for (const p of ticketPrices) {
+            if (typeof p !== 'number' || !Number.isFinite(p)) throw new Error(`ticket line requires finite price, got ${String(p)}`);
+          }
+          entryLineRef.current = live.createPriceLine({
+            price: ticketEntry as number,
+            color: overlayTone,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            title: 'Entry',
+          });
+          slLineRef.current = live.createPriceLine({
+            price: ticketSL as number,
+            color: overlayTone,
+            lineWidth: 1,
+            lineStyle: LineStyle.Solid,
+            title: 'SL',
+          });
+          const tpValues = [ticketTP1 as number, ticketTP2 as number, ticketTP3 as number];
+          const tpRefs = [tp1LineRef, tp2LineRef, tp3LineRef];
+          const tpTitles = ['TP1', 'TP2', 'TP3'];
+          for (let i = 0; i < tpValues.length; i++) {
+            tpRefs[i].current = live.createPriceLine({
+              price: tpValues[i],
+              color: overlayTone,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: tpTitles[i],
+            });
+          }
+        } catch {
+          entryLineRef.current = null;
+          slLineRef.current = null;
+          tp1LineRef.current = null;
+          tp2LineRef.current = null;
+          tp3LineRef.current = null;
+        }
+      }
       // Marker refresh through the v5 plugin only (never the v4 series-dot
       // form): rebuild on every input change, clear via the empty array.
       try {
-        const next = buildOverlayMarkers(judas, judasBarDate, smt, smtBarDate, overlayStale, accent);
+        const next = buildOverlayMarkers(judas, judasBarDate, smt, smtBarDate, overlayStale, accent, ticketVerdict, ticketDirection, fireBarDate);
         const plugin = markersPluginRef.current as {
           setMarkers: (markers: OverlayMarker[]) => void;
         } | null;
@@ -497,7 +634,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       zoneRef.current.opacityScale = status === 'stale' || refreshDimmed ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
-  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier]);
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate]);
 
   const latest = candles.length > 0 ? candles[candles.length - 1] : null;
   const hasAsiaLines = asiaHigh !== null && asiaHigh !== undefined && asiaLow !== null && asiaLow !== undefined;
@@ -509,12 +646,17 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
     smt !== null && smt !== undefined && !smt.suppressed &&
     (smt.direction === 'BULLISH' || smt.direction === 'BEARISH') &&
     smtBarDate !== null && smtBarDate !== undefined;
+  const hasTicketPin =
+    (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') &&
+    (ticketDirection === 'LONG' || ticketDirection === 'SHORT') &&
+    fireBarDate !== null && fireBarDate !== undefined;
 
   return (
     <div data-slot="chart-block" data-overlay={status} className="relative min-h-[400px] w-full">
       {hasAsiaLines ? <span data-slot="asia-lines" aria-hidden="true" className="hidden" /> : null}
       {hasJudasMarkers ? <span data-slot="judas-markers" aria-hidden="true" className="hidden" /> : null}
       {hasSmtMarker ? <span data-slot="smt-marker" aria-hidden="true" className="hidden" /> : null}
+      {hasTicketPin ? <span data-slot="ticket-pin" aria-hidden="true" className="hidden" /> : null}
       <div
         ref={containerRef}
         data-slot="nq-chart"
