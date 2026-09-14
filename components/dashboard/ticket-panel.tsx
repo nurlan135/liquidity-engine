@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PAPER_EQUITY_USD } from '@/src/lib/ticket';
@@ -36,11 +36,11 @@ export function TicketPanel() {
   const ticket = selectTicket();
 
   // İMTİNA acknowledgment is per-ticket: a new asOf resets the decline flag.
-  const [declined, setDeclined] = useState(false);
+  // Derived-during-render (never setState-in-effect): the decline key pins
+  // the ticket instant, a new asOf mismatches and hides the flag.
+  const [declined, setDeclined] = useState<number | null>(null);
   const ticketAsOf = ticket?.asOf ?? null;
-  useEffect(() => {
-    setDeclined(false);
-  }, [ticketAsOf]);
+  const declinedForTicket = declined !== null && declined === ticketAsOf;
 
   const degraded =
     ticket !== null && (ticket.degraded.stale || ticket.degraded.thin);
@@ -180,12 +180,12 @@ export function TicketPanel() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setDeclined(true)}
+                  onClick={() => setDeclined(ticketAsOf)}
                   data-slot="ticket-dismiss"
                 >
                   İMTİNA
                 </Button>
-                {declined ? (
+                {declinedForTicket ? (
                   <p data-slot="ticket-declined" className="text-xs text-muted-foreground">
                     İmtina edildi — qeyd yaradılmadı.
                   </p>
