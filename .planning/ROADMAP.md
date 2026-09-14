@@ -14,7 +14,7 @@
 - [x] **Phase 14: Audit Debt Cleanup + Purity Guard** - Dead code removed, purity grep guard green (completed 2026-09-10)
 - [x] **Phase 15: WHY NOW Trigger Engine** - Three-gate FIRE/ARMED/QUIET verdict with firing log (completed 2026-09-11, verified PASS)
 - [x] **Phase 16: Fatal-Flaw Invalidation** - Flaw-supersedes-fire on a shared snapshot, HARD/SOFT split (completed 2026-09-11)
-- [ ] **Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins** - Deterministic ticket, live report blocks, PAPER chrome
+- [x] **Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins** - Deterministic ticket, live report blocks, PAPER chrome (completed 2026-09-14, verified 15/15)
 - [ ] **Phase 18: Verification + Calibration Harness** - Replay monotonicity, reason parity, stale drill, fire-rate band
 
 ## Phase Details
@@ -121,7 +121,7 @@ Plans:
 
 **Gap closure** *(independent — wave 1, touches only store.ts plus store.test.ts)*
 
-- [ ] 17-05-PLAN.md — Pure trigger derivation plus single-snapshot flaw and ticket plus snapshot-equality regression (TICK-01, TICK-04)
+- [x] 17-05-PLAN.md — Pure trigger derivation plus single-snapshot flaw and ticket plus snapshot-equality regression (TICK-01, TICK-04)
 
 ### Phase 18: Verification + Calibration Harness
 

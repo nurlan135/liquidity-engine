@@ -84,8 +84,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FLAW-03 | Phase 16 | Pending |
 | TICK-01 | Phase 17 | Complete |
 | TICK-02 | Phase 17 | Complete |
-| TICK-03 | Phase 17 | Pending |
-| TICK-04 | Phase 17 | Pending |
+| TICK-03 | Phase 17 | Complete |
+| TICK-04 | Phase 17 | Complete |
 | VERF-01 | Phase 18 | Pending |
 | VERF-02 | Phase 18 | Pending |
 | VERF-03 | Phase 18 | Pending |
