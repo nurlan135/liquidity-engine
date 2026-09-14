@@ -109,7 +109,7 @@ Plans:
 **Wave 1**
 
 - [x] 17-01-PLAN.md — Tracer: pure computeTicket plus ticketInputs plus selectTicket (TICK-01, TICK-02)
-- [ ] 17-02-PLAN.md — Banned-word quarantine plus REPORT_SECTIONS 4-6 live flip (TICK-03, TICK-04)
+- [x] 17-02-PLAN.md — Banned-word quarantine plus REPORT_SECTIONS 4-6 live flip (TICK-03, TICK-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -117,7 +117,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 17-04-PLAN.md — Chart T pin plus entry/SL/TP lines with STAND ASIDE clearing (TICK-04)
+- [x] 17-04-PLAN.md — Chart T pin plus entry/SL/TP lines with STAND ASIDE clearing (TICK-04)
 
 ### Phase 18: Verification + Calibration Harness
 
