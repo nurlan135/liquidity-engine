@@ -268,7 +268,9 @@ export interface DashboardState {
   selectAsia: () => AsiaRange | null;
   selectJudas: () => JudasOutput | null;
   selectAMD: (asOf?: number) => AmdOutput | null;
+  selectTriggerPure: () => TriggerOutput | null;
   selectTrigger: () => TriggerOutput | null;
+  commitTriggerLog: () => TriggerOutput | null;
   selectFatalFlaw: () => FatalFlawOutput | null;
   firingLog: FiringLogEntry[];
   firingLogOverflow: number;
@@ -685,9 +687,22 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
       }, POLL_INTERVAL_MS);
     }, Math.max(0, delayNQ1H));
     nq15mTimeout = setTimeout(() => {
-      void get().refreshNQ15M();
+      // Phase 17-05 commit point (CR-03 gap closure): the single trusted
+      // logging direction — exactly one commitTriggerLog per poll evaluation
+      // after legs have just refreshed. Render paths read selectTriggerPure
+      // and never append; appendFiringLog ownership (WAIT skip, FIRE session
+      // dedup, already-fired skip) is unchanged inside this one call.
+      void get()
+        .refreshNQ15M()
+        .finally(() => {
+          get().commitTriggerLog();
+        });
       nq15mInterval = setInterval(() => {
-        void get().refreshNQ15M();
+        void get()
+          .refreshNQ15M()
+          .finally(() => {
+            get().commitTriggerLog();
+          });
       }, POLL_INTERVAL_MS);
     }, Math.max(0, delayNQ15M));
   },
@@ -859,13 +874,16 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     }
   },
 
-  // Phase 15 WHY NOW trigger: one poll-driven path from detectors through
-  // evaluateTrigger to the firing log. Refuse-with-null on stale or empty
-  // intraday legs; degraded detector outputs yield honest WAIT via
-  // evaluateTrigger (null only on the throw path). FVG derives inline from
-  // the same nq.candles the selectLiquidityPath precedent uses; empty or
-  // stale maps to fvg null so the displacement gate fails honestly.
-  selectTrigger: () => {
+  // Phase 15 WHY NOW trigger, Phase 17-05 pure derivation (CR-03 gap
+  // closure): selectTriggerPure holds the pre-17-05 derivation verbatim
+  // minus the state write — same refuse-null on stale or empty nq1h and
+  // nq15m legs, one sharedEpoch call, selectJudas plus selectSMT plus
+  // selectAMD plus inline FVG derivation, alreadyFired read from firingLog,
+  // evaluateTrigger return, try-catch returning null, zero set calls.
+  // Render-path selectors must read through this pure derivation only; the
+  // firing log is committed explicitly at the poll tick via commitTriggerLog,
+  // never from render.
+  selectTriggerPure: () => {
     const { nq, nq1h, nq15m } = get();
     if (nq1h.stale || nq15m.stale) return null;
     if (closedOnlyIntraday(nq1h.candles).length === 0) return null;
@@ -889,23 +907,44 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
           entry.sessionDate === sessionDate &&
           (entry.verdict === 'FIRE_LONG' || entry.verdict === 'FIRE_SHORT'),
       );
-      const out = evaluateTrigger({ judas, amd, smt, fvg, asOf: epoch, alreadyFired });
-      // appendFiringLog owns the WAIT skip, the FIRE session dedup, and the
-      // already-fired downgrade-repeat skip — call it on every derived
-      // verdict so the selector never re-implements log policy.
-      get().appendFiringLog(out, epoch);
-      return out;
+      return evaluateTrigger({ judas, amd, smt, fvg, asOf: epoch, alreadyFired });
     } catch {
       return null;
     }
   },
 
-  // Phase 16 fatal-flaw invalidation: flaw-after-trigger on the same
-  // snapshot by function order. Refuse-with-null on stale or empty intraday
-  // legs; trigger null (stale legs or throw path) means degraded null — SOFT
-  // is never evaluated on null, HARD-on-null is planner-confirmed null in
-  // this tracer. Rollover derives inline at the boundary (FVG precedent):
-  // inner try/catch degrades to null meaning no HARD rollover signal. One
+  // Phase 17-05 render-pure delegate (CR-03 gap closure): selectTrigger is a
+  // thin delegate to selectTriggerPure with no appendFiringLog call, so
+  // render never mutates log state. The WAIT skip plus FIRE session dedup
+  // plus already-fired downgrade-repeat skip ownership inside
+  // appendFiringLog is unchanged — it now applies only at the explicit
+  // poll-tick commit point (commitTriggerLog).
+  selectTrigger: () => get().selectTriggerPure(),
+
+  // Phase 17-05 explicit log commit point (CR-03 gap closure): invokes
+  // selectTriggerPure exactly once and then appendFiringLog with the derived
+  // output and its epoch exactly once, returning the derived output. This is
+  // the single logging commit path — invoked once per poll tick inside the
+  // startDualPoll interval handler where legs have just refreshed. Render
+  // paths (panels, report, shell) must never call this — they read
+  // selectTriggerPure via selectTrigger instead.
+  commitTriggerLog: () => {
+    const out = get().selectTriggerPure();
+    if (out === null) return null;
+    const epoch = sharedEpoch(get);
+    if (!Number.isFinite(epoch)) return out;
+    get().appendFiringLog(out, epoch);
+    return out;
+  },
+
+  // Phase 16 fatal-flaw invalidation, Phase 17-05 single-snapshot
+  // derivation (CR-03 gap closure): flaw-after-trigger on the same snapshot
+  // via selectTriggerPure exactly once per call, reusing that same trigger
+  // object for checkFatalFlaw with the existing smt plus judas plus rollover
+  // plus stale inputs and the same epoch — never calling the logging path.
+  // Render-pure derivation plus explicit commit point: the firing log is a
+  // read-only alreadyFired input here, so flaw is judged on the FIRE the
+  // ticket prices, never on the ARMED_ALREADY_FIRED post-log echo. One
   // sharedEpoch call only — never a second epoch, never re-sliced candles.
   // Never throws into render: catch path returns null.
   selectFatalFlaw: () => {
@@ -915,7 +954,7 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     if (closedOnlyIntraday(nq15m.candles).length === 0) return null;
     try {
       const epoch = sharedEpoch(get);
-      const trigger = get().selectTrigger();
+      const trigger = get().selectTriggerPure();
       if (trigger === null) return null;
       const smt = get().selectSMT();
       const judas = get().selectJudas();
@@ -1001,16 +1040,22 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     }
   },
 
-  // Phase 17 paper ticket: flaw-after-trigger on the same snapshot by
-  // function order, one sharedEpoch call only. Refuse-with-null on stale or
+  // Phase 17 paper ticket, Phase 17-05 single-snapshot chain (CR-03 gap
+  // closure): flaw-after-trigger on the same snapshot by function order, one
+  // sharedEpoch call only. Refuse-with-null on stale or
   // empty trigger-critical legs (nq1h/nq15m plus nq for FVG/levels — Pitfall
   // 4) with the owning leg lastError carrying the reason; flaw precedence
   // (INVALIDATED → STAND ASIDE plus flaw reason, DOWNGRADED → STAND ASIDE
   // plus flaw reason plus carriedArmedReason) matches computeTicket so the
-  // verdict never depends on which layer the flaw hits first. Stale legs
-  // outside the trigger-critical set (es) and thin D1 history degrade with
-  // provenance (STALE/THIN tag naming the leg) instead of full-strength
-  // numbers (D-05). Never throws into render: catch path returns null.
+  // verdict never depends on which layer the flaw hits first. Calls
+  // selectTriggerPure exactly once, then
+  // evaluates checkFatalFlaw inline on that identical trigger object with
+  // one smt plus one judas plus one rollover plus one stale derivation on
+  // the same epoch, then computeTicket with levels plus range plus dol plus
+  // asia plus ticketInputs riskPct plus degraded envelope plus asOf epoch.
+  // Render-pure derivation plus explicit commit point: the firing log is a
+  // read-only alreadyFired input here (via selectTriggerPure), so the flaw
+  // is judged on the identical FIRE object the ticket prices.
   selectTicket: () => {
     const { nq, es, nq1h, nq15m } = get();
     if (nq1h.stale || nq15m.stale) return null;
@@ -1020,12 +1065,18 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     if (closedOnly(nq.candles).length === 0) return null;
     try {
       const epoch = sharedEpoch(get);
-      const trigger = get().selectTrigger();
+      const trigger = get().selectTriggerPure();
       if (trigger === null) return null;
-      const flaw = get().selectFatalFlaw();
-      // selectFatalFlaw shares the refuse-null legs above, so a non-null
-      // trigger with a null flaw is a derivation throw — degrade to null,
-      // never evaluate SOFT on a missing flaw.
+      const smt = get().selectSMT();
+      const judas = get().selectJudas();
+      let rollover: RolloverFlag | null = null;
+      try {
+        rollover = get().selectRollover();
+      } catch {
+        rollover = null;
+      }
+      const stale = { nq: nq.stale, es: es.stale, nq1h: nq1h.stale, nq15m: nq15m.stale };
+      const flaw = checkFatalFlaw({ trigger, smt, judas, rollover, stale, asOf: epoch });
       if (flaw === null) return null;
       const levels = get().selectLevels();
       const range = get().selectRange();
