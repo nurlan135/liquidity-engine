@@ -108,7 +108,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 17-01-PLAN.md — Tracer: pure computeTicket plus ticketInputs plus selectTicket (TICK-01, TICK-02)
+- [x] 17-01-PLAN.md — Tracer: pure computeTicket plus ticketInputs plus selectTicket (TICK-01, TICK-02)
 - [ ] 17-02-PLAN.md — Banned-word quarantine plus REPORT_SECTIONS 4-6 live flip (TICK-03, TICK-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*

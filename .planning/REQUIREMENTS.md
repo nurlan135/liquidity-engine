@@ -28,8 +28,8 @@ Requirements for v3.0 milestone. Each maps to roadmap phases. Continues numberin
 
 ### Paper Ticket
 
-- [ ] **TICK-01**: User sees a paper ticket derived in fixed order — WHY NOW direction → OTE×FVG entry → invalidation SL → TP1/TP2/TP3 ladder → R/R ≥ 1:3 gate → EXECUTE / STAND ASIDE verdict
-- [ ] **TICK-02**: User can set risk % and size inputs; ticket computes size as risk ÷ stop-distance and refuses with reason on degenerate inputs (zero stop distance, missing levels)
+- [x] **TICK-01**: User sees a paper ticket derived in fixed order — WHY NOW direction → OTE×FVG entry → invalidation SL → TP1/TP2/TP3 ladder → R/R ≥ 1:3 gate → EXECUTE / STAND ASIDE verdict
+- [x] **TICK-02**: User can set risk % and size inputs; ticket computes size as risk ÷ stop-distance and refuses with reason on degenerate inputs (zero stop distance, missing levels)
 - [ ] **TICK-03**: User never mistakes paper for real — PAPER/SIMULATED vocabulary everywhere, persistent non-dismissible PAPER banner, banned-word test green (no Filled/Position/Submit Order/placeOrder identifiers)
 - [ ] **TICK-04**: User sees live report §§4–6 blocks with verbatim reasons, three dashboard panels replacing the UNAVAILABLE cards, and chart trigger pin + entry/SL/TP lines
 
@@ -82,8 +82,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FLAW-01 | Phase 16 | Pending |
 | FLAW-02 | Phase 16 | Pending |
 | FLAW-03 | Phase 16 | Pending |
-| TICK-01 | Phase 17 | Pending |
-| TICK-02 | Phase 17 | Pending |
+| TICK-01 | Phase 17 | Complete |
+| TICK-02 | Phase 17 | Complete |
 | TICK-03 | Phase 17 | Pending |
 | TICK-04 | Phase 17 | Pending |
 | VERF-01 | Phase 18 | Pending |
