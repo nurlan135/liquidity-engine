@@ -74,6 +74,13 @@ export function Report() {
   const selectSMT = useDashboard((s) => s.selectSMT);
   const selectAMD = useDashboard((s) => s.selectAMD);
   const selectConfluence = useDashboard((s) => s.selectConfluence);
+  // Phase 17 §§4-6 selectors: same stable-function subscription with
+  // derivation during render (selectLevels precedent — avoids useShallow
+  // loops on fresh nested identities). Math-free: panels print selector
+  // prose only.
+  const selectTrigger = useDashboard((s) => s.selectTrigger);
+  const selectFatalFlaw = useDashboard((s) => s.selectFatalFlaw);
+  const selectTicket = useDashboard((s) => s.selectTicket);
 
   const position = selectPosition();
   const range4H = selectRange4H();
@@ -84,6 +91,9 @@ export function Report() {
   const smt = selectSMT();
   const amd = selectAMD();
   const tier = selectConfluence();
+  const trigger = selectTrigger();
+  const flaw = selectFatalFlaw();
+  const ticket = selectTicket();
 
   const preNews = useMemo(() => {
     const snapshot = snapshotFor(scenario);
@@ -180,6 +190,99 @@ export function Report() {
               </section>
             );
           }
+          // Phase 17 §§4-6 live blocks (TICK-04): copying the §3 branch shape —
+          // leg lastError verbatim chain, lastUpdatedISO null skeleton versus
+          // null-selector Məlumat yoxdur copy, data-slot report-section plus
+          // per-block sub-slots mirroring the s3 idiom. Math-free: prints
+          // selector prose only. Placed before the generic unavailable branch.
+          if (section.index === 4) {
+            const triggerLegError = useDashboard.getState().nq15m.lastError;
+            const triggerReason = trigger !== null ? trigger.reason : (triggerLegError ?? S3_EMPTY_COPY);
+            return (
+              <section key={section.index} data-slot="report-section">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : trigger === null ? (
+                  <p className="text-base font-semibold">{S3_EMPTY_COPY}</p>
+                ) : (
+                  <div data-slot="s4-trigger-protocol">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      {`${trigger.verdict}${trigger.direction !== null ? ` · ${trigger.direction}` : ''}`}
+                    </p>
+                    <p className="text-base">{triggerReason}</p>
+                  </div>
+                )}
+              </section>
+            );
+          }
+          if (section.index === 5) {
+            const ticketLegError = useDashboard.getState().nq.lastError;
+            return (
+              <section key={section.index} data-slot="report-section">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : ticket === null ? (
+                  <p className="text-base font-semibold">{ticketLegError ?? S3_EMPTY_COPY}</p>
+                ) : (
+                  <div data-slot="s5-paper-ticket">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      {`${ticket.verdict}${ticket.direction !== null ? ` · ${ticket.direction}` : ''}`}
+                    </p>
+                    <p className="text-base">{ticket.reason}</p>
+                    {ticket.verdict === 'STAND_ASIDE' ? null : (
+                      <div>
+                        <p className="font-mono text-xl font-semibold tabular-nums">
+                          {`Giriş ${ticket.entry === null ? '—' : ticket.entry.toFixed(2)} · Stop ${ticket.sl === null ? '—' : ticket.sl.toFixed(2)}`}
+                        </p>
+                        <p className="font-mono text-xs tabular-nums">
+                          {`TP1 ${ticket.tp.tp1 === null ? '—' : ticket.tp.tp1.toFixed(2)} · TP2 ${ticket.tp.tp2 === null ? '—' : ticket.tp.tp2.toFixed(2)} · TP3 ${ticket.tp.tp3 === null ? '—' : ticket.tp.tp3.toFixed(2)} · R/R ${ticket.rr === null ? '—' : `1:${ticket.rr.toFixed(1)}`} · Ölçü ${ticket.sizeContracts === null ? '—' : ticket.sizeContracts} NQ`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          }
+          if (section.index === 6) {
+            const flawLegError = useDashboard.getState().es.lastError;
+            const flawReason = flaw !== null ? flaw.reason : (flawLegError ?? S3_EMPTY_COPY);
+            return (
+              <section key={section.index} data-slot="report-section">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : flaw === null ? (
+                  <p className="text-base font-semibold">{flawReason}</p>
+                ) : (
+                  <div data-slot="s6-flaw-challenge">
+                    <p className="text-base">{flaw.sentence}</p>
+                    <p className="text-xs">{flaw.challenge}</p>
+                  </div>
+                )}
+              </section>
+            );
+          }
           if (section.state === 'unavailable') {
             return (
               <section
@@ -196,7 +299,6 @@ export function Report() {
               </section>
             );
           }
-
           return (
             <section key={section.index} data-slot="report-section">
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
