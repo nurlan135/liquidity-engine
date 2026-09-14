@@ -12,15 +12,17 @@ export interface ReportSection {
   state: ReportSectionState;
 }
 
-// Six institutional report sections in fixed order; only section 2 (Macro
-// Dealing Range) is live, the rest render dimmed with UNAVAILABLE markers.
+// Six institutional report sections in fixed order; section 1 (Retail
+// Exposure) stays unavailable, sections 2-6 render live. Section 5 carries
+// the PAPER prefix (D-06) so the terminal can never be mistaken for real
+// brokerage.
 export const REPORT_SECTIONS: ReportSection[] = [
   { index: 1, title: '1. RETAIL EXPOSURE & SENTIMENT ENGINEERING', state: 'unavailable' },
   { index: 2, title: '2. MACRO DEALING RANGE & VOLATILITY REGIME (D1/4H)', state: 'live' },
   { index: 3, title: '3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)', state: 'live' },
-  { index: 4, title: '4. "WHY NOW?" EXECUTION PROTOCOL (5M/1M)', state: 'unavailable' },
-  { index: 5, title: '5. INSTITUTIONAL ORDER TICKET', state: 'unavailable' },
-  { index: 6, title: '6. FATAL FLAW CHECK & CHALLENGE QUESTION', state: 'unavailable' },
+  { index: 4, title: '4. "WHY NOW?" EXECUTION PROTOCOL (5M/1M)', state: 'live' },
+  { index: 5, title: '5. PAPER — INSTITUTIONAL ORDER TICKET', state: 'live' },
+  { index: 6, title: '6. FATAL FLAW CHECK & CHALLENGE QUESTION', state: 'live' },
 ];
 
 export const REGIME_BADGE: Record<RegimeState, string> = {
