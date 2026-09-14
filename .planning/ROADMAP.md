@@ -134,7 +134,16 @@ Plans:
   2. User sees §3-vs-trigger reason parity — trigger prose never contradicts AMD/SMT state on the same snapshot
   3. Stale-serve drill with ticket open proves graceful degradation — numbers degrade visibly with provenance, never a full-strength ticket on stale/thin inputs
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 18-01-PLAN.md — Bar-by-bar replay with transition table plus calibration summary (VERF-01)
+- [ ] 18-02-PLAN.md — Same-snapshot AMD/SMT parity contradiction roster (VERF-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 18-03-PLAN.md — Stale leg matrix plus thin-tier plus full-suite gate (VERF-03)
 
 ## Progress
 
