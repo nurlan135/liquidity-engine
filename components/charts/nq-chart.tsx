@@ -33,6 +33,20 @@ export interface NqChartProps {
   smtBarDate?: string | null;
   overlayStale?: boolean;
   thinTier?: ThinTier;
+  // Phase 17 ticket-to-chart wiring (Plan 03/04 contract): terminal-shell
+  // passes ticket truth through these exact optional prop names. Rendering
+  // (T pin, entry/SL/TP lines, STAND ASIDE clearing) lands in Plan 04 —
+  // this step only declares the surface so the shell compiles. Nulls on
+  // STAND ASIDE or INVALIDATED clear via the empty-marker-set plus
+  // unconditional-removal clearing paths.
+  ticketVerdict?: 'EXECUTE_LONG' | 'EXECUTE_SHORT' | 'STAND_ASIDE' | null;
+  ticketDirection?: 'LONG' | 'SHORT' | null;
+  ticketEntry?: number | null;
+  ticketSL?: number | null;
+  ticketTP1?: number | null;
+  ticketTP2?: number | null;
+  ticketTP3?: number | null;
+  fireBarDate?: string | null;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).

@@ -9,6 +9,9 @@ import { StatusStrip } from '@/components/dashboard/status-strip';
 import { SentimentPanel } from '@/components/dashboard/sentiment-panel';
 import { CalendarPanel } from '@/components/dashboard/calendar-panel';
 import { Report } from '@/components/dashboard/report';
+import { ExecutionProtocol } from '@/components/dashboard/execution-protocol';
+import { TicketPanel } from '@/components/dashboard/ticket-panel';
+import { FatalFlaw } from '@/components/dashboard/fatal-flaw';
 import { toast } from '@/components/ui/toast';
 import { deriveStatus, formatStripAge } from '@/src/lib/freshness';
 import { formatSessionLine } from '@/src/lib/session-line';
@@ -64,12 +67,43 @@ export function TerminalShell() {
   const selectAsia = useDashboard((s) => s.selectAsia);
   const selectJudas = useDashboard((s) => s.selectJudas);
   const selectSMT = useDashboard((s) => s.selectSMT);
+  const selectTicketShell = useDashboard((s) => s.selectTicket);
   const nq1hStale = useDashboard((s) => s.nq1h.stale);
   const nq15mStale = useDashboard((s) => s.nq15m.stale);
   const esStale = useDashboard((s) => s.es.stale);
   const asia = selectAsia();
   const judas = selectJudas();
   const smt = selectSMT();
+  // Phase 17 ticket-to-chart wiring (D-10): the same stable-function
+  // derivation during render as the overlay selectors above. The shell fans
+  // ticket truth out once — to the TicketPanel (via its own subscription)
+  // and to the chart via the Plan 04 optional prop names below. Nulls on
+  // STAND ASIDE or null ticket clear pins and lines via the
+  // empty-marker-set plus unconditional-removal clearing paths.
+  const ticket = selectTicketShell();
+  const isTicketExecute =
+    ticket !== null && (ticket.verdict === 'EXECUTE_LONG' || ticket.verdict === 'EXECUTE_SHORT');
+  const ticketVerdict = ticket?.verdict ?? null;
+  const ticketDirection = ticket?.direction ?? null;
+  const ticketEntry = isTicketExecute ? (ticket?.entry ?? null) : null;
+  const ticketSL = isTicketExecute ? (ticket?.sl ?? null) : null;
+  const ticketTP1 = isTicketExecute ? (ticket?.tp.tp1 ?? null) : null;
+  const ticketTP2 = isTicketExecute ? (ticket?.tp.tp2 ?? null) : null;
+  const ticketTP3 = isTicketExecute ? (ticket?.tp.tp3 ?? null) : null;
+  // fireBarDate: containing D1 bar for the ticket asOf epoch — the same
+  // containing-bar loop as judasBarDate above, never judasBarDate itself
+  // for the T pin (Pitfall 6). Null on STAND ASIDE so the T pin clears.
+  let fireBarDate: string | null = null;
+  if (isTicketExecute && ticket !== null && candles.length > 0) {
+    let best: string | null = null;
+    for (const c of candles) {
+      const barEpoch = Math.floor(new Date(`${c.date}T00:00:00Z`).getTime() / 1000);
+      if (Number.isFinite(barEpoch) && barEpoch <= ticket.asOf) {
+        best = c.date;
+      }
+    }
+    fireBarDate = best ?? candles[candles.length - 1].date;
+  }
   const overlayStale = nq1hStale || nq15mStale || esStale;
   let judasBarDate: string | null = null;
   if (judas !== null && judas.sweepTime !== null && candles.length > 0) {
@@ -200,6 +234,18 @@ export function TerminalShell() {
 
       <StatusStrip />
 
+      {/* Phase 17 PAPER banner (TICK-03/D-06): terminal-top non-dismissible
+          KAĞIZ PAPER strip rendered on every frame, independent of envelope
+          truth — placed above StatusStrip outside the scrolled grid so it
+          stays visible when the ticket panel scrolls away. */}
+      <div
+        data-slot="paper-banner"
+        role="status"
+        className="rounded px-4 py-2 font-mono text-[11px] tracking-widest"
+      >
+        KAĞIZ / PAPER
+      </div>
+
       <p data-slot="join-coverage" className="px-4 font-mono text-[11px] text-muted-foreground tabular-nums">
         NQ {coverage.nq} / ES {coverage.es} / joined {coverage.joined}
       </p>
@@ -323,6 +369,14 @@ export function TerminalShell() {
                   smtBarDate={smtBarDate}
                   overlayStale={overlayStale}
                   thinTier={thinTierValue}
+                  ticketVerdict={ticketVerdict}
+                  ticketDirection={ticketDirection}
+                  ticketEntry={ticketEntry}
+                  ticketSL={ticketSL}
+                  ticketTP1={ticketTP1}
+                  ticketTP2={ticketTP2}
+                  ticketTP3={ticketTP3}
+                  fireBarDate={fireBarDate}
                 />
               ) : (
                 <div data-slot="chart-empty">
@@ -337,45 +391,25 @@ export function TerminalShell() {
             </CardContent>
           </Card>
 
-          <Card data-slot="execution-protocol" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">İcra Protokolu</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">WHY NOW icra protokolu əlçatan deyil.</p>
-            </CardContent>
-          </Card>
+          {/* Phase 17 panel swap (TICK-04/D-04): the locked UNAVAILABLE
+              execution-protocol card is replaced one-to-one by the live
+              ExecutionProtocol panel, keeping the exact data-slot. The
+              locked UNAVAILABLE chip stays untouched elsewhere. */}
+          <ExecutionProtocol />
 
           <Report />
         </div>
 
         <div className="overflow-auto">
-          <Card data-slot="ticket" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">Əmr Bileti</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">İnstitusional bilet əlçatan deyil.</p>
-            </CardContent>
-          </Card>
+          {/* Phase 17 panel swap (TICK-04/D-04): the locked UNAVAILABLE
+              ticket card is replaced one-to-one by the live TicketPanel,
+              keeping the exact data-slot. */}
+          <TicketPanel />
           <CalendarPanel />
-          <Card data-slot="fatal-flaw" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">Fatal Flaw</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">Fatal flaw yoxlanışı əlçatan deyil.</p>
-            </CardContent>
-          </Card>
+          {/* Phase 17 panel swap (TICK-04/D-04): the locked UNAVAILABLE
+              fatal-flaw card is replaced one-to-one by the live FatalFlaw
+              panel, keeping the exact data-slot. */}
+          <FatalFlaw />
         </div>
       </div>
     </div>
