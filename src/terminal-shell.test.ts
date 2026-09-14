@@ -305,8 +305,39 @@ describe('terminal shell composes the full grid on live data', () => {
     expect(slot!.textContent).not.toContain('Məlumat yoxdur');
   });
 
-  it('disables the Yenilə button while a refresh is in flight', async () => {
+  it('renders the left column live: liquidity-map, module-1/3/4, smt-row (no UNAVAILABLE)', async () => {
     const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+
+    // All five left-column slots render with live selectors bound.
+    const map = shell!.querySelector('[data-slot="liquidity-map"]');
+    expect(map).not.toBeNull();
+    expect(map!.textContent).not.toContain('UNAVAILABLE');
+    expect(map!.querySelector('[data-slot="liquidity-eq"]')).not.toBeNull();
+
+    const m1 = shell!.querySelector('[data-slot="module-1"]');
+    expect(m1).not.toBeNull();
+    expect(m1!.textContent).not.toContain('UNAVAILABLE');
+    expect(m1!.querySelector('[data-slot="module1-average"]')).not.toBeNull();
+
+    const m3 = shell!.querySelector('[data-slot="module-3"]');
+    expect(m3).not.toBeNull();
+    expect(m3!.textContent).not.toContain('UNAVAILABLE');
+
+    const m4 = shell!.querySelector('[data-slot="module-4"]');
+    expect(m4).not.toBeNull();
+    expect(m4!.textContent).not.toContain('UNAVAILABLE');
+
+    const smtRow = shell!.querySelector('[data-slot="smt-row"]');
+    expect(smtRow).not.toBeNull();
+    expect(smtRow!.textContent).not.toContain('UNAVAILABLE');
+  });
+
+  it('disables the Yenilə button while a refresh is in flight', async () => {    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
     vi.stubGlobal('fetch', fetchFn);
 
     const container = await renderShell();
@@ -330,7 +361,7 @@ describe('terminal shell composes the full grid on live data', () => {
 describe('terminal shell owns the dual staggered always-on poll loop (D-01/D-02/D-03)', () => {
   it('mount triggers the NQ fetch and the staggered NQ/ES timers fire with no visibility gating', async () => {
     vi.useFakeTimers();
-    const fetchFn = vi.fn(async (url: string) => Response.json(liveEnvelope()));
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
     vi.stubGlobal('fetch', fetchFn);
 
     await renderShell();

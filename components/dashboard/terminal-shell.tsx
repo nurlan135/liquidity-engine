@@ -10,6 +10,11 @@ import { SentimentPanel } from '@/components/dashboard/sentiment-panel';
 import { CalendarPanel } from '@/components/dashboard/calendar-panel';
 import { Report } from '@/components/dashboard/report';
 import { ExecutionProtocol } from '@/components/dashboard/execution-protocol';
+import { LiquidityMap } from '@/components/dashboard/liquidity-map';
+import { Module1 } from '@/components/dashboard/module-1';
+import { Module3 } from '@/components/dashboard/module-3';
+import { Module4 } from '@/components/dashboard/module-4';
+import { SmtRow } from '@/components/dashboard/smt-row';
 import { TicketPanel } from '@/components/dashboard/ticket-panel';
 import { FatalFlaw } from '@/components/dashboard/fatal-flaw';
 import { toast } from '@/components/ui/toast';
@@ -253,61 +258,11 @@ export function TerminalShell() {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[280px_1fr_320px]">
         <div className="overflow-auto">
           <SentimentPanel />
-          <Card data-slot="liquidity-map" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">Likvidlik Xəritəsi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">BSL/SSL xəritəsi əlçatan deyil.</p>
-            </CardContent>
-          </Card>
-          <Card data-slot="module-1" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">Modul 1</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">Sentiment mühəndisliyi paneli əlçatan deyil.</p>
-            </CardContent>
-          </Card>
-          <Card data-slot="module-3" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">Modul 3</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">SMT ardıcıllığı paneli əlçatan deyil.</p>
-            </CardContent>
-          </Card>
-          <Card data-slot="module-4" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">Modul 4</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">İcra protokolu paneli əlçatan deyil.</p>
-            </CardContent>
-          </Card>
-          <Card data-slot="smt-row" className="pointer-events-none relative opacity-45">
-            <span className="absolute top-0 right-0 text-[11px] font-semibold uppercase tracking-[0.1em]">
-              UNAVAILABLE
-            </span>
-            <CardHeader>
-              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.1em]">SMT</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs">Kross-market SMT siqnalı əlçatan deyil.</p>
-            </CardContent>
-          </Card>
+          <LiquidityMap />
+          <Module1 />
+          <Module3 />
+          <Module4 />
+          <SmtRow />
         </div>
 
         <div className="overflow-auto">
