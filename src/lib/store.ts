@@ -27,6 +27,8 @@ import {
   type TriggerOutput,
 } from '@/src/lib/ict/trigger';
 import { checkFatalFlaw, type FatalFlawOutput } from '@/src/lib/ict/invalidation';
+import { PAPER_EQUITY_USD, RISK_PCT_MAX, RISK_PCT_MIN, computeTicket, type TicketOutput } from '@/src/lib/ticket';
+import { resolveThinTier } from '@/src/lib/thin-tier';
 
 // Re-exported so consumers read the log shape from the store slice owner;
 // the canonical definition stays beside the verdict in trigger.ts (moving it
@@ -35,6 +37,19 @@ export type { FiringLogEntry } from '@/src/lib/ict/trigger';
 // Canonical flaw output lives in invalidation.ts; the store re-exports the
 // type only so selectors stay thin beside the verdict precedent above.
 export type { FatalFlawOutput } from '@/src/lib/ict/invalidation';
+// Canonical ticket output lives in ticket.ts (brokerage math, never ict/);
+// the store re-exports the type only beside the firing-log precedent above.
+export type { TicketOutput } from '@/src/lib/ticket';
+/** Session-ephemeral paper-note entry (OQ-4 lock): appended by KAĞIZ QEYD, capped at 50. */
+export interface PaperLogEntry {
+  asOf: number;
+  verdict: TicketOutput['verdict'];
+  direction: TicketOutput['direction'];
+  entry: number | null;
+  sl: number | null;
+  tp: TicketOutput['tp'];
+  sizeContracts: number | null;
+}
 import { deriveConvictionTier, type ConvictionTier } from '@/src/lib/confluence';
 import { getAsOfBakuDate } from '@/src/lib/time';
 
@@ -258,6 +273,15 @@ export interface DashboardState {
   firingLog: FiringLogEntry[];
   firingLogOverflow: number;
   appendFiringLog: (out: TriggerOutput, asOf: number) => void;
+  // Phase 17 ticketInputs slice (D-07/OQ-1/OQ-4): plain operator state —
+  // riskPct (default 1, clamped 0.1–5) plus the session-ephemeral paperLog
+  // (capped at 50, firing-log idiom). Never derived, never inside ticket.ts.
+  ticketInputs: { riskPct: number };
+  setRiskPct: (pct: number) => void;
+  paperLog: PaperLogEntry[];
+  paperLogOverflow: number;
+  appendPaperLog: (entry: PaperLogEntry) => void;
+  selectTicket: () => TicketOutput | null;
   selectConfluence: () => ConvictionTier;
   selectLiquidityPath: () => string | null;
 }
@@ -464,6 +488,9 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   lastSchedule: null,
   firingLog: [],
   firingLogOverflow: 0,
+  ticketInputs: { riskPct: 1 },
+  paperLog: [],
+  paperLogOverflow: 0,
 
   refresh: async () => {
     // Client singleflight: coalesce parallel refresh calls, no torn writes.
@@ -944,6 +971,83 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
       });
     } else {
       set({ firingLog: next });
+    }
+  },
+
+  // Phase 17 ticketInputs setters (D-07): riskPct clamps to the 0.1–5 band;
+  // NaN, non-finite, zero, and negative inputs are refused (state untouched)
+  // so a bad stepper write can never compute a fake size downstream.
+  setRiskPct: (pct) => {
+    if (typeof pct !== 'number' || !Number.isFinite(pct) || pct <= 0) return;
+    const clamped = Math.min(RISK_PCT_MAX, Math.max(RISK_PCT_MIN, pct));
+    set({ ticketInputs: { riskPct: clamped } });
+  },
+
+  // Phase 17 paperLog (OQ-4): session-ephemeral KAĞIZ QEYD notes, capped at
+  // 50 with an overflow counter (appendFiringLog trailing-slice idiom).
+  // Oldest entries drop beyond the cap — replayable for Phase 18.
+  appendPaperLog: (entry) => {
+    const { paperLog } = get();
+    const next = [...paperLog, entry];
+    const PAPER_LOG_CAP = 50;
+    if (next.length > PAPER_LOG_CAP) {
+      const overflow = next.length - PAPER_LOG_CAP;
+      set({
+        paperLog: next.slice(-PAPER_LOG_CAP),
+        paperLogOverflow: get().paperLogOverflow + overflow,
+      });
+    } else {
+      set({ paperLog: next });
+    }
+  },
+
+  // Phase 17 paper ticket: flaw-after-trigger on the same snapshot by
+  // function order, one sharedEpoch call only. Refuse-with-null on stale or
+  // empty trigger-critical legs (nq1h/nq15m plus nq for FVG/levels — Pitfall
+  // 4) with the owning leg lastError carrying the reason; flaw precedence
+  // (INVALIDATED → STAND ASIDE plus flaw reason, DOWNGRADED → STAND ASIDE
+  // plus flaw reason plus carriedArmedReason) matches computeTicket so the
+  // verdict never depends on which layer the flaw hits first. Stale legs
+  // outside the trigger-critical set (es) and thin D1 history degrade with
+  // provenance (STALE/THIN tag naming the leg) instead of full-strength
+  // numbers (D-05). Never throws into render: catch path returns null.
+  selectTicket: () => {
+    const { nq, es, nq1h, nq15m } = get();
+    if (nq1h.stale || nq15m.stale) return null;
+    if (closedOnlyIntraday(nq1h.candles).length === 0) return null;
+    if (closedOnlyIntraday(nq15m.candles).length === 0) return null;
+    if (nq.stale) return null;
+    if (closedOnly(nq.candles).length === 0) return null;
+    try {
+      const epoch = sharedEpoch(get);
+      const trigger = get().selectTrigger();
+      if (trigger === null) return null;
+      const flaw = get().selectFatalFlaw();
+      // selectFatalFlaw shares the refuse-null legs above, so a non-null
+      // trigger with a null flaw is a derivation throw — degrade to null,
+      // never evaluate SOFT on a missing flaw.
+      if (flaw === null) return null;
+      const levels = get().selectLevels();
+      const range = get().selectRange();
+      const dol = get().selectDOL();
+      const asia = get().selectAsia();
+      let degraded = { stale: false, thin: false, leg: null as string | null };
+      if (es.stale) {
+        degraded = { stale: true, thin: false, leg: 'es' };
+      } else {
+        try {
+          const thin = resolveThinTier(nq.candles, range);
+          if (thin !== null && thin.tier !== 'full') {
+            degraded = { stale: false, thin: true, leg: 'nq' };
+          }
+        } catch {
+          degraded = { stale: false, thin: false, leg: null };
+        }
+      }
+      const riskPct = get().ticketInputs.riskPct;
+      return computeTicket({ trigger, flaw, levels, range, dol, asia, riskPct, degraded, asOf: epoch });
+    } catch {
+      return null;
     }
   },
 

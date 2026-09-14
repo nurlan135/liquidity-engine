@@ -1417,5 +1417,148 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
 
     useDashboard.getState().stopDualPoll();
   });
+
+  it('ticket-risk-clamp: riskPct defaults 1 and clamps 0.1 to 5 refusing NaN', async () => {
+    const { useDashboard } = await resetDualState();
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(1);
+
+    useDashboard.getState().setRiskPct(2.5);
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(2.5);
+
+    useDashboard.getState().setRiskPct(10);
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(5);
+
+    useDashboard.getState().setRiskPct(0.01);
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(0.1);
+
+    useDashboard.getState().setRiskPct(NaN);
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(0.1);
+
+    useDashboard.getState().setRiskPct(-3);
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(0.1);
+
+    // Zero is refused too: sizing needs a positive risk band.
+    useDashboard.getState().setRiskPct(0);
+    expect(useDashboard.getState().ticketInputs.riskPct).toBe(0.1);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('ticket-paperlog: appendPaperLog caps at 50 with oldest dropped and overflow counted', async () => {
+    const { useDashboard } = await resetDualState();
+    const note = (asOf: number) => ({
+      asOf,
+      verdict: 'EXECUTE_LONG' as const,
+      direction: 'LONG' as const,
+      entry: 20097.5,
+      sl: 20085,
+      tp: { tp1: 20210, tp2: 20260, tp3: 20260 },
+      sizeContracts: 1,
+    });
+    for (let i = 0; i < 51; i++) {
+      useDashboard.getState().appendPaperLog(note(1000 + i));
+    }
+    const state = useDashboard.getState();
+    expect(state.paperLog).toHaveLength(50);
+    expect(state.paperLogOverflow).toBe(1);
+    // Oldest dropped: the surviving head is the second append (firing-log
+    // trailing-slice idiom).
+    expect(state.paperLog[0].asOf).toBe(1001);
+    expect(state.paperLog[49].asOf).toBe(1050);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('ticket-flaw-precedence: INVALIDATED on a FIRE poll yields STAND ASIDE plus the flaw reason', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+    const { REASON_BY_KEY } = await import('@/src/lib/ict/invalidation');
+
+    // First derivation on this poll: never pre-call selectTrigger — the
+    // first selectTrigger consumes the session FIRE into ARMED_ALREADY_FIRED
+    // and the SOFT FIRING gate would then force clean (D-12 ordering trap).
+    // A stale es leg is outside the trigger-critical set, so the trigger
+    // still FIRES while the flaw votes HARD STALE_LEG from any state —
+    // the flaw precedes the ticket on a live FIRE poll.
+    useDashboard.setState({
+      es: { ...useDashboard.getState().es, stale: true, lastError: 'es stale' },
+    });
+    const ticket = useDashboard.getState().selectTicket();
+    expect(ticket).not.toBeNull();
+    expect(ticket!.verdict).toBe('STAND_ASIDE');
+    expect(ticket!.reason).toBe(REASON_BY_KEY['STALE_LEG']);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('ticket-refuse-null: stale trigger-critical legs yield null with lastError preserved', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // Store the FIRE first so the stale flip below refuses on freshness, not
+    // on an ARMED-after-fire downgrade.
+    const live: unknown = useDashboard.getState().selectTicket();
+    expect(live).not.toBeNull();
+
+    let stale: unknown = 'unset';
+    useDashboard.setState({
+      nq15m: { ...useDashboard.getState().nq15m, stale: true, lastError: '15m stale' },
+    });
+    expect(() => {
+      stale = useDashboard.getState().selectTicket();
+    }).not.toThrow();
+    expect(stale).toBeNull();
+    expect(useDashboard.getState().nq15m.lastError).toBe('15m stale');
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('ticket-degraded: stale es leg degrades with provenance instead of full-strength numbers', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // The es leg is outside the trigger-critical set: no refuse-null, but
+    // the flaw votes HARD STALE_LEG — the STAND ASIDE carries the degraded
+    // envelope so panels dim with the naming leg instead of printing
+    // full-strength numbers (D-05 false-precision guard).
+    useDashboard.setState({
+      es: { ...useDashboard.getState().es, stale: true, lastError: 'es stale' },
+    });
+    const ticket = useDashboard.getState().selectTicket();
+    expect(ticket).not.toBeNull();
+    expect(ticket!.verdict).toBe('STAND_ASIDE');
+    expect(ticket!.degraded).toEqual({ stale: true, thin: false, leg: 'es' });
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('ticket-coherence: back-to-back selectTicket calls are identical with the pinned shared epoch', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // Consume the session FIRE first so both ticket derivations below read
+    // the same ARMED-after-fire trigger — back-to-back on one poll, never
+    // torn (D-12 ordering trap: the first selectTicket would otherwise
+    // consume the FIRE and the pair could never agree).
+    const fired = useDashboard.getState().selectTrigger();
+    expect(fired).not.toBeNull();
+    expect(fired!.verdict).toBe('FIRE_LONG');
+
+    const first = useDashboard.getState().selectTicket();
+    const second = useDashboard.getState().selectTicket();
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    // Same state, back-to-back: byte-identical ticket outputs.
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+
+    // One time truth: the ticket asOf equals the shared epoch pinned by the
+    // seed (2026-02-09T08:00:00Z via nq1h lastUpdatedISO) — trigger, flaw,
+    // and ticket can never disagree on time.
+    const expectedEpoch = Math.floor(new Date('2026-02-09T08:00:00.000Z').getTime() / 1000);
+    expect(first!.asOf).toBe(expectedEpoch);
+    expect(second!.asOf).toBe(expectedEpoch);
+
+    useDashboard.getState().stopDualPoll();
+  });
 });
 
