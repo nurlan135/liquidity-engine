@@ -113,7 +113,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 17-03-PLAN.md — Three thin panels plus §§4-6 blocks plus PAPER banner plus shell wiring (TICK-04, TICK-03)
+- [x] 17-03-PLAN.md — Three thin panels plus §§4-6 blocks plus PAPER banner plus shell wiring (TICK-04, TICK-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
