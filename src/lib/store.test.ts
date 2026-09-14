@@ -1189,9 +1189,13 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     await seedTriggerFire(useDashboard);
     const { REASON_BY_KEY } = await import('@/src/lib/ict/invalidation');
 
-    // First derivation on this poll: never pre-call selectTrigger — the
-    // first selectTrigger consumes the session FIRE into ARMED_ALREADY_FIRED
-    // and the SOFT FIRING gate would then force clean (D-12).
+    // Phase 17-05 fixed contract: render-path selects are pure, so an
+    // explicit pre-call read is tolerated — the flaw still downgrades on
+    // FIRE verdict material with flawClass SOFT, reasonKey SMT_SUPPRESSED,
+    // and carriedArmedReason FIRE_LONG.
+    const pre = useDashboard.getState().selectTriggerPure();
+    expect(pre).not.toBeNull();
+    expect(pre!.verdict).toBe('FIRE_LONG');
     const flaw = useDashboard.getState().selectFatalFlaw();
     expect(flaw).not.toBeNull();
     expect(flaw!.downgraded).toBe(true);
@@ -1268,11 +1272,19 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     const { useDashboard } = await resetDualState();
     await seedTriggerFire(useDashboard);
 
-    // Consume the session FIRE first so both flaw derivations below read the
-    // same ARMED-after-fire trigger — back-to-back on one poll, never torn.
+    // Phase 17-05 fixed contract: the first derivation on one poll is
+    // FIRE_LONG, and back-to-back derivations agree byte-identically with
+    // asOf equal to the shared epoch pinned by the seed.
     const trigger = useDashboard.getState().selectTrigger();
     expect(trigger).not.toBeNull();
     expect(trigger!.verdict).toBe('FIRE_LONG');
+    const triggerAgain = useDashboard.getState().selectTrigger();
+    expect(triggerAgain).not.toBeNull();
+    expect(JSON.stringify(triggerAgain)).toBe(JSON.stringify(trigger));
+    // TriggerOutput carries the snapshot via its gate inputs (amd plus judas
+    // plus smt) and entryFvg, not an epoch envelope — the epoch pin is
+    // asserted on the flaw and ticket asOf below.
+
 
     const first = useDashboard.getState().selectFatalFlaw();
     const second = useDashboard.getState().selectFatalFlaw();
@@ -1316,13 +1328,23 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     expect(out!.entryFvg!.polarity).toBe('BULLISH');
 
     const state = useDashboard.getState();
-    expect(state.firingLog).toHaveLength(1);
-    expect(state.firingLog[0].verdict).toBe('FIRE_LONG');
-    expect(state.firingLog[0].gates).toEqual({ timing: true, purge: true, displacement: true });
-    expect(state.firingLog[0].direction).toBe('LONG');
-    expect(state.firingLog[0].reasonKey).toBe('FIRE_LONG');
-    expect(state.firingLog[0].sessionDate).toBe('2026-02-09');
-    expect(typeof state.firingLog[0].asOf).toBe('number');
+    // Phase 17-05 fixed contract: render-path selects never log. Explicit
+    // commitTriggerLog is the only path that appends to the firing log.
+    expect(state.firingLog).toHaveLength(0);
+
+    // The single trusted commit direction: one commitTriggerLog on the same
+    // poll appends exactly one FIRE entry.
+    const committed = useDashboard.getState().commitTriggerLog();
+    expect(committed).not.toBeNull();
+    expect(committed!.verdict).toBe('FIRE_LONG');
+    const committedState = useDashboard.getState();
+    expect(committedState.firingLog).toHaveLength(1);
+    expect(committedState.firingLog[0].verdict).toBe('FIRE_LONG');
+    expect(committedState.firingLog[0].gates).toEqual({ timing: true, purge: true, displacement: true });
+    expect(committedState.firingLog[0].direction).toBe('LONG');
+    expect(committedState.firingLog[0].reasonKey).toBe('FIRE_LONG');
+    expect(committedState.firingLog[0].sessionDate).toBe('2026-02-09');
+    expect(typeof committedState.firingLog[0].asOf).toBe('number');
 
     // Same-session repeat poll downgrades to already-fired ARMED with no
     // second append — the cooldown holds end to end.
@@ -1366,7 +1388,9 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     const { firingLogToJson } = await import('@/src/lib/store');
     const { useDashboard } = await resetDualState();
     await seedTriggerFire(useDashboard);
-    useDashboard.getState().selectTrigger();
+    // Phase 17-05 fixed contract: render never logs; the export pins the
+    // one entry produced by the explicit single poll-tick commit point.
+    useDashboard.getState().commitTriggerLog();
 
     const json = firingLogToJson(useDashboard.getState().firingLog, '2026-02-09T08:00:00.000Z');
     const parsed = JSON.parse(json);
@@ -1536,13 +1560,15 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     const { useDashboard } = await resetDualState();
     await seedTriggerFire(useDashboard);
 
-    // Consume the session FIRE first so both ticket derivations below read
-    // the same ARMED-after-fire trigger — back-to-back on one poll, never
-    // torn (D-12 ordering trap: the first selectTicket would otherwise
-    // consume the FIRE and the pair could never agree).
+    // Phase 17-05 fixed contract: the first derivation on one poll is
+    // FIRE_LONG, and back-to-back derivations agree byte-identically with
+    // asOf equal to the shared epoch pinned by the seed — never torn.
     const fired = useDashboard.getState().selectTrigger();
     expect(fired).not.toBeNull();
     expect(fired!.verdict).toBe('FIRE_LONG');
+    const firedAgain = useDashboard.getState().selectTrigger();
+    expect(firedAgain).not.toBeNull();
+    expect(JSON.stringify(firedAgain)).toBe(JSON.stringify(fired));
 
     const first = useDashboard.getState().selectTicket();
     const second = useDashboard.getState().selectTicket();
@@ -1557,6 +1583,65 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     const expectedEpoch = Math.floor(new Date('2026-02-09T08:00:00.000Z').getTime() / 1000);
     expect(first!.asOf).toBe(expectedEpoch);
     expect(second!.asOf).toBe(expectedEpoch);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('trigger-snapshot-agreement: two selectTriggerPure calls plus one selectTrigger call agree FIRE_LONG with no log writes', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+
+    // Phase 17-05 regression: back-to-back pure reads on a single FIRE poll
+    // agree, and the firing log stays empty across pure reads — render never
+    // logs.
+    const first = useDashboard.getState().selectTriggerPure();
+    expect(first).not.toBeNull();
+    expect(first!.verdict).toBe('FIRE_LONG');
+    expect(useDashboard.getState().firingLog).toHaveLength(0);
+
+    const second = useDashboard.getState().selectTriggerPure();
+    expect(second).not.toBeNull();
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+    expect(useDashboard.getState().firingLog).toHaveLength(0);
+
+    const third = useDashboard.getState().selectTrigger();
+    expect(third).not.toBeNull();
+    expect(third!.verdict).toBe('FIRE_LONG');
+    expect(third!.direction).toBe(first!.direction);
+    expect(third!.reasonKey).toBe(first!.reasonKey);
+    expect(JSON.stringify(third)).toBe(JSON.stringify(first));
+    expect(useDashboard.getState().firingLog).toHaveLength(0);
+
+    // The ticket-priced direction is the trigger direction on the same poll.
+    const ticket = useDashboard.getState().selectTicket();
+    expect(ticket).not.toBeNull();
+    if (ticket!.verdict === 'EXECUTE_LONG' || ticket!.verdict === 'EXECUTE_SHORT') {
+      expect(ticket!.direction).toBe(first!.direction);
+    }
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('ticket-flaw-snapshot: selectTicket on the FIRE seed carries a flaw judged on FIRE verdict material', async () => {
+    const { useDashboard } = await resetDualState();
+    await seedTriggerFire(useDashboard);
+    const { REASON_BY_KEY } = await import('@/src/lib/ict/invalidation');
+
+    // Phase 17-05 regression: the flaw the ticket prices is judged on the
+    // FIRE verdict, never on the ARMED_ALREADY_FIRED post-log echo. The
+    // seeded es live leg plus thin D1 history keep SOFT SMT material live,
+    // so the ticket STAND ASIDE reason carries the SOFT flaw marker.
+    const ticket = useDashboard.getState().selectTicket();
+    expect(ticket).not.toBeNull();
+    expect(ticket!.verdict).toBe('STAND_ASIDE');
+    expect(ticket!.reason).toContain(REASON_BY_KEY['SMT_SUPPRESSED']);
+    expect(ticket!.reason).not.toContain('artıq verilib');
+
+    // A direct pure read on the same poll prices the identical FIRE verdict
+    // the flaw judged.
+    const pure = useDashboard.getState().selectTriggerPure();
+    expect(pure).not.toBeNull();
+    expect(pure!.verdict).toBe('FIRE_LONG');
 
     useDashboard.getState().stopDualPoll();
   });
