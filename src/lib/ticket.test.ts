@@ -7,7 +7,7 @@ import type { LevelsOutput } from '@/src/lib/ict/levels';
 import type { AsiaRange } from '@/src/lib/ict/asia';
 import type { DealingRange, DOLTarget } from '@/src/lib/ict/types';
 import { REASON_BY_KEY } from '@/src/lib/ict/invalidation';
-import { computeTicket, type TicketInput } from '@/src/lib/ticket';
+import { computeTicket, NQ_POINT_VALUE, PAPER_EQUITY_USD, TICKET_RR_MIN, type TicketInput } from '@/src/lib/ticket';
 
 const AS_OF = 1770500000;
 
@@ -135,5 +135,88 @@ describe('ticket: tracer EXECUTE_LONG happy path', () => {
     expect(out.verdict).toBe('STAND_ASIDE');
     expect(typeof out.reason).toBe('string');
     expect(out.reason.length).toBeGreaterThan(0);
+  });
+});
+
+describe('ticket: R-R TP1 gate plus sizing plus refusal table', () => {
+  it('TP1 R exactly 3.0 passes to EXECUTE when all else clean', () => {
+    // Entry 20097.5, stop 12.5 → TP1 37.5 above entry hits R exactly 3.0.
+    const out = computeTicket(fixtureInput({ asia: fixtureAsia({ high: 20135 }) }));
+    expect(out.verdict).toBe('EXECUTE_LONG');
+    expect(out.rr).toBe(3);
+    expect(out.tp.tp1).toBe(20135);
+  });
+
+  it('TP1 R 2.99 yields STAND ASIDE with the computed ratio in R-R 1 to X form', () => {
+    // TP1 37.375 above entry → R 2.99, one tick below the floor.
+    const out = computeTicket(fixtureInput({ asia: fixtureAsia({ high: 20134.875 }) }));
+    expect(out.verdict).toBe('STAND_ASIDE');
+    expect(out.reason).toBe('R/R 1:3.0 — EXECUTE bloklandı.');
+  });
+
+  it('zero stop distance yields STAND ASIDE refusal with null sizeContracts, never NaN', () => {
+    // Asia low pinned to the entry-FVG bottom: SL equals entry, stop is zero.
+    const out = computeTicket(fixtureInput({ asia: fixtureAsia({ low: 20090 }) }));
+    expect(out.verdict).toBe('STAND_ASIDE');
+    expect(out.reason).toBe('STAND ASIDE: stop məsafəsi sıfırdır — ölçü hesablanmadı.');
+    expect(out.sizeContracts).toBeNull();
+    expect(out.rr).toBeNull();
+  });
+
+  it('missing entry or SL null yields STAND ASIDE refusal with reason', () => {
+    // BEARISH gap against a LONG trigger: wrong polarity, entry unresolvable.
+    const out = computeTicket(
+      fixtureInput({ trigger: fixtureTrigger({ entryFvg: fixtureEntryFvg({ polarity: 'BEARISH' }) }) }),
+    );
+    expect(out.verdict).toBe('STAND_ASIDE');
+    expect(out.reason).toBe('STAND ASIDE: giriş həll edilmədi — OTE cibı ilə giriş FVG kəsişmir.');
+    expect(out.sizeContracts).toBeNull();
+  });
+
+  it('non-finite riskPct yields a boundary throw with a got message', () => {
+    expect(() => computeTicket(fixtureInput({ riskPct: NaN }))).toThrow(
+      /computeTicket requires a finite riskPct in 0\.1 to 5, got NaN/,
+    );
+    expect(() => computeTicket(fixtureInput({ riskPct: 10 }))).toThrow(
+      /computeTicket requires a finite riskPct in 0\.1 to 5, got 10/,
+    );
+  });
+
+  it('unresolvable TP2 or TP3 omitted as null while TP1 still gates, never a synthesized filler', () => {
+    // DOL pool and range edge below entry on a LONG: TP2/TP3 unresolvable.
+    const out = computeTicket(
+      fixtureInput({ dol: fixtureDol({ price: 20000 }), range: fixtureRange({ high: 20050 }) }),
+    );
+    expect(out.verdict).toBe('EXECUTE_LONG');
+    expect(out.tp.tp1).toBe(20210);
+    expect(out.tp.tp2).toBeNull();
+    expect(out.tp.tp3).toBeNull();
+    expect(out.rMultiples.tp1).toBe(9);
+    expect(out.rMultiples.tp2).toBeNull();
+    expect(out.rMultiples.tp3).toBeNull();
+  });
+
+  it('QUIET trigger and ARMED trigger each yield STAND ASIDE with that gate verbatim reason', () => {
+    const quiet = computeTicket(
+      fixtureInput({
+        trigger: fixtureTrigger({ verdict: 'WAIT_FOR_MANIPULATION', direction: null, reasonKey: 'WAIT_FOR_MANIPULATION' }),
+      }),
+    );
+    expect(quiet.verdict).toBe('STAND_ASIDE');
+    expect(quiet.reason).toBe('STAND ASIDE: WHY NOW atəşi yoxdur — giriş şərti ödənilməyib.');
+
+    const armed = computeTicket(
+      fixtureInput({
+        trigger: fixtureTrigger({ verdict: 'ARMED', direction: null, reasonKey: 'ARMED_MISSING_TIMING' }),
+      }),
+    );
+    expect(armed.verdict).toBe('STAND_ASIDE');
+    expect(armed.reason).toBe('STAND ASIDE: WHY NOW atəşi yoxdur — giriş şərti ödənilməyib.');
+  });
+
+  it('pins TICKET_RR_MIN plus PAPER_EQUITY_USD plus NQ_POINT_VALUE', () => {
+    expect(TICKET_RR_MIN).toBe(3);
+    expect(PAPER_EQUITY_USD).toBe(25000);
+    expect(NQ_POINT_VALUE).toBe(20);
   });
 });
