@@ -1,304 +1,308 @@
-# Pitfalls Research — v3.0 Execution (WHY NOW + Fatal-Flaw Invalidation + Paper Ticket on a Live Terminal)
+# Pitfalls Research: BSL/SSL Pain Threshold Map
 
-**Domain:** Adding a WHY NOW trigger engine, fatal-flaw invalidation logic, and a paper order-ticket UI to an existing live deterministic ICT terminal (D1 dealing range + SMT + AMD sessions + rule-based report §3, Vercel Hobby, zero budget, pure-function `src/lib/ict`, Baku-timezone sessions, no broker connection)
-**Researched:** 2026-09-09
-**Confidence:** HIGH for purity/store/chart/stale-envelope mechanics (proven in this codebase across v1.0–v2.1); MEDIUM for WHY NOW trigger / invalidation ICT semantics (trading-education sources, no official ICT spec; project deferred live observation so thresholds are uncalibrated)
+**Domain:** ICT execution terminal — adding BSL/SSL stop-cluster projection to live NQ terminal
+**Researched:** 2026-09-15
+**Confidence:** HIGH (codebase-grounded) / MEDIUM (ICT methodology interpretation)
 
-> Scope note: v1.0 pitfalls (single-symbol 429, NQ=F rollover gap, UTC×chart×Baku triple-shift, lightweight-charts v5 SSR, Hobby cache, stale-as-live) and v2.0 pitfalls (phantom SMT on non-corresponding swings, dual-symbol 429 doubling, timestamp misalignment, DST killzone drift, Judas flagging every Asia wick, intraday-as-D1, asymmetric rollover, honesty/purity contracts) are validated and shipped. This file does NOT re-litigate them — it covers what breaks when you ADD time+structure triggers, setup-killing invalidation, and an order ticket to that live system. Where a v1/v2 pitfall gets worse in v3.0, it is marked **[AMPLIFIES]**.
+> Scope: pitfalls specific to **ADDING** BSL/SSL pools to the existing system (v3.0 shipped: trigger, HARD/SOFT flaw, paper ticket, FVG/Judas/SMT live). Not generic ICT education. Every pitfall names the established pattern it would break and the phase that must prevent it.
 
 ## Critical Pitfalls
 
-### Pitfall 1: Calibrating WHY NOW thresholds with zero live observation data
+### Pitfall 1: Wick-noise false pools — every equal high becomes "liquidity"
 
 **What goes wrong:**
-The trigger engine ships with guessed constants (e.g. "displacement ≥ 0.5 ATR within N bars of Judas sweep + SMT confirm = WHY NOW") that were tuned on the same 2–3 synthetic fixtures used to prove the mechanics. Live, the trigger either never fires (terminal looks dead for weeks) or fires on every session (see Pitfall 2). The team then "fixes" it by hand-tuning constants against one vivid week of market memory — overfitting to a single regime — and the next regime silently breaks it.
+`detectPools` flags every local extreme as a BSL/SSL pool. On NQ D1 this yields 15–30 "pools" in a 60-bar window; §1 reads as a wall of pain zones, chart overlay becomes horizontal-line soup, and the Pain Threshold block loses all signal value. Live UAT fails on first glance ("everything is liquidity = nothing is").
 
 **Why it happens:**
-v2.0 explicitly deferred live observation (Judas confirm rate, SMT rollover behavior, Asia live alignment are still unwatched). WHY NOW is the first feature whose correctness is a *rate*, not a boolean: a trigger is only right if it fires at a usable frequency with a usable hit quality. Developers treat threshold-picking like API-shape work — a constant to declare — instead of a measurement task requiring a log of firings vs. market follow-through.
+Developers reach for a naive pivot (k=1) or, worse, `high === prevHigh` equality checks. NQ wicks are noisy; a 1-bar lookback plus equality-tolerance turns chop into pools. The codebase already solved this for SMT (`SWING_K = 2`, strict `>`/`<`, equality = no swing in `smt.ts:49-79`) — BSL/SSL re-invents it loosely.
 
 **How to avoid:**
-- Ship thresholds as named, exported, test-pinned constants (same convention as `SWING_K`, `SMT_TOL_BPS`, `CORR_MIN`) — never magic numbers inside the trigger function. Every threshold gets a `// CALIBRATION-PROVISIONAL: unobserved as of <date>` comment.
-- Build the observation hook FIRST, before tuning: a trigger-firing log (timestamp ISO, session, inputs snapshot, threshold versions) rendered in the report or a debug panel, so 2–4 weeks of daily §3-vs-market notes produce a firing-rate table per threshold set.
-- Define the acceptance band up front: e.g. "WHY NOW fires 1–4×/week on live NQ, not 0 and not 20." A trigger outside its band is a failing feature, not a personality trait.
-- Unit tests pin *boundaries*, not just happy paths: just-below-threshold fixture → NO signal; just-above → signal. This makes future recalibration a deliberate constant change with failing-then-passing tests, not a silent edit.
-- Never calibrate against the same fixtures used to prove mechanics. Keep `*.calibration.test.ts` (live-shape candles) separate from `*.test.ts` (synthetic mechanics).
+- Reuse the SMT swing contract verbatim: fractal `k=2` minimum, strict inequality (`high[i] >` neighbors, never `>=`), equality never a swing. Share `isSwingHigh/isSwingLow` or extract to a common swing module — do NOT write a second swing detector with different edge semantics.
+- Add a significance filter on top: minimum ATR-multiple separation between adjacent pools (e.g. merge pools within 0.25× ATR into the more extreme one), pinned by boundary tests.
+- Cap the live map like `FVG_MAP_BOUND = 20` (trailing-N, origin-ordered) so even a noisy regime degrades to "nearest N" instead of infinite lines.
+- `closedOnly` first (forming rows never seed pools — `types.ts:47-49` precedent), drop non-finite OHLC at the boundary (`hasFiniteOhlc` precedent in `smt.ts`/`judas.ts`).
 
 **Warning signs:**
-Threshold values with no comment about their origin; the same fixture file used for both "proves the math" and "proves the rate"; trigger fires 0× or 15×+ in the first live week and nobody has a pre-agreed band to call it broken; tuning happens by editing code rather than changing a named constant.
+- Pool count in fixtures exceeds ~6 per side on 60 D1 bars.
+- Two pools within a few points of each other on the same side.
+- Tests pass with hand-built 5-candle fixtures but explode on the 20-session replay tape.
+- Review comment: "we can tune k later."
 
 **Phase to address:**
-Trigger-math phase (pure functions), with the firing-log hook built in the SAME phase — not deferred to verification. Verification phase then checks the band, not the math.
+Math phase (pool detection pure functions + boundary tests). Overlay phase must NOT compensate by hiding excess pools with CSS — fix the detector.
 
 ---
 
-### Pitfall 2: False-signal spam — the WHY NOW badge becomes wallpaper
+### Pitfall 2: Double-counting swept pools — raided liquidity stays on the map
 
 **What goes wrong:**
-WHY NOW fires on every minor displacement, every Asia-session wobble, every thin-history bar. Within days the user learns to ignore the badge entirely — including the one genuine setup per month it was built for. Alert fatigue is a one-way door: once the signal is wallpaper, no amount of later recalibration restores trust.
+A pool is swept (wick pierces + closes through/rejects) but remains `active`, so §1 keeps warning about pain that was already collected, the trigger fires "toward" consumed liquidity, and the ticket targets a magnet that no longer exists. Worst case: the same sweep is counted by Judas (15M), by FVG transition, AND by BSL/SSL (§1) as three independent events — triple-counting one raid.
 
 **Why it happens:**
-Each v2 detector (Judas, SMT, AMD phase) already has its own lenient edge cases (fallback Asia sessions, thin-tier dimming, suppressed-but-rendered SMT). A WHY NOW engine that ORs lenient inputs inherits the union of all their false positives. Developers test the trigger against clean textbook fixtures where everything aligns, never against the choppy Tuesday fixture where three weak inputs coincide.
+No consumption lifecycle. FVG has one (`applyMitigation` close-through fill + `detectTransition` sweep-then-reject in `fvg.ts:85-169`); BSL/SSL ships without an equivalent because "projection" feels informational. Also the first-sweep-wins rule (Judas `judas.ts:134-160` precedent) is forgotten, so later retests re-fire.
 
 **How to avoid:**
-- Conjunctive gating by default: WHY NOW requires ALL of (session gate × structure gate × confirmation gate), never any-single-input. Each gate must expose its own `reason` so the report can print *which* gate blocked the signal — blocked signals are the product working, and visible gating rebuilds trust.
-- Require closed-candle inputs only (`closedOnly` convention from v2): triggers evaluated on forming candles flicker and spam on every tick-driven re-render.
-- Add a cooldown/dedup rule: one WHY NOW per setup-direction per session window, not one per bar while conditions hold. State the rule in the report ("WHY NOW already fired LONG at 15:35 Baku — suppressing repeat").
-- Ship a "near-miss" tier, not binary fire/silent: FIRING / ARMED (2 of 3 gates) / QUIET. ARMED satisfies the user's "is anything developing?" need without spending the FIRING signal's credibility.
-- Gate rule: the choppy-sideways fixture must produce QUIET, and the test suite must contain that fixture (the test everyone skips — same lesson as v2.0-P1).
+- Give every pool a lifecycle: `active | swept | consumed`, with deterministic transition rules decided in the math phase and pinned:
+  - `swept` = wick pierced the pool extreme AND same-candle close rejected back (Judas/FVG sweep-then-reject semantics). Pool stays visible but styled as raided (dimmed/dashed), never counted as fresh pain.
+  - `consumed` = close-through beyond the pool extreme (FVG mitigation semantics). Pool leaves the active map.
+  - First chronological sweep wins; later touches of a swept pool never re-promote it.
+- Single source of truth: the selector boundary emits the active map only; §1 prose, overlay, and any downstream consumer read the same array. Never let the chart and the report compute swept-ness independently.
+- Explicit non-vote rule: a swept BSL/SSL pool is **expected path**, not a flaw — it must NOT feed `checkFatalFlaw` as HARD (see Pitfall 7).
 
 **Warning signs:**
-No ARMED tier; trigger evaluated per-bar with no dedup; demo shows the badge firing on a screenshot the developer calls "a bit noisy but fine"; no fixture test for the sideways market; report prints the signal with no gate-by-gate reasons.
+- §1 lists a pool above price that price already wicked through last week.
+- Firing log shows FIRE toward a level the report called "swept" two sessions ago.
+- Tests cover detection but have zero sweep/consumption cases.
 
 **Phase to address:**
-Trigger-math phase (gating + dedup + tiers as pure logic). Ticket-UI phase must NOT add its own looser trigger for demo purposes.
+Math phase (lifecycle + tests). Polish phase verifies via firing-log analysis (no FIRE toward consumed pools in replay).
 
 ---
 
-### Pitfall 3: Invalidation racing the signal — flickering LONG/INVALIDATED/ LONG
+### Pitfall 3: Timeframe mixing — D1 pools, 15M sweeps, 1H displacement in one sentence
 
 **What goes wrong:**
-The fatal-flaw check and the WHY NOW trigger evaluate on different inputs, different bar windows, or different freshness states. Live result: the terminal prints WHY NOW LONG at 15:30, INVALIDATED at 15:31, LONG again at 15:32 — on the same setup, with no new market information. The user watches the terminal argue with itself and stops believing either side.
+BSL/SSL pools are computed on D1 swing highs/lows, but sweeps are evaluated on 15M Judas rows and displacement on Asia-height multiples — and §1 prose blends them without labeling ("BSL süpürüldü") while §3 (Judas/SMT/AMD) says the opposite. Users see §1 BEARISH + §3 BULLISH on the same screen with no timeframe tag; trust collapses. Methodology reviewers flag it as the classic retail multi-timeframe soup the terminal was built to avoid.
 
 **Why it happens:**
-Trigger and invalidation are built as two independent features by (possibly) two plans: trigger reads detector outputs at time T, invalidation re-derives structure at time T+1 or on a different candle slice (e.g. trigger on closed bars, invalidation on the forming bar; trigger on 1H synthesis, invalidation on 15M wicks). Stale/thin asymmetry makes it worse: trigger fires on live inputs while invalidation evaluates on a stale leg, or vice versa.
+The dual-symbol/intraday plumbing (`join.ts`, `aggregate.ts`, 15M Judas) is already in the store, so it's tempting to "enrich" D1 pools with intraday sweep state. The D1/intraday contract split (`types.ts:51-62` — business-day strings vs epoch seconds, never unified) gets bridged ad hoc.
 
 **How to avoid:**
-- Single evaluation contract: `evaluateSetup({ detectors, invalidation, asOf }) → { state: 'ARMED' | 'FIRING' | 'INVALIDATED', triggerReasons, invalidationReasons }` — one function, one `asOf` instant, one candle snapshot. Invalidation NEVER re-fetches or re-slices; it consumes the exact same detector outputs the trigger consumed.
-- Ordering rule, stated and pinned: invalidation is evaluated on the same snapshot AFTER the trigger, and INVALIDATED supersedes FIRING deterministically (no timestamps racing — pure function order).
-- Same freshness gate for both: if any input leg is stale/thin, the whole evaluation degrades to ARMED-with-reason or UNAVAILABLE — never FIRING on live legs while INVALIDATED evaluates stale ones.
-- Hysteresis, not hair-trigger invalidation: a fatal flaw must confirm on a closed candle (or N consecutive closes for wick-based flaws), so a single intra-bar spike cannot kill a setup that a single intra-bar spike created.
-- Tests: (a) same-snapshot determinism — identical inputs always yield identical state across 100 runs; (b) race fixture — trigger-conditions-met + flaw-conditions-met on the same snapshot → INVALIDATED with both reason strings present; (c) freshness-split fixture → no FIRING, honest reason.
+- Anchor rule: **BSL/SSL pools are D1-only** (same 60-bar trailing window as SMT `SWING_LOOKBACK`, same D1 NQ anchor). Intraday Judas remains the sweep-confirmation layer for §3/trigger; §1 may *reference* a Judas confirmation as provenance ("15M təsdiq") but never recomputes sweeps on 15M inside the pool module.
+- Every §1 sentence carries its timeframe token (D1 pool, 15M confirmation) — same discipline as the `selectRange4H` §2 line fix (ICT-11 closure).
+- Pure-function boundary: pool module takes `Candle[]` (D1 strings) only; it never accepts `IntradayCandle[]`. The type system enforces the timeframe wall.
+- Cross-section consistency test: §1 direction token vs §3/§6 direction on the same snapshot — flag contradictions in tests, resolve by precedence rule (§3 trigger path wins for execution; §1 is context).
 
 **Warning signs:**
-Two separate `asOf`/`Date.now()` call sites for trigger vs. invalidation; invalidation importing raw candles while the trigger consumes detector outputs; UI polling trigger and invalidation on different intervals; any `setTimeout`/`setInterval` asymmetry between the two badges.
+- A function signature taking both `Candle[]` and `IntradayCandle[]`.
+- §1 copy with sweep verbs but no timeframe noun.
+- `nyMinutesOf` / killzone constants imported into the pool module.
 
 **Phase to address:**
-Trigger-math + invalidation phases must share ONE evaluation module (same plan or strictly sequenced, never parallel-diverged). Verification phase runs the flicker test: replay one session bar-by-bar, assert state transitions are monotonic per setup (ARMED → FIRING → INVALIDATED is terminal; no resurrection without a new setup ID).
+Math phase (type-level timeframe wall + window pinning). Overlay/report phase adds timeframe tokens to copy. Polish phase adds the §1-vs-§3 parity check to the harness (parity-test precedent).
 
 ---
 
-### Pitfall 4: Paper ticket mistaken for real execution
+### Pitfall 4: Overlay clutter — pools collide with the existing chart chrome
 
 **What goes wrong:**
-The order ticket looks, reads, and behaves like a broker ticket — price, size, submit button, confirmation toast — and the user (or a screenshot viewer, or a future integrator) believes real orders are possible. Consequences range from embarrassing (social-media screenshot implying live trading) to dangerous (a later contributor wires a "submit" handler to a real broker endpoint assuming the shape is execution-ready, inheriting paper-math fills as real fills).
+BSL/SSL lines/zones are drawn on top of Premium/Discount zones, EQ/DOL, quadrant/OTE, FVG boxes, Asia range, Judas/SMT markers, ticket entry/SL/TP lines, and the T pin. At 4+ pools per side the chart is unreadable; the v2.1 HiDPI/resize work and the "overlays/chrome byte-identical" guarantee regress. Users disable the overlay — the flagship feature dies by its own ink.
 
 **Why it happens:**
-Ticket UI is built with standard trading vocabulary ("Buy/Sell", "Submit", "Filled", "Position") and standard trading styling (green/red execute buttons) because that is what ticket components look like. The "paper" qualifier lives in one subtitle the eye skips. No architectural barrier separates paper math from a future execution path — `onSubmit` sits next to fill computation, one import away from a broker call.
+Each prior layer was added with its own color/opacity without a global z-order + budget. BSL/SSL is the 7th layer and the one that breaks the camel's back. Developers test on a clean chart (one pool) instead of the live chart (all layers).
 
 **How to avoid:**
-- Vocabulary quarantine, enforced by lint or test: the ticket uses PAPER, SIMULATED, HYPOTHETICAL in every user-visible string — button reads "Simulate Fill (Paper — No Broker)", never "Submit Order". Ban the words "Filled", "Position", "Executed" from the ticket; use "Simulated entry", "Paper ticket", "Hypothetical".
-- Persistent honesty chrome: a non-dismissible "PAPER — no broker connection" banner INSIDE the ticket panel (same pattern as v2.1's persistent thin-history banner, which correctly chose stacked-non-dismissible over toast).
-- Simulated fills must print their assumptions: fill price = signal-close ± N bps simulated slippage, NO partial fills, NO rejection, sizes capped at a stated paper max. If slippage is not modeled, print "slippage NOT modeled — hypothetical".
-- Architectural air gap: fill math lives in a `paper/` module whose type names (`PaperFill`, `SimulatedTicket`) cannot be mistaken for execution types. No `submitOrder`, `placeOrder`, `broker` identifiers anywhere in v3.0 — not even stubs. A stub named `placeOrder` is a loaded gun for the next milestone.
-- Risk panel prints paper sizing math explicitly (risk % → contracts at paper size, stop distance in points AND ATR multiples) so a screenshot teaches methodology, not P&L fantasy.
+- Global overlay budget decided in the overlay phase, not per-layer: max ~3 active pools per side rendered (nearest un-swept), trailing-N bound shared with FVG discipline, swept pools dashed + dimmed (thin-tier 0.5 dimming precedent from v2.1), consumed pools never drawn.
+- Z-order contract: candles + ticket lines on top; pools are background zones (lowest alpha, no border flicker). Document the order in one place; byte-identical overlay test extended to include pools.
+- Style tokens reused from existing palette (no new neon); BSL/SSL share one hue family with lightness split, never two new competing colors.
+- Resize/autosize path re-verified (v2.1 view-lock UAT 6/6 precedent) with pools on — canvas pixel behavior is UAT-covered, not unit-tested.
 
 **Warning signs:**
-Green "BUY"/red "SELL" buttons with no PAPER qualifier; toast saying "Order filled"; any identifier containing `broker`, `submitOrder`, `placeOrder`, `execute`; ticket reachable without passing through an INVALIDATED-state check (paper ticket offered on a killed setup).
+- New color constants not in the design-token file.
+- Overlay component reading the full pool array instead of the capped selector.
+- Screenshots in review showing >6 horizontal lines.
 
 **Phase to address:**
-Ticket-UI phase (vocabulary + banner + air-gap module). Verification phase includes the screenshot test: a stranger viewing any ticket screenshot for 3 seconds must answer "paper" not "real".
+Overlay phase (budget + z-order + cap). Polish phase re-runs visual-glance UAT with all layers on.
 
 ---
 
-### Pitfall 5: Purity violations in the new trigger/invalidation math [AMPLIFIES v2.0-P8]
+### Pitfall 5: Methodology overreach — projection presented as resting-stop fact
 
 **What goes wrong:**
-The new WHY NOW and fatal-flaw functions read `Date.now()`, import the Zustand store, or fetch candles directly — because "it's just one timestamp" or "the trigger needs the current session". Result: untestable time-dependent logic, unreproducible firing sequences, and the monorepo-extraction contract (`src/lib/ict` = pure, inject time) silently broken for all future modules. The v2.1 audit debt (dead `thinHistory` arg, orphaned export) shows how fast small purity slips accumulate.
+§1 copy says "stoplar buradadır" (stops ARE here) instead of "stop yığılması proyeksiyası" (projected cluster). The terminal — whose honesty markers (unavailable labels, thin-history banner, KAĞIZ/PAPER banner, CALIBRATION-PROVISIONAL pins) are its core trust asset — starts asserting unknowable microstructure (actual book stops) from OHLC proxies. One methodology-savvy reviewer kills credibility for the whole terminal.
 
 **Why it happens:**
-Triggers are inherently time-flavored ("WHY NOW") so reaching for the clock feels semantically justified. Session logic needs "now", invalidation needs "latest bar" — both tempt direct clock/store access. The v2 convention (inject `asOf`, consume detector outputs) requires one extra parameter-threading step that deadline pressure skips.
+"ICT teaches BSL/SSL = stops" gets transliterated into copy without the proxy hedge. Rule-based determinism (a strength) makes the overclaim look authoritative — verbatim pinned sentences amplify a false certainty.
 
 **How to avoid:**
-- Hard rule, no exceptions: new files under `src/lib/ict/` take `asOf` (epoch seconds) and detector outputs as arguments. No `Date`, `Date.now`, `performance.now`, no `@/store` imports, no `fetch`. Add an automated guard: a test or lint rule grepping `src/lib/ict/(whyNow|trigger|invalidation|fatalFlaw)*` for `Date.now|new Date|performance.now|from '@/store|from '@/app` and failing the build.
-- Time resolution (Baku wall-clock, NY session minutes) happens at the CALLER boundary (selector/route handler), exactly like v2's `amd.ts` (`asOf` injected, `formatInTimeZone` on pure values). The trigger never converts timezones itself — it receives resolved session flags.
-- Phase 1 debt cleanup must run FIRST: kill the dead `thinHistory` arg and orphaned export/type before new code copies the pattern. New trigger code that threads a parameter nobody reads is Pitfall 5 wearing a different hat.
-- Tests prove purity: same inputs + same `asOf` → byte-identical output; output changes ONLY when inputs or `asOf` change.
+- House wording locked in the math/report phase: pools are always `proyeksiya` / `ehtimal zonası`, never `stop` as fact. Ban list extended: bare "BSL reydi oldu" for unconfirmed projections; require "proyeksiya" or "təsdiqsiz" qualifier unless a confirmed sweep exists.
+- §1 header carries the methodology caveat in one fixed sentence (D1 swing-proxy, not book data) — same pattern as fixture/Ssenari labels and CALIBRATION-PROVISIONAL pins.
+- Anti-feature gate: §1 pools NEVER vote in `evaluateTrigger` gates and NEVER move ticket entry/SL/TP. They are context (like the SMT agree-tag: read-only suffix, never blocks/passes FIRE). Any plan proposing "FIRE only if near BSL" is rejected at plan review.
+- Falsifiable framing reused from §6: each §1 bias names what would disprove it (opposite-side sweep + close-through), so projection stays testable, not prophetic.
 
 **Warning signs:**
-A new `src/lib/ict` file importing anything outside `src/lib/ict` + `date-fns-tz` pure formatting; `asOf` optional with a `?? Date.now()` fallback; trigger tests using fake timers instead of injected instants; Phase 1 skipped "to save time".
+- Copy drafts without the word "proyeksiya."
+- Trigger or ticket module importing the pool selector.
+- Reason strings with interpolated prices ("BSL 24,130-dədir") — breaks the no-interpolation verbatim rule AND overclaims precision.
 
 **Phase to address:**
-Phase 1 debt cleanup (remove the broken-window examples + install the purity guard) BEFORE trigger math. Trigger/invalidation phases inherit the guard; verification re-runs it.
+Math/report phase (wording lock + non-vote rule). Polish phase runs the banned-word quarantine over §1 copy (ticket quarantine precedent).
 
 ---
 
-### Pitfall 6: WHY NOW re-derives v2 outputs instead of consuming them (logic fork)
+### Pitfall 6: Stale / thin-history / rollover pools — ghost pain from bad data
 
 **What goes wrong:**
-The trigger module re-implements its own swing detection, its own Asia-window check, its own SMT comparison "tuned for triggers" instead of importing `detectSMT`, `classifyAMD`, `detectJudas` outputs. For one milestone the two copies agree. Then a v3.1 fix lands on the detector (or the trigger's copy) and they silently disagree — the report §3 says "no Judas" while WHY NOW fires "on Judas sweep". Debugging requires diffing two implementations of the same methodology.
+Pools computed from a truncated window (thin history), a stale NQ leg (serve-stale poll gap), or rollover-week corruption persist into §1 as confident zones. The terminal warns about pain derived from data it already flagged untrustworthy elsewhere — self-contradiction visible on one screen (stale banner + confident §1).
 
 **Why it happens:**
-Consuming detector outputs requires understanding their shapes (`SmtOutput` suppressed-vs-signal union, `JudasOutput` null-vs-event, AMD phase+reason) and handling every variant — more design work than writing a bespoke inline check. "Trigger needs slightly different sensitivity" rationalizes the fork.
+The pool module reads raw candles instead of the selector-guarded, stale-latched snapshot every other detector consumes. Established disciplines (selector guard empty/bad → null; per-leg stale envelopes; `thinHistory` flag in `range.ts:25`; joint rollover suppression in `smt.ts:245-259`; HARD stale/rollover kill in `invalidation.ts:308-313`) are bypassed because "§1 is just context."
 
 **How to avoid:**
-- Type-level enforcement: the trigger function signature accepts ONLY detector output types (`SmtOutput | null`, `JudasOutput | null`, `AmdOutput`, `AsiaRange | null`) — never raw candle arrays for already-detected phenomena. If it takes candles, it must be for genuinely new math (e.g. displacement magnitude) with a name that says so.
-- Sensitivity differences go into detector parameters (named constants, caller-supplied), not into copied detector logic. One swing function (`isSwingHigh` with `SWING_K`), one Judas gate set, one SMT tolerance — parameterized, not duplicated.
-- Report §3 and WHY NOW render from the SAME evaluation object (Pitfall 3's contract). If §3 says it, the trigger saw it; if the trigger fired on it, §3 shows it. Any divergence is a bug, caught by a cross-render test.
-- Debt rule: a second implementation of an existing detector anywhere in the diff fails review, full stop.
+- Pool selector consumes the SAME guarded snapshot: empty/bad → null (renders §1 unavailable, never an empty "no pain" that reads as safe); any stale leg → §1 degraded-with-provenance or suppressed per the stale-latch discipline; `thinHistory` → pools render with uniform 0.5 dimming + persistent banner (v2.1 precedent), never full strength.
+- Rollover week: pools computed but §1 carries the corruption caveat; trigger + flaw path already HARD-kills — §1 must not contradict ("quraşdırma ləğv edildi" in §6 while §1 shows fresh targets = bug).
+- Purity preserved: staleness arrives as injected booleans (invalidation `stale` envelope precedent), never age-math inside `src/lib/ict`.
 
 **Warning signs:**
-New files containing the words "swing", "sweep", "divergence" with fresh loop code instead of imports from `smt.ts`/`judas.ts`/`asia.ts`; trigger taking `nqCandles, esCandles` as arguments; §3 badge and WHY NOW badge disagreeing on any fixture.
+- Pool function importing fetch timestamps or computing `Date.now() - candleTime`.
+- §1 rendering pools while the stale banner is up.
+- Tests with full 60-bar fixtures only; zero thin-history or stale-leg cases.
 
 **Phase to address:**
-Trigger-math phase (signature review is the gate: reviewer checks imports before logic). Verification phase runs the agreement test (§3 inputs ≡ trigger inputs on shared fixtures).
+Math phase (guarded selector + stale/thin/rollover tests). Overlay phase (dimming + banner stacking). Polish phase (stale-leg matrix drill extended to §1 — stale-drill precedent).
 
 ---
 
-### Pitfall 7: Fatal flaw defined so broadly the terminal is permanently QUIET
+### Pitfall 7: Integration misfire — pools corrupt trigger / flaw / ticket semantics
 
-**What goes wrong:**
-Invalidation conditions ("any SMT suppression", "any thin-history bar", "any rollover-week proximity", "displacement beyond X") each sound prudent alone; combined with AND-of-flaws logic they kill 95% of setups. The terminal's headline feature becomes a permanent "No setup — invalidated" state. Because invalidation always prints a plausible-sounding reason, nobody files it as a bug — the product just feels useless.
+**What goes wrong (three sub-cases):**
+1. **Trigger gate creep:** BSL proximity becomes a 4th gate or displaces the FVG entry handle. FIRE rate collapses or explodes; CALIBRATION-PROVISIONAL acceptance band (1–4 fires/week, TRIG-04) breaks; the 5-rule parity harness goes red.
+2. **Flaw misclassification:** a swept BSL (expected bullish path: sell-side raided, then long) is wired as HARD invalidation ("liquidity taken = setup dead") or as SOFT downgrade on every FIRE. The terminal downgrades its own best setups.
+3. **Ticket magnet SL:** stop-loss placed exactly at/inside the SSL pool edge — the classic stop-hunt donation. Or TP placed exactly at BSL (never filled, wick-touched). Paper R/R ≥ 1:3 gate passes on paper, fails on live microstructure.
 
 **Why it happens:**
-Asymmetric caution: every past post-mortem ("we should have invalidated when…") adds a flaw condition, and no counter-pressure measures the kill rate. Invalidation is tested flaw-by-flaw (each condition kills its fixture — green) but never as a population (what fraction of a choppy month survives ALL flaws?).
+Pools feel actionable, so each consumer grabs them directly instead of through the fixed-order contracts (`evaluateTrigger` input shape, `checkFatalFlaw` first-match-wins order, ticket direction → OTE×FVG → SL → TP ladder).
 
 **How to avoid:**
-- Flaw conditions are individually necessary AND jointly measured: ship an invalidation-rate budget (e.g. "flaws may kill at most ~50% of ARMED setups in the calibration month; above that, the broadest flaw gets narrowed, not the trigger widened").
-- Classify flaws: HARD flaws (rollover-week data corruption, stale leg — never trade, non-negotiable) vs. SOFT flaws (structure conflict — downgrade FIRING to ARMED with reason, don't kill). Most methodology "fatal flaws" are actually soft: conflicting SMT means wait, not abandon.
-- Every flaw prints its SPECIFIC reason plus which class (HARD/SOFT) and what would unblock it ("SOFT-invalidated: SMT suppressed (CORR_DECOUPLED 0.62) — re-arm if correlation recovers above 0.70"). "Invalidated" alone is a banned string.
-- Population test: a 20-session mixed fixture (trend, chop, thin, rollover-adjacent) must yield at least one FIRING and at least one INVALIDATED — proving both paths are reachable and neither dominates.
+- Trigger: pools are read-only context, max an agree-suffix like `smtSuffix` (`trigger.ts:132-157`). No gate, no vote, never blocks FIRE. Parity harness covers it: pools on/off must not change verdicts.
+- Flaw: swept-pool-toward-direction is CONFIRMATION, never flaw. Opposite-side confirmed sweep stays SOFT-downgrade-only-on-FIRING (invalidation D-12 precedent); pools add no new flaw key. If a new key is proposed, default answer is no — the 4-key table is closed.
+- Ticket: SL goes beyond the pool extreme plus ATR-regime buffer (regime `atr` already computed), never at the edge; TP ladders toward the pool but books partials before the extreme (wick-touch reality). Fixed order preserved: pools may inform the TP ladder description, never reorder derivation or bypass the R/R gate.
+- Same-snapshot discipline: flaw judges the same trigger snapshot (invalidation header precedent) — §1 pools computed on a different snapshot/asOf than trigger = race bug. Inject one `asOf`, share it.
 
 **Warning signs:**
-Flaw list grows past 5 with no rate budget; all flaws are terminal (no ARMED-downgrade path); invalidation reasons are generic ("conditions not met"); demo never shows a FIRING state because "the market is choppy today".
+- `evaluateTrigger` or ticket derivation importing pool types.
+- New `FlawReasonKey` proposed.
+- SL == pool extreme in any test fixture.
+- Firing-log calibration shifting >1σ after pools land (polish-phase tripwire).
 
 **Phase to address:**
-Invalidation phase (HARD/SOFT classification + reason strings). Verification phase runs the population test and checks the kill-rate budget.
+Math phase (non-vote contract + same-asOf rule). Polish phase (parity harness + firing-log calibration + ticket UX buffer review).
 
 ---
 
-### Pitfall 8: Ticket risk math on stale/thin inputs presented as precise numbers
+### Pitfall 8: Purity + verbatim-reason regression — pools break the two house guards
 
 **What goes wrong:**
-The paper ticket prints exact entry/stop/size figures ("Entry 24,318.50, Stop 24,290.00, Size 2, Risk $140.00") computed from a stale envelope or thin-history bars — inputs the chart already dims to 0.5 opacity and banners as unreliable. False precision on unreliable inputs is worse than no ticket: it teaches the user to trust numbers the system knows are shaky.
+Pool math reads clocks (`Date.now()`), imports the Zustand store, or formats dates with local timezone instead of injected `asOf` + NY/Baku helpers — the co-located purity guard (`purity.test.ts`) goes red and the whole `src/lib/ict` extraction story regresses. Simultaneously §1 Azerbaijani copy interpolates prices/dates into "verbatim" sentences, breaking `toBe` pins and smuggling banned vocabulary past quarantine.
 
 **Why it happens:**
-The ticket consumes price levels from the store without checking the envelope flags (`stale`, thin-tier) that v2.1 worked hard to propagate. Number formatting (`toFixed(2)`) implies a confidence the pipeline does not possess. "It's paper anyway" lowers the care bar.
+Pools need "now" (nearest pool to live price) and "session" (Baku/NY labels) — both tempt clock reads and store imports. Copy needs to name levels — tempts interpolation.
 
 **How to avoid:**
-- Ticket reads the SAME freshness flags as the trigger evaluation: stale leg or thin tier → ticket renders in degraded mode (dimmed numbers, "levels from stale data — illustrative only" banner, size computation locked with reason) or refuses with an honest message. Never green-light precise numbers on flagged inputs.
-- Risk math shows its inputs, not just outputs: "Stop = 28.5 pts (1.1× ATR 26.0, ATR from N=14 closed D1 bars, data live as of 15:32 Baku)". If ATR is guarded to null (`atr<=0 → null` convention), the ticket must refuse sizing, not divide by zero or substitute a default.
-- ATR/level staleness timestamp on the ticket itself ("levels computed from data as of HH:MM Baku, 4 min old") — the ticket carries its own provenance, independent of the chart banner.
-- Sizes round DOWN on degraded inputs and the rounding is printed ("thin tier: size floored to 1, not rounded").
+- Purity: pool functions take `(candles, asOf)` injected; price is a parameter, never a store read. Timezone via `formatInTimeZone` + `NY_TZ` idiom (judas/trigger precedent), never `new Date()` arithmetic. Run `purity.test.ts` in the math phase — it self-scans new files automatically.
+- Reasons: one fixed sentence per reason key, `toBe`-pinned, no template placeholders (trigger D-09 / invalidation D-04+10 precedent). Pool extremes live in structured fields (`{ price, side, state }`), never inside the sentence string. Banned-word list enforced on §1 copy before merge.
 
 **Warning signs:**
-Ticket component subscribing to price selectors but not to `stale`/thin-tier selectors; `toFixed` on values with no freshness check upstream; ticket operable while the thin-history banner is showing; ATR null path untested in ticket code.
+- `Date.now`, `new Date()`, `zustand`, `@/src/lib/store` in any new `src/lib/ict/*.ts` file.
+- Template literals with `${price}` inside reason constants.
+- Purity test excluded or edited to skip the new file.
 
 **Phase to address:**
-Ticket-UI phase (freshness wiring is a ticket acceptance criterion, not a nice-to-have). Verification phase replays the stale-serve drill WITH the ticket open: numbers must visibly degrade, never stay crisp.
+Math phase (purity green from first commit). Report/overlay phase (verbatim pins). Polish phase (quarantine sweep).
 
 ---
 
 ## Technical Debt Patterns
 
-Shortcuts that seem reasonable when adding execution features but create long-term problems.
-
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Skip Phase 1 cleanup ("new features matter more") | Faster start on triggers | New code copies dead-arg/orphan patterns; purity guard never installed; v3.1 pays compound interest | Never — Phase 1 is the cheapest phase in the milestone |
-| Hardcode WHY NOW thresholds inline | One less file/constant to name | Recalibration becomes archaeology; no test pins the boundary; observation notes can't map to code | Never |
-| Trigger-specific copies of detector logic | No need to learn `SmtOutput` union shapes | Logic fork (Pitfall 6); §3 vs trigger disagreement; double maintenance forever | Never |
-| `placeOrder`-shaped stubs "for later" | Ticket looks complete; future wiring "ready" | Next milestone mistakes paper shape for execution API; liability surface (Pitfall 4) | Never — use `PaperFill`/`SimulatedTicket` names only |
-| Dismissible "paper trading" toast instead of persistent banner | Cleaner screenshot | User dismisses once, forgets forever; screenshots without context imply real trading | Never — persistent stacked banner (v2.1 pattern) |
-| Evaluate invalidation on forming bars "for responsiveness" | Faster INVALIDATED badge | Flicker war with closed-bar trigger (Pitfall 3); intra-bar noise kills real setups | Never for HARD flaws; SOFT downgrades may note forming-bar context but never decide on it |
-| Reuse one `stale` flag for trigger + ticket | Less prop threading | Mixed-freshness lies (Pitfall 8); one stale leg poisons or is hidden | Never — per-leg flags end to end (v2.0-P2 rule) |
-| Defer the firing log "until we need calibration" | Smaller trigger phase | No observation data when calibration time comes; thresholds stay guesses forever | Only if the log ships in the SAME phase as the trigger (no cross-phase deferral) |
+| Second swing detector just for pools (`k=1`, own edge rules) | Ships math phase faster | Divergent swing semantics: SMT says no swing, §1 says pool at same bar — cross-section contradiction, double maintenance | Never — reuse/share `isSwingHigh/isSwingLow` contract |
+| Swept-state as a display concern (chart dims, data stays active) | No lifecycle design needed | Ghost pain + double-counting; every consumer re-implements swept-ness differently | Never — lifecycle in the data layer, display reads state |
+| Uncapped pool array ("we'll cap in the UI") | Fewer math-phase decisions | Overlay soup + selector/overlay divergence (chart shows X, §1 lists Y) | Never — cap at the selector boundary like `FVG_MAP_BOUND` |
+| Pools voting in trigger "temporarily for calibration" | Feels like faster learning | Parity harness red, calibration band broken, methodology overreach baked in | Never — read-only agree-tag max, gated by plan review |
+| Interpolated §1 reasons ("show the price, users want it") | Richer-looking copy | Breaks toBe pins, banned-word leakage, false precision | Never — structured fields carry numbers, sentences stay verbatim |
+| Local-time date math in pool code | One fewer import | DST bugs (March/November Baku/NY proven pain), purity red | Never — `formatInTimeZone` idiom only |
+| Skipping thin/stale/rollover cases ("§1 is context, not execution") | Smaller test matrix | Self-contradicting terminal (confident §1 + stale banner), audit gap | Only as explicitly-marked Nyquist PARTIAL with UAT cover — otherwise never |
 
 ## Integration Gotchas
 
-Adding execution to the existing live pipeline — where the seams actually break.
-
 | Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Report §3 → new WHY NOW section | Appending a §4 that re-derives its own reasons, drifting from §3 prose | New section renders from the shared evaluation object (Pitfall 3 contract); §3 reasons and trigger reasons are the same strings, verbatim convention preserved |
-| Chart overlays (Judas/SMT/Asia) → trigger markers | New marker layer with its own time-to-x mapping or session conversion, misplacing WHY NOW arrows by a bar or an hour | Reuse the existing overlay coordinate/session helpers; trigger markers consume resolved bar indices + Baku labels from the same selectors; DST-proven path untouched |
-| Zustand store → trigger + ticket state | Trigger state (`firing`, `armed`) and ticket inputs stored as independent slices updated by separate effects, racing each other | Single evaluation selector deriving trigger+invalidation state from detector slices + `asOf`; ticket subscribes to the evaluation, not to raw prices; no `useShallow` on fresh-identity outputs (v1.0 03.2 lesson: stable selector functions) |
-| Yahoo intraday forming candle → trigger input | Evaluating WHY NOW on the forming 1H/15M bar so every poll moves the signal | `closedOnly` at the trigger boundary (v2.0-P6 rule); forming bar may render as "developing" context, never as trigger input |
-| Rollovers/SEM → invalidation | Treating rollover week as just another soft flaw; trigger fires on spread-distorted structure | Rollover-proximity is a HARD flaw reusing `detectRollover` output (v2.0-P7 rule); joint NQ+ES suppression propagates: suppressed SMT input can never satisfy a confirmation gate |
-| Thin-tier → ticket | Ticket ignoring the thin-tier flag v2.1 added | Ticket subscribes to thin-tier; degraded rendering + locked sizing (Pitfall 8); dimming convention (0.5 zones/levels) extends to ticket numbers |
-| Vercel Hobby polling → trigger freshness | Shortening poll interval "so triggers are faster", doubling Yahoo load on the dual-symbol loop | Keep ≥60s per-leg cadence with stagger (v2.0-P2 rule); trigger speed comes from evaluation on arrival, not from polling faster; document that WHY NOW latency floor is the poll cadence, not a bug |
+|-------------|---------------|------------------|
+| Trigger (`trigger.ts`) | Add BSL proximity as 4th gate or replace FVG entry handle | Read-only agree-suffix max (`smtSuffix` precedent); parity harness asserts verdicts unchanged with pools on/off |
+| Fatal flaw (`invalidation.ts`) | Swept pool → new HARD key; or SOFT downgrade on ARMED/WAIT | No new key (4-key table closed); swept-toward-direction = confirmation; SOFT only on FIRING (D-12) |
+| Ticket (fixed-order derivation) | SL at pool edge; TP exactly at pool; pools reorder derivation | SL beyond extreme + ATR buffer; TP partials before extreme; order direction → OTE×FVG → SL → TP → R/R gate untouched |
+| FVG map (`fvg.ts`) | Pools and FVGs computed on different snapshots/windows | Same guarded snapshot, same `asOf`; shared trailing-window discipline; cross-module consistency test |
+| Judas/SMT (§3) | §1 claims sweep Judas hasn't confirmed (or vice versa) | §1 references Judas confirmations by provenance, never recomputes; §1-vs-§3 parity check in polish |
+| §6 falsifiable sentences | §1 duplicates §6 BSL/SSL raid sentences with different wording | §1 is projection vocabulary; §6 raid sentences stay canonical — cross-link, don't duplicate |
+| Selectors/store | Pool selector reading raw candles, bypassing stale latch | Consume the same guarded snapshot; empty/bad → null; stale → degraded-with-provenance |
+| Chart overlay | Pool layer with own cap/colors/z-order | Global budget (≤3/side), shared tokens, documented z-order, byte-identical overlay test extended |
+| Report §1 copy | Interpolated prices, missing timeframe tokens, missing proyeksiya hedge | Verbatim toBe-pinned sentences + structured level fields + timeframe token + methodology caveat |
+| Replay/parity harness | Pools excluded from replay ("display only") | Pools in the replay tape + parity assertions; firing-log analysis flags FIRE-toward-consumed-pool |
 
 ## Performance Traps
 
-Patterns that work in dev but fail on the live Hobby deployment.
-
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Per-bar trigger evaluation over unbounded history | Report render slows as intraday arrays grow; Hobby function approaches timeout on long ranges | Evaluate trigger on the rolling window only (same ANCHOR_WINDOW discipline as v2 dealing-range); bound history at the proxy (v2.0-P5 rule) | Intraday 1H/15M history beyond a few hundred bars per leg |
-| Firing log unbounded in client state | Zustand store balloons over a long session; ticket/report re-renders stutter | Cap log (e.g. last 50 evaluations) with overflow counter; persist calibration export as downloadable JSON, not in-memory accumulation | Multi-hour open terminal sessions |
-| Marker layer re-render per poll | Chart flickers or drops frames every 60s poll as trigger markers rebuild | Memoize marker arrays on evaluation identity (same reference unless state changed); view-lock discipline from v2.1 chart polish | Every poll cycle with markers naively rebuilt |
-| Fetching extra intervals "for better triggers" | Yahoo 429s return (shared Vercel egress IP); both legs go stale simultaneously | No new intervals without a load test (both symbols + 20 parallel clients, v2.0-P2 drill); trigger uses intervals already polled | First production week with the added interval |
+| O(n²) pool-vs-candle sweep scan on every render | Chart jank on timeframe switch, slow report render | Compute pools + lifecycle in memoized selector on closed-candle change only; overlay renders cached array | Live terminal with full D1 + intraday legs on low-end hardware |
+| Unbounded pool history (all swings since inception) | Selector output grows, chart draws dozens of lines, replay harness slows | Trailing-window slice (60-bar SMT precedent) + map bound (FVG 20 precedent) + render cap (3/side) at three distinct layers | First long-history session / extended replay tape |
+| Per-candle wall-clock formatting in pool loop | Report render latency, DST-window flakiness | Resolve wall-clock once per evaluation (asOf idiom), never per-candle-per-render | Asia/Baku DST transition weeks |
 
 ## Security Mistakes
 
-Domain-specific issues for a paper-ticket terminal beyond general web security.
+No new attack surface (rule-based, no LLM, no auth, Yahoo proxy unchanged). Domain-specific honesty risks only:
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Ticket vocabulary implying real execution ("Submit", "Filled", "Position") | User believes real money moved; screenshot misrepresents the product; future broker wiring inherits paper assumptions | Vocabulary quarantine (Pitfall 4): PAPER/SIMULATED in every string, banned-word test, no `broker`/`placeOrder` identifiers |
-| Paper P&L displayed like account equity | False confidence → real-money overconfidence; social screenshots showing "profits" from simulated fills with unmodeled slippage | Label all P&L HYPOTHETICAL; print unmodeled assumptions alongside (no slippage / no partials / no rejection); never persist paper P&L where it could read as a balance |
-| Client-computed risk numbers trusted as advice | User sizes a real trade off paper math computed on stale data | Degraded-mode lock on stale/thin (Pitfall 8); static disclaimer that paper levels are educational, not financial advice; sizing inputs always visible, never hidden defaults |
-| Future broker keys anticipated in client code | API keys/secrets drift into client bundle or Hobby env for a "paper" feature that needs none | v3.0 adds zero secrets, zero broker env vars, zero server routes beyond Yahoo proxy; any PR adding a key-shaped env var fails review |
+| §1 presented as book-stop fact | Users size positions on false certainty; trust loss = product death | `proyeksiya` hedge locked + methodology caveat + paper-only banner retained |
+| Interpolated "precise" pool prices in copy | False precision → limit orders at hunted levels | Numbers in structured fields with ATR-buffer guidance; sentences stay verbatim |
+| Silent §1 suppression failure (empty array = "no pain") | Absence of warning read as safe | Selector guard: bad/empty → null → explicit unavailable marker, never silent empty |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| WHY NOW badge with no reason attached | User sees LONG but cannot answer "why now?" — the feature's own name becomes ironic | Every state (FIRING/ARMED/QUIET/INVALIDATED) prints its gate-by-gate reasons verbatim in the report; badge is a pointer to prose, not a replacement |
-| INVALIDATED styled as an error (red, alarming) | User reads methodology working-as-designed as system failure; erodes trust in good invalidation | INVALIDATED styled neutral/informative (methodology note, not alert); HARD vs SOFT visually distinct; unblock condition printed alongside |
-| Ticket offered on invalidated or quiet setups | User sim-fills a trade the methodology just killed — terminal contradicts itself in one screen | Ticket CTA enabled ONLY in FIRING state; ARMED shows "ticket arms when WHY NOW fires"; INVALIDATED/QUIET show disabled ticket with the reason, never an active form |
-| Signal states only visible in one panel | User on the chart misses the invalidation printed in the report (or vice versa) | State + one-line reason mirrored in chart header chip AND report section; full reasons live in one canonical place (report), chip links to it |
-| Thin/stale degradation invisible on the ticket | Numbers look equally crisp live vs. stale; user cannot tell which ticket to trust | Degraded ticket styling (dimming per v2.1 0.5 convention + banner + locked sizing) so freshness is visible at a glance, matching the chart |
+| §1 lists 10+ zones with equal visual weight | Alert fatigue; real near-price pain buried | Sort by distance-to-price, cap visible, nearest-first; swept dimmed; Azerbaijani distance wording ("ən yaxın") |
+| Swept vs active pools look identical | User braces for already-collected pain | Distinct styles: active solid, swept dashed+dimmed, consumed gone; legend in §1 header |
+| §1 contradicts §3/§6 on the same screen | "Terminal disagrees with itself" — confidence collapse | Precedence note (execution §§3–6 win; §1 is context) + parity-tested consistency |
+| Pool lines obscure entry/SL/TP + T pin | Execution chrome unreadable at the moment of use | Pools background-lowest z; ticket lines + pins always on top; UAT with ticket open |
+| New jargon without glossary ("BSL reydi", "SSL ovu") | Azerbaijani retail users guess meaning | One-line §1 header gloss + fixed vocabulary shared with §6 sentences |
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces — verify during execution.
-
-- [ ] **WHY NOW trigger:** Often missing the choppy-fixture QUIET test — verify a sideways week yields ARMED/QUIET, not FIRING, with gate reasons printed.
-- [ ] **Thresholds:** Often missing provenance — verify every constant has a named export, a boundary test, and a CALIBRATION-PROVISIONAL comment with date.
-- [ ] **Invalidation:** Often missing the SOFT path — verify at least one flaw downgrades to ARMED (not kills) and prints its unblock condition.
-- [ ] **Trigger+invalidation:** Often missing the shared snapshot — verify one `asOf`, one evaluation function, and the bar-by-bar replay test with monotonic transitions.
-- [ ] **Paper ticket:** Often missing the honesty chrome — verify persistent PAPER banner, banned-word test green, zero `broker`/`placeOrder` identifiers in the diff.
-- [ ] **Ticket risk math:** Often missing freshness wiring — verify stale-serve drill with ticket open visibly degrades numbers (no crisp figures on stale legs).
-- [ ] **Purity:** Often missing the guard — verify new `src/lib/ict` files pass the no-clock/no-store grep test and `asOf` has no `Date.now()` fallback.
-- [ ] **Report integration:** Often missing reason parity — verify §3 prose and WHY NOW reasons are the same strings from the same object, not two authors.
-- [ ] **Firing log:** Often missing entirely — verify the log exists, caps at N entries, and exports calibration JSON before calling calibration "done".
+- [ ] **Pool detection:** Often missing strict-inequality + equality-is-no-swing tests — verify `>=`/`<=` boundary cases pinned (SMT T-07 precedent).
+- [ ] **Consumption lifecycle:** Often missing swept/consumed transitions — verify a swept pool never re-promotes + a close-through pool leaves the active map.
+- [ ] **Cap chain:** Often missing one of window-slice → map-bound → render-cap — verify all three layers with an over-limit fixture.
+- [ ] **Timeframe wall:** Often missing type-level separation — verify pool module never imports `IntradayCandle` / killzone constants.
+- [ ] **Non-vote contract:** Often missing parity proof — verify trigger verdicts identical with pools on/off across the replay tape.
+- [ ] **Stale/thin/rollover:** Often missing degraded rendering — verify §1 null/dimmed/caveated on each leg of the stale matrix + thin history + rollover week.
+- [ ] **Verbatim pins:** Often missing `toBe` locks — verify §1 sentences pinned byte-for-byte, numbers only in structured fields.
+- [ ] **Purity:** Often missing self-scan coverage — verify `purity.test.ts` green with the new files (no exclusions added).
+- [ ] **Overlay budget:** Often missing byte-identical extension — verify overlay test + visual-glance UAT with all layers + ticket open.
+- [ ] **Firing-log proof:** Often missing calibration check — verify FIRE-toward-consumed-pool count is zero in replay + acceptance band (1–4/week) holds.
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Uncalibrated thresholds (P1) firing at wrong rate | MEDIUM | Freeze constants; ship the firing log if missing; collect 2 weeks of notes; adjust ONE constant per cycle with boundary tests; never retune mid-week on vivid memory |
-| Alert-fatigue wallpaper (P2) | HIGH (trust is one-way) | Immediately tighten to conjunctive gating + add ARMED tier; publicly reset expectations ("signal was over-firing, now recalibrated"); dedup repeat fires; backfill the choppy-fixture test |
-| Trigger/invalidation flicker (P3) | MEDIUM | Merge to single evaluation function with one `asOf`; add hysteresis on flaws; replay-test the offending session bar-by-bar until transitions are monotonic |
-| Paper-taken-for-real incident (P4) | HIGH (reputational) | Same-day vocabulary + banner fix; audit all screenshots/docs for "Submit/Filled" language; add banned-word test; confirm zero broker identifiers in tree |
-| Purity breach in `src/lib/ict` (P5) | LOW if caught early | Extract clock/store access to caller boundary, inject `asOf`; install the grep guard; re-pin determinism tests (100-run identical output) |
-| Detector logic fork (P6) | MEDIUM | Delete the copy; rewire trigger to detector output types; add signature-review checklist to phase gates |
-| Permanent-QUIET terminal (P7) | MEDIUM | Measure kill rate over calibration month; split HARD/SOFT; narrow the broadest flaw first; add the population test (≥1 FIRING + ≥1 INVALIDATED per 20 sessions) |
-| False-precision ticket (P8) | LOW | Wire freshness flags into ticket; add degraded mode + provenance line; re-run stale-serve drill with ticket open |
+| Wick-noise pools shipped | MEDIUM | Raise k to 2 + strict inequality + ATR-merge; add over-limit fixture; re-run replay; overlay cap as stopgap only |
+| Swept pools double-counted | MEDIUM | Add lifecycle states + first-sweep-wins; migrate selector output; backfill tests; audit firing log for ghost-pain FIREs |
+| Timeframe soup in §1 | MEDIUM | Split pool (D1) from confirmation (15M provenance tag); type-wall the module; rewrite §1 copy with timeframe tokens |
+| Overlay soup | LOW | Apply render cap + z-order + dimming; extend byte-identical test; visual UAT; no detector change needed |
+| Methodology overreach copy | LOW | Reword to proyeksiya + caveat; quarantine sweep; no code change beyond strings |
+| Stale/thin ghosts | MEDIUM | Rewire selector to guarded snapshot; add matrix/thin/rollover tests; stack dimming + banners |
+| Trigger/flaw/ticket corruption | HIGH | Revert gate/key/derivation change; restore parity harness green; recalibrate firing log; plan-review gate on re-attempt |
+| Purity/verbatim regression | LOW | Remove clock/store imports, inject asOf; de-interpolate reasons; purity + toBe green |
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
+Suggested v3.1 phase split: **P1 Math** (pure pool detection + lifecycle + guarded selector + tests) → **P2 Overlay** (§1 report block + chart overlay + z-order/budget) → **P3 Polish** (threshold calibration, ticket UX buffers, firing-log analysis, parity + stale drills).
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| P1 uncalibrated thresholds | Trigger-math phase (named constants + boundary tests + firing log hook) | Calibration band check: 1–4 fires/week target reviewed against log; every constant has provenance comment |
-| P5 purity violations + Phase 1 dead-arg/orphan debt | Phase 1 debt cleanup (remove dead `thinHistory` arg + orphan export/type; install no-clock/no-store guard) | Grep guard green on all new `src/lib/ict` files; determinism tests pass; no `Date.now()` fallback |
-| P2 spam + P6 logic fork | Trigger-math phase (conjunctive gates + ARMED tier + detector-output-only signatures) | Choppy-fixture QUIET test; import-review (no fresh swing/sweep loops); dedup rule demonstrated |
-| P3 invalidation race + P7 permanent-QUIET | Invalidation phase (shared evaluation object, HARD/SOFT split, hysteresis, specific reasons) | Bar-by-bar replay monotonic; race fixture → INVALIDATED with both reasons; population test (≥1 FIRING + ≥1 INVALIDATED) |
-| P4 paper-as-real + P8 false precision | Ticket-UI phase (vocabulary quarantine, persistent banner, air-gap types, freshness-degraded mode) | Screenshot test (3-second "paper" read); banned-word + no-broker-identifier tests; stale-drill with ticket open degrades |
-| Cross-cutting (report parity, marker reuse, store shape, poll cadence) | Verification phase (agreement tests, marker reuse review, stale-serve drill, load check before any new interval) | §3-vs-trigger reason parity; overlays reuse helpers; single evaluation selector; ≥60s per-leg cadence held |
+| Wick-noise false pools | P1 Math | Boundary tests (equality, k, ATR-merge) + pool-count assertion on 60-bar fixture |
+| Swept double-counting | P1 Math | Lifecycle tests (sweep → swept, close-through → gone, no re-promotion) |
+| Timeframe mixing | P1 Math (+ copy in P2) | Type check (no intraday imports) + timeframe tokens in §1 + §1-vs-§3 parity test |
+| Stale/thin/rollover ghosts | P1 Math (+ dimming in P2) | Stale-matrix + thin + rollover-week tests; banner/dim UAT |
+| Purity + verbatim guards | P1 Math (+ pins in P2) | `purity.test.ts` green, `toBe` pins, quarantine sweep |
+| Overlay clutter | P2 Overlay | Window→map→render cap chain test + byte-identical overlay extension + visual-glance UAT |
+| Methodology overreach | P2 Overlay (wording lock) | Copy review: proyeksiya hedge + caveat + no interpolation + no new trigger/ticket imports |
+| Trigger/flaw/ticket misfire | P1 contract + P3 proof | Parity harness (pools on/off identical verdicts) + no-new-flaw-key + SL-buffer tests |
+| Calibration drift | P3 Polish | Firing-log analysis: 1–4/week band holds, zero FIRE-toward-consumed-pool |
+| Ticket UX (magnet SL/TP) | P3 Polish | SL-beyond-extreme + ATR buffer tests; TP-partial-before-extreme; UAT with ticket open |
 
 ## Sources
 
-- This codebase (HIGH): `src/lib/ict/smt.ts` (SWING_K/SMT_TOL_BPS/CORR_MIN named-constant + test-pinned convention), `src/lib/ict/amd.ts` (injected-`asOf`, read-only detector fusion, no clock/store), v2.1 thin-tier work (persistent banner + 0.5 dimming + stale-serve drill), v1.0 03.2 `useShallow` loop lesson, v2.0-P1 matched-pair + choppy-fixture lesson, v2.0-P2 per-leg stale envelopes + staggered polling, v2.0-P7 joint rollover suppression.
-- PROJECT.md v3.0 scope (HIGH): Phase 1 debt items (dead `thinHistory` arg, orphaned export/type), deferred live observation as known risk, paper-ticket-no-broker constraint, purity + Baku-TZ + zero-budget constraints.
-- ICT methodology education (MEDIUM — no official spec): LuxAlgo / innercircletrader / Flux Charts SMT-as-matched-swings semantics; ICT WHY NOW / displacement / invalidation concepts from trading-education literature — treated as semantics to encode, not authority to cite for exact thresholds.
-- Alert-fatigue / false-positive-rate practice (MEDIUM): general signal-design wisdom that uncalibrated conjunctive thresholds either spam or starve, and that blocked-signal transparency preserves trust — applied here as ARMED tier + reason printing.
-- Paper-vs-live execution gap (MEDIUM): general trading-systems wisdom that simulated fills without modeled slippage/partials/rejection build false confidence — applied here as assumption-printing + vocabulary quarantine.
-
----
-*Pitfalls research for: v3.0 Execution (WHY NOW + fatal-flaw invalidation + paper ticket on live ICT terminal)*
-*Researched: 2026-09-09*
+- Codebase (HIGH confidence): `src/lib/ict/smt.ts` (SWING_K, strict swings, time-anchored pairing, corr + rollover gates), `src/lib/ict/fvg.ts` (closedOnly, close-through mitigation, sweep-then-reject transition, MAP_BOUND), `src/lib/ict/judas.ts` (three-gate sweep, first-wins, preRun vs candidate, Asia-height displacement), `src/lib/ict/trigger.ts` (three gates, FVG handle, verbatim reasons, SMT read-only suffix, CALIBRATION-PROVISIONAL), `src/lib/ict/invalidation.ts` (HARD/SOFT split, first-match-wins, FIRING-only SOFT, §6 sentences), `src/lib/ict/types.ts` (closedOnly, D1/intraday contract split), `src/lib/ict/range.ts` (thinHistory), `src/lib/ict/purity.test.ts` (house guards), `.planning/PROJECT.md` (v3.0 shipped surface, v3.1 targets, established patterns).
+- ICT methodology (MEDIUM confidence): BSL/SSL as resting-stop projection above/below swing extremes; sweep-then-displacement sequencing; ERL/IRL delivery context. Interpreted conservatively — projection framing, never book-fact claims.
+- Terminal history (HIGH confidence): v2.1 overlay/chrome byte-identical + dimming + banner discipline; v3.0 parity harness + stale-drill matrix + banned-word quarantine precedents reused above.

@@ -1,221 +1,264 @@
-# Architecture Research
+# Architecture Research: BSL/SSL Pain Threshold Map
 
-**Domain:** v3.0 Execution (Modul 4) on existing Liquidity Engine terminal — WHY NOW trigger + fatal-flaw invalidation + paper order ticket
-**Researched:** 2026-09-09
-**Confidence:** HIGH (direct codebase read: `src/lib/store.ts`, `src/lib/ict/amd.ts`, `src/lib/confluence.ts`, `components/dashboard/terminal-shell.tsx`, `components/dashboard/report.tsx`, `components/charts/nq-chart.tsx`, `src/lib/report.ts`, `app/api/yahoo/route.ts`)
+**Domain:** ICT liquidity-pool projection layer on the NQ execution terminal
+**Researched:** 2026-09-15
+**Confidence:** HIGH (direct codebase reads: `src/lib/ict/*`, `src/lib/store.ts`, `src/lib/report.ts`, `src/lib/ticket.ts`, `src/lib/chart-mapper.ts`, `components/charts/nq-chart.tsx`, `components/dashboard/terminal-shell.tsx`, `components/dashboard/report.tsx`)
 
 ## Standard Architecture
 
 ### System Overview
 
-Existing v2.1 system — v3.0 adds no new layers, only new pure modules + selectors + panels inside the existing ones:
+The terminal is a four-layer pipeline. The BSL/SSL map slots in as a **new projection layer inside the existing `ict/` pure family** — it reads the same candle legs every other detector reads, emits a ranked pool inventory, and fans out through the exact selector → report → chart seams that §3 (§3 trigger/AMD/SMT) and §§4–6 (trigger/ticket/flaw) already proved.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Next.js 16 App Router                     │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐  │
-│  │ TerminalShell│  │    Report    │  │ Ticket / Exec /   │  │
-│  │ (3-panel grid│  │ (§1–§6 rule- │  │ Flaw panels (NEW, │  │
-│  │  + overlays) │  │  based prose)│  │  replace 3 cards) │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬──────────┘  │
-│         │                 │                   │              │
-├─────────┴─────────────────┴───────────────────┴──────────────┤
-│                    Zustand 5 store (`src/lib/store.ts`)      │
-│   legs (nq/es/nq1h/nq15m) + selectors (selectRange…selectAMD │
-│   + NEW selectTrigger/selectFatalFlaw/selectTicket)          │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  `src/lib/ict` pure fns (no I/O, inject time)        │    │
-│  │  range/bias/dol/regime/levels/rollover/join/smt/     │    │
-│  │  asia/judas/amd/fvg/aggregate                        │    │
-│  │  + NEW trigger.ts + invalidation.ts                   │    │
-│  │  `src/lib` selector-level: confluence/thin-tier/      │    │
-│  │  zone-bands/chart-mapper + NEW ticket.ts              │    │
-│  └─────────────────────────────────────────────────────┘    │
-├─────────────────────────────────────────────────────────────┤
-│  Yahoo proxy (`app/api/yahoo`) 60s cache + serve-stale      │
-│  Dual-poll 4-leg grid (:00/:15/:30/:45) + NqChart (lw-c v5) │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATA LEGS (poll layer, store-owned)           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
+│  │ NQ D1    │  │ ES D1    │  │ NQ 1H    │  │ NQ 15M   │         │
+│  │ daily    │  │ daily    │  │ intraday │  │ intraday │         │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘         │
+├───────┴─────────────┴─────────────┴─────────────┴───────────────┤
+│              ICT PURE LAYER (src/lib/ict, no I/O, no clock)      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────────┐   │
+│  │ range/   │  │ smt/     │  │ asia/    │  │ ★ liquidity-   │   │
+│  │ levels/  │  │ judas/   │  │ fvg/     │  │   pools (NEW)  │   │
+│  │ dol/bias │  │ amd      │  │ trigger/ │  │ BSL/SSL map    │   │
+│  │ regime   │  │          │  │ invalid. │  │                │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───────┬────────┘   │
+├───────┴─────────────┴─────────────┴───────────────┴─────────────┤
+│           SELECTOR LAYER (src/lib/store.ts, Zustand)             │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ selectRange… selectSMT/Judas/AMD/Trigger/Flaw/Ticket      │   │
+│  │ ★ selectPools (NEW) — refuse-null + sharedEpoch idiom     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────┤
+│              RENDER LAYER (components, math-free)                │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐   │
+│  │ report.tsx   │  │ nq-chart.tsx │  │ side panels           │   │
+│  │ ★ §1 live    │  │ ★ BSL/SSL    │  │ (ticket/flaw/smt-row) │   │
+│  │ block (NEW)  │  │ lines (NEW)  │  │ untouched             │   │
+│  └──────────────┘  └──────────────┘  └───────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+         terminal-shell.tsx = the single fan-out seam (NEW wiring only)
 ```
 
 ### Component Responsibilities
 
 | Component | Responsibility | Typical Implementation |
 |-----------|----------------|------------------------|
-| `src/lib/ict/trigger.ts` (NEW) | WHY NOW time+structure evaluator: Judas + AMD + SMT + regime → fired/not + verbatim reason + calibratable thresholds | Pure fn `evaluateTrigger(input): TriggerOutput`, exported `TRIGGER_*` consts, boundary validation throwing on malformed input (judasSwing/amdPhase precedent) |
-| `src/lib/ict/invalidation.ts` (NEW) | Fatal-flaw checker: conditions that cancel the setup → invalidated/not + verbatim reason | Pure fn `checkFatalFlaw(input): FatalFlawOutput`, same envelope discipline as trigger |
-| `src/lib/ticket.ts` (NEW, NOT in ict/) | Paper-ticket level math: entry/SL/TP from range+levels+bias+trigger direction + size/risk arithmetic | Pure fn `computeTicket(input): TicketLevels \| null`; lives beside `confluence.ts` because risk-sizing is not ICT methodology — keeps `ict/` purity narrative clean |
-| `store.ts` selectors (MODIFIED) | `selectTrigger`, `selectFatalFlaw`, `selectTicket`: refuse-null-on-stale + try/catch-never-throw, shared `asOf` derivation | Same shape as `selectAMD`/`selectConfluence`; ticket returns null when trigger not fired (honest empty, never zeroes) |
-| `report.ts` + `report.tsx` (MODIFIED) | Flip §4/§5/§6 `unavailable`→`live`; add three live blocks following the §3 precedent (verbatim reasons, locked fallbacks) | `REPORT_SECTIONS` state flip + per-section sub-blocks; no new composer module |
-| `ExecutionProtocol` / `TicketPanel` / `FatalFlaw` (NEW components) | Replace the three `UNAVAILABLE` cards in `terminal-shell.tsx` (`data-slot="execution-protocol"`, `"ticket"`, `"fatal-flaw"`) | Thin render components, math-free, reading store selectors only |
-| `NqChart` (MODIFIED, props-only) | One trigger pin + optional ticket entry/SL/TP lines | New optional props (`triggerBarDate`, `ticket`) reusing `buildOverlayMarkers` ordering + remove-then-create price-line cycle |
+| `src/lib/ict/liquidity-pools.ts` (NEW) | NQ swing inventory → BSL (above) / SSL (below) pool ranking + swept-vs-resting state + verbatim Azerbaijani reason | Pure functions, injected candles + `asOf`, trailing-cap idiom, `got-string` boundary throws |
+| `range.ts` + `levels.ts` (FEEDER) | D1 dealing-range anchors (high/low/eq, Q1/Q3, OTE pockets) — pools relativize to these | Unchanged; pools import types only |
+| `smt.ts` (FEEDER + PATTERN DONOR) | Fractal swing primitives (`isSwingHigh`/`isSwingLow`, `SWING_K=2`) + time-anchored pairing precedent + `evaluateSMT` confirmation tag | Unchanged; pools reuses swing predicates, never duplicates tolerance math |
+| `judas.ts` (FEEDER) | Confirmed sweep truth — pools consume `JudasOutput` read-only to mark pools swept vs resting | Unchanged; `judasSwing` stays the sole sweep judge |
+| `fvg.ts` (PATTERN DONOR) | Trailing-20 inventory idiom (`FVG_MAP_BOUND`), close-through mitigation shape, `describeDeliveryTransition` verbatim-prose precedent | Unchanged; pools mirrors `detectFVGs`/`applyMitigation` structure |
+| `asia.ts` (FEEDER) | Proximal pool edges (Asia high/low) + displacement denominator | Unchanged; pools reference Asia extremes for proximity ranking |
+| `dol.ts` (FEEDER + CONSUMER-ADJACENT) | Single DOL target (range high/low) — pools refine this into a ranked ladder | Unchanged in v3.1; future TP2 upgrade reads pools (explicitly deferred) |
+| `trigger.ts` / `invalidation.ts` (READ-ONLY NEIGHBORS) | WHY NOW gates + HARD/SOFT flaw — pools NEVER vote here in v3.1 (agree-tag at most) | Unchanged; pools input shape mirrors `TriggerInput` read-only fields |
+| `ticket.ts` (BROKERAGE, never `ict/`) | OTE×FVG entry, SL, structure-first TP ladder (TP2 = opposing DOL) | Unchanged in v3.1; pools do not touch sizing or R/R |
+| `store.ts selectPools` (NEW selector) | Refuse-null on stale/empty NQ leg, `sharedEpoch`, try/catch-never-throw, composes `selectJudas`/`selectSMT` read-only | Follows `selectTriggerPure`/`selectLiquidityPath` envelope verbatim |
+| `report.tsx` §1 block (MODIFIED) | Prints `selectPools` prose verbatim + leg-`lastError` chain + skeleton/`Məlumat yoxdur` states | Copies the §3/§§4–6 branch shape, new `s1-*` sub-slots |
+| `nq-chart.tsx` + `chart-mapper.ts` (MODIFIED) | BSL/SSL dashed price lines + optional pool markers; per-leg independent render, stale-desaturate, empty-set clearing | New `poolLineInputs` guard + new optional props + `buildOverlayMarkers` 4th slot |
+| `terminal-shell.tsx` (MODIFIED, wiring only) | Stable-function subscription → derive during render → fan out to `Report` (via store) and `NqChart` props + containing-D1-bar date mapping | Copies the Asia/Judas/SMT wiring block + `fireBarDate` containing-bar loop |
 
 ## Recommended Project Structure
 
 ```
 src/
-├── lib/ict/              # purity boundary: no I/O, no Date.now, inject time
-│   ├── trigger.ts        # NEW — evaluateTrigger + TRIGGER_* thresholds
-│   ├── trigger.test.ts   # NEW — gate table, threshold calibration pins
-│   ├── invalidation.ts   # NEW — checkFatalFlaw
-│   ├── invalidation.test.ts # NEW
-│   ├── amd.ts            # UNCHANGED (trigger reads its output, never edits it)
-│   ├── judas.ts          # UNCHANGED
-│   ├── smt.ts            # UNCHANGED
-│   └── types.ts          # MODIFIED only if shared Direction type needed
+├── lib/ict/liquidity-pools.ts    # ★ NEW — BSL/SSL pure projection layer
+│   # detectPools(candles) + rankPools + swept-marking + describePools reason
+├── lib/ict/liquidity-pools.test.ts # ★ NEW — boundary + ranking + swept-state pins
+├── lib/ict/
+│   ├── smt.ts                    # UNCHANGED — swing predicate donor
+│   ├── judas.ts                  # UNCHANGED — sweep-truth donor
+│   ├── fvg.ts                    # UNCHANGED — inventory-idiom donor
+│   ├── range.ts / dol.ts         # UNCHANGED — anchor feeders
+│   ├── asia.ts                   # UNCHANGED — proximal-pool feeder
+│   ├── trigger.ts                # UNCHANGED — read-only neighbor
+│   └── invalidation.ts           # UNCHANGED — read-only neighbor
 ├── lib/
-│   ├── ticket.ts         # NEW — computeTicket (selector-level, not ict/)
-│   ├── ticket.test.ts    # NEW
-│   ├── report.ts         # MODIFIED — §4/§5/§6 state flip
-│   ├── store.ts          # MODIFIED — 3 selectors + ticket-input slice
-│   └── chart-mapper.ts   # MODIFIED only if ticket-line input guard needed
+│   ├── store.ts                  # MODIFIED — add selectPools only
+│   ├── report.ts                 # MODIFIED — flip §1 state to 'live'
+│   ├── chart-mapper.ts           # MODIFIED — add poolLineInputs guard
+│   └── ticket.ts                 # UNCHANGED in v3.1 (pools→TP2 deferred)
 components/
 ├── dashboard/
-│   ├── terminal-shell.tsx # MODIFIED — swap 3 UNAVAILABLE cards for live panels
-│   ├── report.tsx         # MODIFIED — §4/§5/§6 live blocks
-│   ├── execution-protocol.tsx # NEW — trigger status + reason verbatim
-│   ├── ticket-panel.tsx       # NEW — entry/SL/TP + size/risk inputs
-│   └── fatal-flaw.tsx         # NEW — invalidated/not + reason verbatim
+│   ├── report.tsx                # MODIFIED — add §1 live branch
+│   └── terminal-shell.tsx        # MODIFIED — pools→chart fan-out wiring
 └── charts/
-    └── nq-chart.tsx       # MODIFIED — trigger marker + ticket lines (props-only)
+    └── nq-chart.tsx              # MODIFIED — BSL/SSL lines + markers
 ```
 
 ### Structure Rationale
 
-- **`trigger.ts` + `invalidation.ts` inside `ict/`:** they fuse ICT detector outputs (Judas/AMD/SMT) under TIME>PRICE logic — same family as `amd.ts`/`confluence.ts` inputs. Purity constraint applies verbatim: injected `asOf`, boundary `throw`, no clock reads.
-- **`ticket.ts` outside `ict/`:** position-size and risk-reward arithmetic is brokerage math, not ICT methodology. Precedent is `confluence.ts` ("selector-level scoring lives here, never inside src/lib/ict, so ict purity holds") and `thin-tier.ts`/`zone-bands.ts`. Keeps a future monorepo extraction of `ict/` clean.
-- **No new route, no new poll leg, no new store file:** the four-leg grid (NQ daily, ES daily, NQ 1H, NQ 15M) already feeds every input the trigger needs. A 5M/1M leg is explicitly out (Yahoo allowlist + zero budget); the trigger is therefore **15M-close-gated by design** and §4 copy must say so honestly.
+- **`liquidity-pools.ts` lives in `src/lib/ict/`, not beside `ticket.ts`:** it is ICT methodology math (swing projection), not brokerage math. The `ticket.ts` header rule ("brokerage math, never ICT methodology… never inside `src/lib/ict`") cuts the other way here — pools belong with `smt/judas/fvg`. This also keeps the `purity.test.ts` grep guard covering the new file for free (no `Date.now`, no store imports).
+- **One new module, not two:** BSL and SSL are the same scan with opposite polarity (mirrors how `detectFVGs` handles BULLISH/BEARISH in one pass and how `directionOf` is a total function of one input). Splitting buy-side/sell-side into separate files doubles the swing-scan drift surface.
+- **No new leg, no new poll timer:** pools read the existing NQ D1 leg (primary) with optional read-only ES/Judas context. The four-leg grid (`:00/:15/:30/:45`) and per-leg envelope guards stay untouched — pools add zero network, zero cache, zero Vercel-cost surface.
+- **No new chart primitive:** BSL/SSL lines reuse the `createPriceLine` remove-then-create cycle (Asia pair precedent) and any markers reuse the `createSeriesMarkers` plugin (J-S-T order precedent). No `zone-primitive` change — zone bands stay range-owned.
 
 ## Architectural Patterns
 
-### Pattern 1: Detector → Evaluator → Selector → Verbatim Prose
+### Pattern 1: NQ-only swing inventory with imported predicates
 
-**What:** New features copy the v2.0 §3 pipeline exactly: pure detector (`judasSwing` precedent) → pure fuser (`amdPhase` precedent) → store selector with refuse-null envelope (`selectAMD` precedent) → render component printing `.reason` verbatim with locked fallback copy (`report.tsx` S3 precedent).
-**When to use:** Trigger (§4) and fatal flaw (§6) — both are reasons-first outputs.
-**Trade-offs:** Pro: determinism, testability, UAT-verifiable prose; zero new data flow to invent. Con: three hops for a boolean — accepted, it is what makes §3 auditable today.
+**What:** the pool scan runs `isSwingHigh`/`isSwingLow` (imported from `smt.ts`, same `ict/` family — allowed) over closed NQ D1 rows, trailing `SWING_LOOKBACK`-style window, collecting swing highs (→ BSL pools above price) and swing lows (→ SSL pools below price). Proximity ranking relativizes each pool to last close + range position + Asia extremes.
+**When to use:** this is the v3.1 pools core — always.
+**Trade-offs:** importing from `smt.ts` couples pools to SMT's `SWING_K=2` tuning (pro: single swing-truth, no drift; con: K retunes ripple). Alternative — duplicating the fractal loop in pools — is rejected: two swing definitions will diverge within one milestone.
 
 **Example:**
 ```typescript
-// src/lib/ict/trigger.ts — shape follows amd.ts
-export interface TriggerInput {
-  judas: JudasOutput | null;
-  amd: AmdOutput | null;
-  smt: SmtOutput | null;
-  regime: RegimeOutput | null;
-  asOf: number; // injected, never Date.now()
+// src/lib/ict/liquidity-pools.ts — pure, injected candles only
+import { isSwingHigh, isSwingLow, SWING_K } from '@/src/lib/ict/smt';
+import { closedOnly } from '@/src/lib/ict/types';
+
+export type PoolSide = 'BSL' | 'SSL';
+export interface LiquidityPool {
+  side: PoolSide;
+  price: number;        // swing extreme: stop resting place
+  originDate: string;   // swing-bar date (D1 business-day string)
+  swept: boolean;       // resolved at the selector boundary via judas (read-only)
+  strength: number;     // rank score: confluence count, never a price
 }
-export interface TriggerOutput {
-  fired: boolean;
-  reason: string; // verbatim-ready Azerbaijani sentence
-  inputs: { judas: JudasOutput | null; amd: AmdOutput | null; smt: SmtOutput | null };
+export interface PoolsOutput {
+  bsl: LiquidityPool[];   // above last close, nearest-first
+  ssl: LiquidityPool[];   // below last close, nearest-first
+  reason: string;         // verbatim Azerbaijani, toBe-pinned, never interpolated
+  asOf: string;           // injected date string, never a clock read
 }
-export const TRIGGER_DISP_MIN = 0.5; // calibratable — exported, pinned by test
-export function evaluateTrigger(input: TriggerInput): TriggerOutput { /* gates */ }
 ```
 
+### Pattern 2: Trailing-cap inventory (FVG idiom reuse)
+
+**What:** cap the active pool map to a trailing bound (`POOL_MAP_BOUND`, FVG's `FVG_MAP_BOUND = 20` precedent — recommend 20, same order of magnitude as the dealing-range `ANCHOR_WINDOW = 20`), sorted by `originDate` before slicing so map and prose agree on what is current even for unsorted input (fvg.ts WR-07 precedent).
+**When to use:** always — unbounded pool lists grow DOM lines and dilute the §1 sentence.
+**Trade-offs:** capping drops deep-history pools (pro: chart stays legible, §1 names 2–4 pools max; con: a far pool that later matters is absent — acceptable, rolling recompute re-surfaces it as price approaches).
+
+### Pattern 3: Swept-vs-resting resolved OUTSIDE pools (Judas owns sweeps)
+
+**What:** `liquidity-pools.ts` detects *where stops rest*; whether a pool has been *swept* is resolved at the selector boundary (or a thin `markSwept(pools, judas)` pure helper) consuming `JudasOutput` read-only — exactly how `amdPhase` consumes judas for promotion and `evaluateTrigger` consumes it for the purge gate without re-implementing sweep detection.
+**When to use:** always — never put wick-pierce/close-through logic inside pools.
+**Trade-offs:** pools output is "resting inventory" until composed (pro: single sweep-truth in `judasSwing`; con: pools unit tests need a judas stub for the swept branch — cheap, `amd.test.ts` already does this).
+
+### Pattern 4: Read-only tag into trigger prose, never a gate (v3.1 scope lock)
+
+**What:** pools do NOT vote in `evaluateTrigger`'s 3-gate count and do NOT feed `computeTicket`. At most, a fixed agree-suffix (trigger.ts `smtSuffix` / amd.ts `smtTag` precedent: `HIGH+BEARISH → SMT razılaşır.`) — e.g. FIRE_SHORT toward a ranked SSL pool appends a fixed tag. No numbers interpolated, no gate math touched.
+**When to use:** v3.1 — keeps the CALIBRATION-PROVISIONAL trigger thresholds (`TRIGGER_DISP_MULT`, killzone, `TICKET_RR_MIN`) valid without recalibration.
+**Trade-offs:** pools feel "display-only" in v3.1 (pro: zero recalibration risk, trigger parity harness stays green; con: full pools→entry-confluence must wait — correctly deferred to a later milestone with its own replay data).
+
+### Pattern 5: Selector refuse-null envelope + sharedEpoch (store idiom)
+
+**What:** `selectPools` copies the `selectTriggerPure`/`selectLiquidityPath` envelope: refuse `null` on stale or empty NQ leg (owning-leg `lastError` carries the verbatim reason), one `sharedEpoch(get)` call, derive judas/smt via existing selectors read-only, try/catch returning `null`, zero `set` calls.
+**When to use:** every new selector — no exceptions.
+**Trade-offs:** none — this is house law; deviating breaks the render-never-throws contract.
+
+**Example:**
 ```typescript
-// store.ts — shape follows selectAMD
-selectTrigger: () => {
+// store.ts — NEW selector beside selectLiquidityPath
+selectPools: () => {
+  const { nq } = get();
+  if (nq.stale) return null;
+  if (closedOnly(nq.candles).length === 0) return null;
   try {
-    const judas = get().selectJudas();
-    const amd = get().selectAMD(); // shares the single asOf derivation
-    const smt = get().selectSMT();
-    const regime = get().selectRegime();
-    if (get().nq15m.stale || get().nq1h.stale) return null;
-    return evaluateTrigger({ judas, amd, smt, regime, asOf: sharedEpoch(get()) });
-  } catch { return null; }
+    const epoch = sharedEpoch(get);
+    const judas = get().selectJudas();   // read-only swept context
+    const smt = get().selectSMT();       // read-only agree context
+    return evaluatePools({ candles: nq.candles, judas, smt, asOf: epoch });
+  } catch {
+    return null;
+  }
 },
 ```
 
-### Pattern 2: Shared `asOf` Epoch (Trigger–AMD Coherence)
+### Pattern 6: §1 branch copies the §3/§§4–6 report shape
 
-**What:** Extract the `selectAMD` epoch fallback (`nq1h.lastUpdatedISO` → `Date.now()`) into one module-scope helper `sharedEpoch(get)` used by both `selectAMD` and `selectTrigger`.
-**When to use:** Mandatory — trigger reads `amd` output; evaluating trigger at a different instant than AMD would let §3 say accumulation while §4 fires manipulation.
-**Trade-offs:** Pro: single time truth, no torn reads. Con: touches `selectAMD` (working code) — mitigated by Phase 1 ordering (debt cleanup first, then this mechanical extract with existing `store.test.ts` green as gate).
+**What:** `report.ts` flips index-1 to `state: 'live'`; `report.tsx` adds a `section.index === 1` branch with the locked shape: `lastUpdatedISO === null` skeleton → `null`-selector `Məlumat yoxdur` (or leg-`lastError` verbatim) → live block with `data-slot="s1-pools"` prose. Fuses pool reason + existing sentiment-fixture crowded side (True AVG precedent in `module-1.tsx`): pools name *where* stops rest, sentiment names *which side is crowded* → pain direction sentence.
+**When to use:** the §1 build step.
+**Trade-offs:** §1 keeps the Module-1 fixture dependency (pro: crowded-long/short pain reading works day one with zero budget; con: §1 inherits the fixture-replaceable caveat — label it, as §3's `S3_NY_LINE` labels its unmeasured part).
 
-### Pattern 3: Ticket as Derived-Null Selector + Local-Input Slice
+### Pattern 7: Chart BSL/SSL as Asia-pair lines + 4th marker slot
 
-**What:** `selectTicket` derives from `selectTrigger + selectLevels + selectBias + selectRange`; returns `null` unless trigger fired and all inputs non-null. User inputs (direction lock, risk %, size) live in a small Zustand slice (`ticketInputs: { riskPct, size }` + setters), never in `ict/`.
-**When to use:** Paper ticket (§5) — levels are a pure derivation, size/risk are operator inputs.
-**Trade-offs:** Pro: no phantom tickets on stale/degraded data; inputs stay out of pure math (testable). Con: ticket panel needs both selector + slice subscriptions — follow the `selectLevels` stable-function-subscription precedent to avoid `useShallow` loops on fresh nested identities.
+**What:** `chart-mapper.ts` gains `poolLineInputs(pools)` (finite-guard, throws naming itself, caller wraps in try/catch — `asiaLineInputs` precedent). `nq-chart.tsx` gains optional `pools` props (arrays of finite prices, or the `PoolsOutput` directly), renders each leg independently (null/non-finite skipped, finite still render — ticket-legs precedent), `removePriceLine` unconditionally first (ghost-line precedent, D-10), stale-desaturate to `MUTED_GRAY`, thin-tier `opacityScale` untouched. Marker order extends J-S-T → J-S-T-P only if a pool-sweep pin is wanted; otherwise lines only (recommend lines-only in v3.1 — markers are for *events*, pools are *levels*).
+**When to use:** the overlay build step; lines-only is the opinionated default.
+**Trade-offs:** lines-only avoids marker crowding on the D1 canvas (pro: Asia-H/L + EQ/DOL + OTE + Entry/SL/TP1-3 already crowd the price axis; con: no at-a-glance swept-pool event — covered by Judas J pins + §1 prose instead).
 
 ## Data Flow
 
-### Request Flow
+### Request Flow (poll → selector → §1 + overlay)
 
 ```
-60s staggered poll (unchanged: :00 NQ / :15 nq1h / :30 ES / :45 nq15m)
-    ↓ per-leg envelope → leg state (stale isolated per leg, never merged)
-Derived selectors (all during render, math-free components):
-  selectJudas / selectSMT / selectAMD (existing)
-    → selectTrigger (NEW: shared asOf, refuse-null on nq1h/nq15m stale)
-    → selectFatalFlaw (NEW: refuse-null on nq/es stale; runs even when trigger null —
-         invalidation must be able to cancel a forming setup, not just a fired one)
-    → selectTicket (NEW: null unless trigger fired + levels/bias/range live)
-Render:
-  §4 block ← selectTrigger.reason verbatim │ ExecutionProtocol panel (center col)
-  §6 block ← selectFatalFlaw.reason verbatim │ FatalFlaw panel (right col)
-  §5 block ← selectTicket levels verbatim    │ TicketPanel (right col, slice inputs)
-  NqChart ← trigger pin (bar-date mapped at caller, T-09-03 precedent) + ticket lines
+60s dual-poll tick (unchanged: NQ D1 leg refreshes at :00)
+    ↓
+store.nq leg updated (envelope guard, coverage recompute — unchanged)
+    ↓
+selectPools() — NEW, render-pure derivation, same snapshot discipline as
+  selectTriggerPure/selectFatalFlaw (one sharedEpoch, read-only judas/smt)
+    ↓
+    ├→ report.tsx §1 branch — prints pools.reason verbatim + crowded-side
+    │   fusion (fixture True AVG) + s1 sub-slots; null → Məlumat yoxdur
+    └→ terminal-shell.tsx fan-out — pools prices → NqChart props
+        (containing-D1-bar mapping only if markers chosen; lines need no
+        bar dates) + overlayStale desaturation (nq.stale joins the OR)
 ```
 
 ### State Management
 
 ```
-Zustand store (single file, single instance)
-    ↓ subscribe
-Components ←→ selectors (pure derivation) → leg state; ticketInputs slice → selectTicket
+Zustand store (sole dashboard state — no Redux/Context)
+    ↓ subscribe (stable selector-function + derive-during-render;
+    │            useShallow only for flat shapes — selectLevels precedent)
+Report / NqChart / panels ←→ selectors → ict pure functions → leg candles
+Firing log / paper log untouched (pools never append — commitTriggerLog
+  remains the single logging path; pools add no log, no cap, no export)
 ```
-
-- Poll loop is untouched: no 5th timer, no 5M interval, no route change. `startDualPoll`/`stopDualPoll` and the mount-owns-first-poll discipline stay as-is.
-- Bar-date mapping for the trigger pin happens in `terminal-shell.tsx` at the caller (existing Judas `sweepTime`-epoch → containing D1 bar loop precedent), so marker `time` always equals a D1 candle date.
-- Overlay staleness reuses `overlayStale = nq1hStale || nq15mStale || esStale` — trigger pin desaturates to `MUTED_GRAY` with the existing tone, never clears (D-08 precedent).
 
 ### Key Data Flows
 
-1. **Trigger evaluation flow:** nq15m (Judas) + nq1h (Asia/AMD) + NQ/ES daily (SMT) + NQ daily (regime) → `evaluateTrigger` → §4 + center execution panel + chart pin.
-2. **Invalidation flow:** bias + DOL + Judas + SMT + trigger → `checkFatalFlaw` → §6 + right flaw panel; when `invalidated`, ticket panel renders the flaw reason instead of levels (explicit precedence: flaw > ticket).
-3. **Ticket flow:** trigger fired + levels/bias/range + `ticketInputs` slice → `computeTicket` → §5 + right ticket panel + chart entry/SL/TP lines.
+1. **Pools derivation (NEW):** `nq.candles` → `selectPools` → `evaluatePools` (+ read-only `selectJudas`/`selectSMT`) → `PoolsOutput` → §1 prose + chart lines. ES leg never feeds pool geometry (ES confirms only, via the SMT tag — D1-anchor discipline from `selectRange` D-07).
+2. **Swept-state (NEW, composed):** `selectJudas` confirmed sweep → pools at/beyond the swept extreme flip `swept: true` → §1 names "swept vs resting" and the chart optionally dims swept lines. Never the reverse (pools never invalidate judas).
+3. **TP-ladder (DEFERRED, not v3.1):** `resolveTP` TP2 currently reads `dol.price`; a future milestone may read ranked pools as TP2 candidates. v3.1 wires nothing — the seam is documented, not built.
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| Current (single terminal, 4 legs × 60s) | No change needed. Trigger/flaw/ticket are O(candles) pure derivations during render — same cost class as existing selectors. |
-| More polling pressure (extra symbols) | Not in v3.0 scope; per-leg singleflight + independent stale already isolate failure. Do not add legs for Modul 4. |
-| Threshold calibration over live observation | Thresholds are exported consts (`TRIGGER_*`, flaw gates) pinned by tests — recalibration is a const change + test re-pin, never a shape change. |
+| Current (20–60 D1 bars, 1 symbol) | Nothing — pool scan is O(n·k) over closed rows, trivially under frame budget; trailing-20 cap bounds DOM lines |
+| 1H/15M pool projection (if ever) | Reuse the same module with intraday rows (asia/judas precedent: separate selector, NY wall-clock session scoping) — do NOT widen the D1 scan to intraday implicitly |
+| Multi-symbol (if ever) | Pools stay per-symbol pure; ES pools would be a second `selectPoolsES` call, never a merged cross-symbol inventory (dual-leg D-01/D-06 precedent) |
 
 ### Scaling Priorities
 
-1. **First bottleneck:** render-time derivation cost as selectors grow (7 → 10). Mitigation already proven: stable selector-function subscription + derivation during render (`selectLevels` precedent) — apply to all three new selectors, never `useShallow` on their outputs.
-2. **Second bottleneck:** none architectural. Yahoo quota is the ceiling and v3.0 adds zero requests.
+1. **First bottleneck:** price-line count on the D1 canvas (Asia 2 + EQ/DOL 2 + Q1/Q3/OTE 4 + ticket 5 = 13 already). Cap rendered pool lines to nearest-2-per-side (4 max) — rank in math, truncate at the shell→chart prop boundary with a named constant, test-pinned.
+2. **Second bottleneck:** §1 prose length. Name at most 2 BSL + 2 SSL pools with prices; full inventory stays in the `PoolsOutput` object for tests/replay, never on screen.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Trigger Math Inside Components or the Store Body
+### Anti-Pattern 1: Re-implementing swing or sweep detection inside pools
 
-**What people do:** Compute fired/not inline in `execution-protocol.tsx` or inside the `create()` body with `Date.now()`.
-**Why it's wrong:** Violates the purity constraint (untestable, unextractable), duplicates gate logic between §4 and the panel, and tears time between AMD and trigger.
-**Do this instead:** `evaluateTrigger` in `src/lib/ict/trigger.ts` (injected `asOf`); store only orchestrates inputs; components only render `.reason`.
+**What people do:** write a second fractal loop with different `k`, or a second wick-pierce sweep check, because "pools feel different."
+**Why it's wrong:** two swing truths diverge on equality-boundary bars (strict `>`/`>=` discipline in `isSwingHigh`/`isSwingLow`); two sweep truths disagree on killzone edges and the trigger/flaw chain (which reads judas, not pools) contradicts §1 prose on the same snapshot.
+**Do this instead:** import swing predicates from `smt.ts`; consume `JudasOutput` read-only for swept-state. One swing truth, one sweep truth.
 
-### Anti-Pattern 2: Merged Stale Boolean or Cross-Leg Substitution
+### Anti-Pattern 2: Making pools a 4th trigger gate or ticket input in v3.1
 
-**What people do:** Add a top-level `stale` covering trigger inputs, or fall back to ES rows when NQ 15M is stale.
-**Why it's wrong:** D-06 violation the codebase explicitly guards per leg; a merged flag would fire triggers on half-stale data.
-**Do this instead:** Refuse `null` per owning leg (`nq15m.stale` → trigger null; `es.stale` → SMT null → trigger degrades honestly); reasons ride in `leg.lastError` verbatim per the §3 pattern.
+**What people do:** wire `pools` into `TriggerInput` gates or `TicketInput` TP-resolution "while we're here."
+**Why it's wrong:** invalidates every CALIBRATION-PROVISIONAL threshold, breaks the 5-rule parity harness and 20-session replay baselines, and re-opens the §§4–6 UAT that just passed 10/10. Scope creep with a calibration bill.
+**Do this instead:** read-only agree-tag at most; gate/TP integration is a later milestone with its own replay + calibration plan.
 
-### Anti-Pattern 3: Numeric Conviction / Fake-Precision Ticket
+### Anti-Pattern 3: Interpolating prices into verbatim reasons
 
-**What people do:** Score the trigger 0–100, show percentage fill probability, or render ticket levels from thin/degraded ranges without marking.
-**Why it's wrong:** `confluence.ts` no-fake-precision rule + thin-tier honesty (uniform 0.5 dimming, persistent banner). A 78% trigger or full-strength ticket on 12 candles destroys the terminal's honest-degrade contract.
-**Do this instead:** Discrete states only (`fired`/`waiting`, tier words from `deriveConvictionTier`); ticket inherits thin dimming and refuses null on `range-thin` unless explicitly designed otherwise in the phase plan.
+**What people do:** template pool prices into the Azerbaijani reason string for "precision."
+**Why it's wrong:** breaks the `toBe`-pinned verbatim contract (trigger.ts D-09, invalidation.ts D-04/D-10) — every poll tick with a new price becomes a new string, untestable and untranslatable. Prices render in dedicated numeric slots (`toFixed(2)` — ticket-panel precedent), prose stays fixed.
+**Do this instead:** fixed reason templates keyed by pool-state (e.g. `BSL_RESTING` / `SSL_SWEPT` / `BALANCED`), prices in adjacent numeric lines.
 
-### Anti-Pattern 4: Broker-Shaped Abstractions
+### Anti-Pattern 4: Chart markers for resting levels
 
-**What people do:** `submitOrder()`, `OrderStatus`, broker adapter interfaces "for later".
-**Why it's wrong:** Paper ticket is explicitly no-broker (PROJECT.md out-of-scope lineage: fixtures over real APIs, rule-based over LLM). Dead abstraction rots and confuses the audit.
-**Do this instead:** `computeTicket` returns display levels + risk arithmetic only; panel copy says paper explicitly; no submit path, no status enum.
+**What people do:** pin a marker per pool on the canvas.
+**Why it's wrong:** markers denote *events at a bar time* (J/S/T pins with containing-bar mapping); resting pools are *levels across time* — markers would need fake bar dates, lie on the time axis, and crowd the J-S-T order into alphabet soup.
+**Do this instead:** dashed price lines for pools (Asia-pair precedent); reserve markers for a pool-*sweep event* only, and only if §1 prose needs canvas backup (it doesn't — Judas J pins already mark sweeps).
+
+### Anti-Pattern 5: Reading clocks or the store inside `liquidity-pools.ts`
+
+**What people do:** call `Date.now()` for `asOf` or import the store "for judas."
+**Why it's wrong:** trips the co-located `purity.test.ts` grep guard, kills monorepo extraction, makes replay non-deterministic.
+**Do this instead:** `asOf` (epoch or date string) and judas/smt envelopes are parameters — time at the caller boundary only (`sharedEpoch` precedent).
 
 ## Integration Points
 
@@ -223,33 +266,44 @@ Components ←→ selectors (pure derivation) → leg state; ticketInputs slice 
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| Yahoo proxy (`app/api/yahoo`) | No change — existing `?symbol=&interval=` legs reused | Do NOT add `5m`/`1m` intervals; allowlist + quota + zero-budget all forbid it. §4 copy must disclose 15M-close gating. |
-| Vercel Hobby | No change — zero new routes, zero new fetch volume | Trigger evaluation is client-side derivation; no `maxDuration` or cache-header work. |
+| Yahoo proxy (`/api/yahoo`, NQ D1 leg) | Unchanged — pools read `store.nq` post-envelope-guard | No new symbol, interval, or TTL; 60s CDN + serve-stale + backoff untouched |
+| Yahoo ES D1 leg | Read-only confirmation context via `selectSMT` only | Never pool geometry input (D1-anchor discipline); stale ES degrades the agree-tag, never nulls pools unless the design explicitly says so (recommend: ES-stale dims tag, pools still render — document the choice) |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| trigger.ts ↔ amd/judas/smt | Reads output objects, never mutates (amd `smtTag` read-only precedent) | Boundary `throw` on malformed Judas (amd `assertValidJudas` precedent, WR-05 lesson). |
-| invalidation.ts ↔ trigger | Reads `TriggerOutput`; flaw precedence over ticket decided in render, not inside either pure fn | Keeps both fns independently testable; precedence is a 3-line render branch. |
-| ticket.ts ↔ store | `computeTicket` takes plain inputs; `selectTicket` wires legs + slice | No store import inside `ticket.ts` (confluence precedent). |
-| report.tsx §4/§5/§6 ↔ selectors | Verbatim reasons + locked `Məlumat yoxdur`-family fallbacks + per-leg `lastError` | Copy the §3 block structure; add `S4_/S5_/S6_` constants, do not reuse `S3_EMPTY_COPY` across sections (grep-ability). |
-| nq-chart.tsx ↔ shell | New optional props only; `buildOverlayMarkers` gains trigger 3rd (Judas→SMT→Trigger order); ticket lines reuse remove-then-create cycle | Phase 1 FIRST fixes the dead `thinHistory` arg in the `zoneBands` getter call + orphaned `thinTier` export/type so new overlay work lands on clean code. `zoneBands()` itself ignores thin history (takes only high/low/eq) — dimming stays via `opacityScale`, never compounded. |
-| store.test.ts / selector tests | New gate tables for trigger thresholds, flaw precedence, ticket null-matrix | Threshold consts pinned by tests so live-observation recalibration is deliberate. |
+| `liquidity-pools.ts` ↔ `smt.ts` | Direct import of `isSwingHigh`/`isSwingLow`/`SWING_K` | Same-family reuse; pin K-behavior in pools tests so SMT retunes surface loudly |
+| `liquidity-pools.ts` ↔ `judas.ts` | Type-only + read-only `JudasOutput` param (never calls `judasSwing`) | Selector composes; pools never imports Asia/session clocks |
+| `selectPools` ↔ `selectJudas`/`selectSMT`/`selectRange`/`selectAsia` | Selector-to-selector reads inside one try/catch, one `sharedEpoch` | Follows `selectTicket` single-snapshot chain; report reads `selectPools` only, never detectors directly |
+| `selectPools` ↔ `report.tsx` §1 | `PoolsOutput.reason` verbatim + leg-`lastError` fallback chain | New `s1-*` data-slots (`s1-pain-direction`, `s1-bsl`, `s1-ssl`); locked `UNAVAILABLE` chip pattern untouched elsewhere |
+| `terminal-shell.tsx` ↔ `nq-chart.tsx` | New optional `pools*` props (nullable arrays or `PoolsOutput`), `poolLineInputs` guard | Remove-then-create + unconditional-removal clearing (STAND-ASIDE ghost-line precedent); `overlayStale` OR-gate gains `nq.stale` if not already covered |
+| `pools` ↔ `trigger`/`ticket`/`invalidation` | NONE in v3.1 (agree-tag at most, no type change to `TriggerInput`/`TicketInput`/`FatalFlawInput`) | Explicit non-integration is the decision — recalibration deferred by design |
+| `REPORT_SECTIONS` §1 | `{ index: 1, … state: 'live' }` + title kept (`1. RETAIL EXPOSURE & SENTIMENT ENGINEERING`) | Title unchanged (report shape stable since v1.0); pools + sentiment fixtures fuse inside the live block |
 
-## Suggested Build Order (with v2.1 debt + dependencies)
+## Suggested Build Order (dependency-respecting)
 
-1. **Phase 1 — Debt cleanup (unblocks everything touching the chart):** dead `thinHistory` arg in `nq-chart.tsx` zone-fill getter + orphaned `thinTier` export/type in `thin-tier.ts` (+ Asia note docs). Rationale: trigger pin + ticket lines edit the same effect blocks; landing debt first avoids merge-shape conflicts.
-2. **Trigger core:** `trigger.ts` + tests → `selectTrigger` (with `sharedEpoch` extract) → §4 live block → execution panel (replaces `data-slot="execution-protocol"` card) → chart pin. Rationale: everything else keys off `fired`.
-3. **Fatal flaw:** `invalidation.ts` + tests → `selectFatalFlaw` → §6 live block → flaw panel (replaces `data-slot="fatal-flaw"` card) + ticket-suppression branch. Rationale: independent pure fn but render precedence needs trigger present.
-4. **Paper ticket:** `ticket.ts` + tests → `ticketInputs` slice + `selectTicket` → §5 live block → ticket panel (replaces `data-slot="ticket"` card) → chart entry/SL/TP lines. Rationale: terminal step; depends on trigger + flaw precedence.
-5. **Calibration + UAT:** threshold review against live observation notes (Judas confirm rate, SMT rollover behavior per PROJECT.md), `REPORT_SECTIONS` flip verification, overlay staleness drill (stale leg → gray pin, never cleared).
+1. **Pools math** — `src/lib/ict/liquidity-pools.ts` + `liquidity-pools.test.ts`: swing inventory → BSL/SSL split → proximity rank → trailing cap → fixed verbatim reasons. Boundary tests first (empty, single-bar, equality-touch-is-not-a-swing, unsorted-input, non-finite rows drop). No store, no UI.
+2. **`selectPools` selector** — `store.ts` addition + store tests: refuse-null matrix (stale NQ, empty NQ, ES-stale tag-dim), sharedEpoch single-call, never-throws, read-only judas/smt composition. No render yet.
+3. **§1 live report** — `report.ts` flip + `report.tsx` §1 branch + report tests: skeleton/empty/leg-error/live states, `s1-*` slots, sentiment-crowded fusion copy, banned-word quarantine. Chart untouched.
+4. **Chart overlay** — `chart-mapper.ts` `poolLineInputs` + `nq-chart.tsx` lines (+ shell fan-out) + chart/mapper tests: per-leg independence, ghost-line clearing, stale-dim, 4-line render cap, null-clears. Verbatim prose untouched.
+5. **Execution polish** — WHY NOW threshold calibration review (firing-log JSON analysis — pools add context rows only if the calibration plan says so), ticket UX micro-tuning, firing-log analysis docs. No math changes without replay evidence.
+
+Each step ships independently verifiable (unit + UAT slice) and step N+1 never re-opens step N's green tests — the v3.0 phase discipline (17 plans, 420/420) applied to v3.1 scope.
 
 ## Sources
 
-- Codebase direct reads (HIGH): `src/lib/store.ts` (selectors, 4-leg poll grid, refuse-null envelopes), `src/lib/ict/amd.ts` (fusion + boundary-throw precedent), `src/lib/confluence.ts` (selector-level purity precedent), `src/lib/report.ts` (§4/§5/§6 currently `unavailable`), `components/dashboard/report.tsx` (§3 verbatim prose precedent), `components/dashboard/terminal-shell.tsx` (3 replaceable UNAVAILABLE cards, bar-date mapping, `overlayStale`), `components/charts/nq-chart.tsx` (marker ordering, price-line cycle, dead `thinHistory` arg site), `src/lib/thin-tier.ts` (orphaned export site), `app/api/yahoo/route.ts` (allowlist, 60s cache).
-- `.planning/PROJECT.md` (HIGH): v3.0 goal, Phase 1 debt list, zero-budget/purity/Zustand constraints, no-broker scope.
+- `src/lib/ict/smt.ts` — swing predicates, `SWING_K`/`SWING_LOOKBACK`/`SMT_TOL_BPS`, time-anchored pairing, correlation + rollover gate order
+- `src/lib/ict/judas.ts` — three-gate sweep, killzone edges, displacement denominator, preRun/candidate/confirmed states
+- `src/lib/ict/fvg.ts` — trailing-20 inventory, mitigation shape, verbatim prose precedent
+- `src/lib/ict/range.ts`, `levels.ts`, `dol.ts`, `asia.ts`, `amd.ts` — anchors, pockets, DOL, proximal pools, fusion/tag idioms
+- `src/lib/ict/trigger.ts`, `invalidation.ts` — single-snapshot chain, read-only SMT tag, HARD/SOFT flaw, verbatim + challenge-bank contracts
+- `src/lib/store.ts` — selector envelopes, `sharedEpoch`, pure-vs-commit split, per-leg stale discipline, four-leg poll grid
+- `src/lib/ticket.ts` — brokerage/ict boundary, structure-first TP ladder (pools→TP2 deferred seam)
+- `src/lib/report.ts`, `src/lib/chart-mapper.ts`, `src/lib/thin-tier.ts` — section contract, line-input guards, honesty dimming
+- `components/dashboard/terminal-shell.tsx`, `report.tsx`, `components/charts/nq-chart.tsx` — fan-out seam, branch shapes, overlay cycles
+- `src/lib/ict/purity.test.ts` — purity guard covering the new module for free
 
 ---
-*Architecture research for: v3.0 Execution (Modul 4) — WHY NOW + fatal flaw + paper ticket*
-*Researched: 2026-09-09*
+*Architecture research for: BSL/SSL Pain Threshold map (v3.1 §1 + overlay)*
+*Researched: 2026-09-15*
