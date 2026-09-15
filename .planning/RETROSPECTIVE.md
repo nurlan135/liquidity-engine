@@ -2,6 +2,42 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.0 — Execution (Modul 4)
+
+**Shipped:** 2026-09-15
+**Phases:** 5 (14–18) | **Plans:** 17 | **Tasks:** 45 | **Timeline:** 6 days (2026-09-09 → 2026-09-15)
+
+### What Was Built
+- Audit debt cleanup: zoneBands narrowed, thin-tier surface shrunk to 4 public names, co-located ict purity guard green — zero behavior change
+- WHY NOW trigger: three-gate FIRE/ARMED/QUIET engine with per-session cooldown, capped firing log + calibration-JSON export, CALIBRATION-PROVISIONAL thresholds (1–4/week band)
+- Fatal-flaw invalidation: HARD vs SOFT split on the shared snapshot, falsifiable sentence + Azerbaijani challenge bank, live report §6
+- Paper ticket: fixed-order derivation with R/R ≥ 1:3 gate and risk÷distance sizing, §§4–6 live UI + KAĞIZ/PAPER banner + chart T pin with entry/SL/TP lines, banned-word quarantine green
+- Verification harness: 20-session replay with transition table + calibration summary, 5-rule parity harness, stale-leg matrix drill — 420/420 tests, UAT 10/10
+
+### What Worked
+- Strictly sequential phasing (trigger → flaw → ticket → verification) — each layer built on proven contracts, 17-05 gap closure was surgical not structural
+- Co-located tests + purity guard kept the ict/ surface honest across 5 phases with zero refactors
+- Screenshot-driven debug audit (terminal-screenshot-audit): 7 claims verified-then-fixed, 6 refuted with evidence, 1 real defect fixed — cheap confidence
+
+### What Was Inefficient
+- Executor subagent stalls on 18-01/18-02 forced inline recovery — same task boundaries, but orchestrator context cost
+- REQUIREMENTS.md checkboxes drifted from SUMMARY reality (TRIG/FLAW/TICK/VERF unchecked though all proven) — close-time reconciliation needed
+- 17-05 gap closure needed because flaw-after-trigger same-snapshot contract broke silently at composition time
+
+### Patterns Established
+- Flaw-first routing: checkFatalFlaw before computeTicket everywhere, mirroring selectTicket order
+- Degraded-with-provenance envelopes (stale/thin leg tags) instead of silent fallbacks
+- Verbatim Azerbaijani reason pins with toBe — prose is a contract, not decoration
+
+### Key Lessons
+1. Composition phases need a same-snapshot contract test at composition time, not a later gap phase.
+2. Keep REQUIREMENTS.md checkboxes in sync at phase completion — drift compounds at close.
+3. Verify-then-fix screenshot audits are cheap: most claims refute fast, real defects surface precisely.
+
+### Cost Observations
+- Sessions: ~10 across 6 days
+- Notable: inline recovery cheaper than re-dispatching stalled subagents
+
 ## Milestone: v1.0 — Live Terminal
 
 **Shipped:** 2026-09-06

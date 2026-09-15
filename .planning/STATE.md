@@ -22,10 +22,10 @@ current_phase_name: Verification + Calibration Harness
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-09 after v3.0 milestone start)
+See: .planning/PROJECT.md (updated 2026-09-15 after v3.0 milestone)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 18 — Verification + Calibration Harness
+**Current focus:** Planning next milestone (v3.1: Pain Threshold §1 + execution polish)
 
 ## Current Position
 
