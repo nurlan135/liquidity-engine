@@ -3,6 +3,8 @@ import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
 import { evaluateTrigger } from '@/src/lib/ict/trigger';
 import type { TriggerOutput } from '@/src/lib/ict/trigger';
+import { checkFatalFlaw } from '@/src/lib/ict/invalidation';
+import type { FatalFlawOutput } from '@/src/lib/ict/invalidation';
 import type { AmdOutput } from '@/src/lib/ict/amd';
 import type { JudasOutput, SweepSide } from '@/src/lib/ict/judas';
 import type { SmtOutput } from '@/src/lib/ict/smt';
@@ -307,5 +309,116 @@ describe('parity: full contradiction roster with ARMED-key and AMD rules', () =>
     // parity predicate still runs on whatever verdict the bar carries.
     expect(out.gates.timing).toBe(false);
     expect(typeof parityClean(out, triple.smt)).toBe('boolean');
+  });
+});
+
+// Task 3 hardening: suppressed-SMT pair semantics plus SOFT-gating guard plus
+// ARMED-or-better sweep. The read-only contract pitfall: suppressed SMT never
+// blocks FIRE at trigger layer — the flaw layer carries the SOFT downgrade.
+// For every suppressed FIRE bar the pair is asserted (trigger stays FIRE,
+// flaw returns SOFT SMT_SUPPRESSED with carrier); for suppressed ARMED bars
+// the flaw must stand clean (SOFT gates on FIRING only). Test-assertion-only
+// surface: no UI indicator, no new exports, no store imports.
+const FRESH_LEGS = { nq: false, es: false, nq1h: false, nq15m: false };
+
+function flawOf(
+  trigger: TriggerOutput,
+  triple: ParityTriple,
+): FatalFlawOutput {
+  return checkFatalFlaw({
+    trigger,
+    smt: triple.smt,
+    judas: triple.judas,
+    rollover: null,
+    stale: FRESH_LEGS,
+    asOf: triple.asOf,
+  });
+}
+
+describe('parity: suppressed-SMT pairs plus SOFT-gating guard plus sweep', () => {
+  it('pairs every suppressed-SMT FIRE with a SOFT SMT_SUPPRESSED carrier', () => {
+    for (const side of ['LOW', 'HIGH'] as const) {
+      const triple = firingTriple(side, suppressedSmt());
+      const out = evaluateTrigger({
+        judas: triple.judas,
+        amd: triple.amd,
+        smt: triple.smt,
+        fvg: triple.fvg,
+        asOf: triple.asOf,
+        alreadyFired: false,
+      });
+      expect(out.verdict === 'FIRE_LONG' || out.verdict === 'FIRE_SHORT').toBe(true);
+      const flaw = flawOf(out, triple);
+      expect(flaw.flawClass).toBe('SOFT');
+      expect(flaw.reasonKey).toBe('SMT_SUPPRESSED');
+      expect(flaw.downgraded).toBe(true);
+      expect(flaw.carriedArmedReason).toBe(out.reasonKey);
+    }
+  });
+
+  it('leaves suppressed-SMT ARMED bars clean with no downgrade applied', () => {
+    const nyDate = '2026-06-15';
+    const triple: ParityTriple = {
+      judas: fixtureTriggerJudas({
+        candidate: true,
+        confirmed: false,
+        sweepSide: 'LOW',
+        sweepTime: nyMinuteEpoch(nyDate, '03:00'),
+        displacementMult: 0.6,
+      }),
+      amd: null,
+      smt: suppressedSmt(),
+      fvg: [fixtureFvg('BULLISH', 15)],
+      asOf: nyMinuteEpoch(nyDate, '03:00'),
+    };
+    const out = evaluateTrigger({
+      judas: triple.judas,
+      amd: triple.amd,
+      smt: triple.smt,
+      fvg: triple.fvg,
+      asOf: triple.asOf,
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('ARMED');
+    const flaw = flawOf(out, triple);
+    expect(flaw.downgraded).toBe(false);
+    expect(flaw.reasonKey).toBe('NONE');
+    expect(flaw.flawClass).toBe(null);
+  });
+
+  it('sweeps the full roster over every ARMED-or-better bar with zero contradictions', () => {
+    const bars: ParityTriple[] = [
+      firingTriple('HIGH', signalSmt('BEARISH')),
+      firingTriple('LOW', signalSmt('BULLISH')),
+      firingTriple('HIGH', suppressedSmt()),
+      firingTriple('LOW', suppressedSmt()),
+    ];
+    let swept = 0;
+    for (const triple of bars) {
+      const out = evaluateTrigger({
+        judas: triple.judas,
+        amd: triple.amd,
+        smt: triple.smt,
+        fvg: triple.fvg,
+        asOf: triple.asOf,
+        alreadyFired: false,
+      });
+      const armedOrBetter = out.verdict === 'ARMED' || out.verdict === 'FIRE_LONG' || out.verdict === 'FIRE_SHORT';
+      expect(armedOrBetter).toBe(true);
+      swept += 1;
+      // The identical shared triple feeds the trigger and every predicate.
+      expect(out.inputs.judas).toBe(triple.judas);
+      expect(out.inputs.smt).toBe(triple.smt);
+      expect(parityClean(out, triple.smt)).toBe(true);
+      expect(amdAccumulationContradicts(makeAmd('manipulation'), out)).toBe(false);
+      const flaw = flawOf(out, triple);
+      if (triple.smt.suppressed === true) {
+        expect(flaw.flawClass).toBe('SOFT');
+        expect(flaw.reasonKey).toBe('SMT_SUPPRESSED');
+      } else {
+        expect(flaw.reasonKey).toBe('NONE');
+      }
+    }
+    expect(swept).toBe(4);
   });
 });
