@@ -1,19 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 18-verification-calibration-harness
 source: 18-01-SUMMARY.md, 18-02-SUMMARY.md, 18-03-SUMMARY.md
 started: 2026-09-15T15:35:00Z
-updated: 2026-09-15T15:35:00Z
+updated: 2026-09-15T15:40:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Confirm auto-verified harnesses
-expected: |
-  All three Phase 18 harnesses (replay, parity, stale-drill) are green via their
-  automated vitest suites plus the full npm suite. Confirm acceptance.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -73,14 +68,14 @@ coverage_id: D3
 
 ### 10. Confirm auto-verified harnesses
 expected: All three Phase 18 harnesses green via automated suites; user confirms acceptance
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 10
-passed: 9
+passed: 10
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
