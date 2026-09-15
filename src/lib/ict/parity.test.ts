@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fromZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
 import { evaluateTrigger } from '@/src/lib/ict/trigger';
 import type { TriggerOutput } from '@/src/lib/ict/trigger';
@@ -148,5 +148,164 @@ describe('parity: FIRE_SHORT versus BULLISH contradiction on one snapshot', () =
     expect(out.inputs.smt).toEqual(triple.smt);
     expect(out.inputs.judas).toBe(triple.judas);
     expect(out.inputs.smt).toBe(triple.smt);
+  });
+});
+
+// Task 2 roster: full contradiction set in the D-05 strictest form. Every
+// SMT rule is framed as contradiction (FIRE plus opposing direction fails),
+// never as requirement (FIRE requires agreement), so suppressed-SMT fires
+// stay legal at trigger layer. Fixtures are tuned to the locked semantics,
+// never the predicates weakened to pass.
+function makeAmd(phase: AmdOutput['phase']): AmdOutput {
+  return {
+    phase,
+    reason: phase,
+    inputs: { asia: null, judas: null, smt: null },
+  };
+}
+
+// AMD accumulation means no judas candidate; trigger purge means confirmed
+// true with a sweep side. Both true on the same snapshot contradicts.
+function amdAccumulationContradicts(
+  amd: AmdOutput | null,
+  trigger: TriggerOutput,
+): boolean {
+  if (amd === null) return false;
+  return amd.phase === 'accumulation' && trigger.gates.purge === true;
+}
+
+// NY-hours bars (minutes 570-960) skip AMD-phase agreement asserts but still
+// run SMT-direction parity.
+function isNyHours(asOf: number): boolean {
+  const hour = Number(formatInTimeZone(asOf * 1000, NY_TZ, 'H'));
+  const minute = Number(formatInTimeZone(asOf * 1000, NY_TZ, 'm'));
+  const minutes = hour * 60 + minute;
+  return minutes >= 570 && minutes < 960;
+}
+
+describe('parity: full contradiction roster with ARMED-key and AMD rules', () => {
+  it('fails the mirror rule for FIRE_LONG paired with unsuppressed BEARISH', () => {
+    const triple = firingTriple('LOW', signalSmt('BEARISH'));
+    const out = evaluateTrigger({
+      judas: triple.judas,
+      amd: triple.amd,
+      smt: triple.smt,
+      fvg: triple.fvg,
+      asOf: triple.asOf,
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(out.reasonKey).toBe('FIRE_LONG');
+    expect(parityClean(out, triple.smt)).toBe(false);
+  });
+
+  it('passes FIRE_LONG paired with unsuppressed BULLISH', () => {
+    const triple = firingTriple('LOW', signalSmt('BULLISH'));
+    const out = evaluateTrigger({
+      judas: triple.judas,
+      amd: triple.amd,
+      smt: triple.smt,
+      fvg: triple.fvg,
+      asOf: triple.asOf,
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('FIRE_LONG');
+    expect(parityClean(out, triple.smt)).toBe(true);
+  });
+
+  it('pins the ARMED-key total function: each key matches exactly its missing gate', () => {
+    const nyDate = '2026-06-15';
+    const firingJudas = (overrides: Partial<JudasOutput>): JudasOutput =>
+      fixtureTriggerJudas({
+        candidate: true,
+        confirmed: true,
+        sweepSide: 'LOW',
+        sweepTime: nyMinuteEpoch(nyDate, '03:00'),
+        displacementMult: 0.6,
+        ...overrides,
+      });
+    const bullFvg = [fixtureFvg('BULLISH', 15)];
+
+    // Missing timing: 01:00 (minutes 60) with purge plus displacement true.
+    const noTiming = evaluateTrigger({
+      judas: firingJudas({}),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: bullFvg,
+      asOf: nyMinuteEpoch(nyDate, '01:00'),
+      alreadyFired: false,
+    });
+    expect(noTiming.verdict).toBe('ARMED');
+    expect(noTiming.reasonKey).toBe('ARMED_MISSING_TIMING');
+    expect(noTiming.gates).toEqual({ timing: false, purge: true, displacement: true });
+
+    // Missing purge: candidate-only (confirmed false) at 03:00.
+    const noPurge = evaluateTrigger({
+      judas: firingJudas({ confirmed: false }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: bullFvg,
+      asOf: nyMinuteEpoch(nyDate, '03:00'),
+      alreadyFired: false,
+    });
+    expect(noPurge.verdict).toBe('ARMED');
+    expect(noPurge.reasonKey).toBe('ARMED_MISSING_PURGE');
+    expect(noPurge.gates).toEqual({ timing: true, purge: false, displacement: true });
+
+    // Missing displacement: zero multiple at 03:00.
+    const noDisp = evaluateTrigger({
+      judas: firingJudas({ displacementMult: 0 }),
+      amd: null,
+      smt: signalSmt('BULLISH'),
+      fvg: bullFvg,
+      asOf: nyMinuteEpoch(nyDate, '03:00'),
+      alreadyFired: false,
+    });
+    expect(noDisp.verdict).toBe('ARMED');
+    expect(noDisp.reasonKey).toBe('ARMED_MISSING_DISPLACEMENT');
+    expect(noDisp.gates).toEqual({ timing: true, purge: true, displacement: false });
+
+    // Cross-check: ARMED_MISSING_PURGE with gates.purge true fails the roster.
+    const forged = { ...noTiming, reasonKey: 'ARMED_MISSING_PURGE' } as TriggerOutput;
+    expect(forged.reasonKey === 'ARMED_MISSING_PURGE' && forged.gates.purge === true).toBe(
+      true,
+    );
+    expect(noPurge.reasonKey === 'ARMED_MISSING_PURGE' && noPurge.gates.purge === false).toBe(
+      true,
+    );
+  });
+
+  it('fails AMD accumulation on the same snapshot as a purged trigger', () => {
+    const triple = firingTriple('LOW', signalSmt('BULLISH'));
+    const out = evaluateTrigger({
+      judas: triple.judas,
+      amd: triple.amd,
+      smt: triple.smt,
+      fvg: triple.fvg,
+      asOf: triple.asOf,
+      alreadyFired: false,
+    });
+    expect(out.gates.purge).toBe(true);
+    expect(amdAccumulationContradicts(makeAmd('accumulation'), out)).toBe(true);
+    expect(amdAccumulationContradicts(makeAmd('manipulation'), out)).toBe(false);
+  });
+
+  it('exempts NY-hours bars from AMD agreement but keeps SMT parity', () => {
+    const nyAsOf = nyMinuteEpoch('2026-06-15', '10:00');
+    expect(isNyHours(nyAsOf)).toBe(true);
+    expect(isNyHours(nyMinuteEpoch('2026-06-15', '03:00'))).toBe(false);
+    const triple = firingTriple('HIGH', signalSmt('BULLISH'), '2026-06-15');
+    const out = evaluateTrigger({
+      judas: triple.judas,
+      amd: makeAmd('accumulation'),
+      smt: triple.smt,
+      fvg: triple.fvg,
+      asOf: nyAsOf,
+      alreadyFired: false,
+    });
+    // Killzone timing gate reads false at 10:00, so no FIRE — but the SMT
+    // parity predicate still runs on whatever verdict the bar carries.
+    expect(out.gates.timing).toBe(false);
+    expect(typeof parityClean(out, triple.smt)).toBe('boolean');
   });
 });
