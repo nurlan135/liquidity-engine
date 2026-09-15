@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v3.1
 milestone_name: Pain Threshold + Execution Polish
 status: planning
-last_updated: "2026-09-15T12:21:37.408Z"
+last_updated: "2026-09-15T12:00:00.000Z"
 last_activity: 2026-09-15
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,23 +17,24 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-15 after v3.0 milestone)
+See: .planning/PROJECT.md (updated 2026-09-15 after v3.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Planning next milestone (v3.1: Pain Threshold §1 + execution polish)
+**Current focus:** Phase 19 Pools Math (v3.1 milestone, roadmap created)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-09-15 — Milestone v3.1 started
+Phase: 19 of 21 (Pools Math)
+Plan: — (ready to plan)
+Status: Ready to plan Phase 19
+Last activity: 2026-09-15 — v3.1 roadmap created (Phases 19–21)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-
-- Total plans completed: 3 (v3.0); 37 cumulative across v1.0/v2.0/v2.1
+- Total plans completed: 0 (v3.1); 54 cumulative across v1.0/v2.0/v2.1/v3.0
 - Average duration: ~25 min (historical)
 - Total execution time: —
 
@@ -41,24 +42,14 @@ Last activity: 2026-09-15 — Milestone v3.1 started
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 14 | 0 | - | - |
-| 15 | 0 | - | - |
-| 16 | 3 | - | - |
-| 17 | 0 | - | - |
-| 18 | 0 | - | - |
+| 19 | 0 | - | - |
+| 20 | 0 | - | - |
+| 21 | 0 | - | - |
 
 **Recent Trend:**
-
-- v3.0 not started — no trend yet
+- v3.1 not started — no trend yet
 
 *Updated after each plan completion*
-**Per-Plan Metrics:**
-
-| Plan | Duration | Tasks | Files |
-|------|----------|-------|-------|
-| Phase 14 P01 | ~5 min | 3 tasks | 3 files |
-| Phase 17-paper-ticket-4-6-live-ui-chart-pins P01 | 36 min | 3 tasks | 4 files |
-| Phase 17-paper-ticket-4-6-live-ui-chart-pins P03 | 60 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -67,16 +58,11 @@ Last activity: 2026-09-15 — Milestone v3.1 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap 2026-09-09]: v3.0 continues numbering at Phase 14 (v2.1 ended at Phase 13); 5 phases from research order: debt cleanup + purity guard → WHY NOW trigger → fatal-flaw invalidation → paper ticket + §§4–6 UI + chart pins → verification + calibration harness
-- [Roadmap 2026-09-09]: Strictly sequential phases — trigger before flaw (flaw-wins ordering needs the real trigger snapshot), flaw before ticket (SL is an input to R/R, R/R gates EXECUTE), verification last (fire-rate/kill-rate/parity are population properties)
-- [Roadmap 2026-09-09]: Phase 17 carries `UI hint: yes` (§§4–6 panels + PAPER chrome + chart pins) — `/gsd-ui-phase` applies at plan time
-- [Research 2026-09-09]: WHY NOW thresholds ship as named `CALIBRATION-PROVISIONAL` constants + firing log in the same phase as the trigger; pre-agreed acceptance band 1–4 fires/week; 15M-close-gated execution, no 5M leg
-- [Research 2026-09-09]: Ticket math lives in `src/lib/ticket.ts` outside `ict/` (brokerage math, not ICT methodology — same precedent as `confluence.ts`); paper-only is an anti-feature gate (no broker identifiers, banned-word test)
-- [Phase 13]: Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a); dead `thinHistory` arg + orphaned `thinTier` export/type carried as v3.0 Phase 14 debt
-- [Phase 08]: London Judas three-gate conjunction with strict killzone inequality, Asia-height displacement denominator, first-sweep-wins; budget ≤25% confirmed pinned by seeded 60-session run
-- [Phase 08]: amdPhase gate order — clock skeleton, Judas promotion, SMT read-only tag, NY branch last; confirmed-with-unusable-sweepTime holds manipulation, never guesses distribution
-- [Phase 17]: Phase 17-01: per-task commits go to main (branching_strategy none, entire history on main)
-- [Phase 17]: Phase 17-03: three live panels plus §§4-6 blocks plus PAPER banner plus shell wiring on main (33a237f, 8821d89, 570ecb6, d5e61d0); NqChartProps ticket surface declared ahead of Plan 04 rendering
+- [Roadmap 2026-09-15]: v3.1 continues numbering at Phase 19 (v3.0 ended at Phase 18); 3 phases from research order: pools math → §1 live + chart overlay → execution polish
+- [Roadmap 2026-09-15]: Pools are read-only projection context that never votes — no trigger gate, no new flaw key, no ticket derivation change in v3.1
+- [Research 2026-09-15]: All ranking constants ship CALIBRATION-PROVISIONAL (merge-ATR multiple, EQUAL_TOL_BPS ~25bps, dolBoost/behind-penalty) + boundary-test pins; Phase 21 reviews against firing log
+- [Research 2026-09-15]: Phase 20 carries `UI hint: yes` (§1 block + chart lines); Phase 21 carries `UI hint: yes` (slider controls) — `/gsd-ui-phase` applies at plan time
+- [v3.0]: 420/420 tests green, UAT 10/10 — pools math must keep the full suite green (shared swings.ts extraction, purity guard from first commit)
 
 ### Pending Todos
 
@@ -84,9 +70,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- WHY NOW thresholds are uncalibrated (live observation deferred in v2.0) — mitigated by provisional-constant convention + firing log + 1–4/week band, not by tuning
-- 15M-vs-5M execution granularity + NY-session sweep semantics must be settled in Phase 15 kickoff — recommended 15M-first
-- Phase 16 HARD/SOFT flaw taxonomy is a methodology call with sparse authority — decide fast, measure via population test (Phase 18)
+- Provisional pool-ranking constants uncalibrated until firing-log evidence — mitigated by exported constants + boundary tests + Phase 21 review, not by tuning in Phase 19
+- Pool-gated FIRE proposals must be rejected in v3.1 planning (needs own calibration band + population test)
 
 ## Deferred Items
 
@@ -94,16 +79,16 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
+| pools_p2 | POOL2-01–05 (TP2 resolver, sentiment multiplier, 15M pools, age/decay, proximity tag) | deferred to P2 | 2026-09-15 | v3.1 |
 | uat_gaps | 10/10-UAT.md | passed, 0 pending scenarios (scanner status-label artifact — reviewed clean) | 2026-09-09 | v2.1 |
 | uat_gaps | 13/13-UAT.md | passed, 0 pending scenarios (scanner status-label artifact — reviewed clean) | 2026-09-09 | v2.1 |
-| uat_gaps | 02/02-UAT.md | passed | 2026-09-06 | v1.0 |
 
 ## Session Continuity
 
-Last session: 2026-09-14T11:19:55.001Z
-Stopped at: Phase 18 context gathered
-Resume file: .planning/phases/18-verification-calibration-harness/18-CONTEXT.md
+Last session: 2026-09-15
+Stopped at: v3.1 roadmap created (Phases 19–21), ready to plan Phase 19
+Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan Phase 19 with /gsd-plan-phase 19 (consider --research-phase for scorer constants + boundary-test matrix)
