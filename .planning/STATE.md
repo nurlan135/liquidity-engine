@@ -1,21 +1,16 @@
 ---
 gsd_state_version: "1.0"
-milestone: v3.0
-milestone_name: Execution (Modul 4) — ACTIVE
-status: Awaiting next milestone
-stopped_at: Phase 18 complete — all 3 harnesses green
-last_updated: "2026-09-15T11:55:44.729Z"
+milestone: v3.1
+milestone_name: Pain Threshold + Execution Polish
+status: planning
+last_updated: "2026-09-15T12:21:37.408Z"
 last_activity: 2026-09-15
-last_activity_desc: Milestone v3.0 completed and archived
-state_head: 0c3722ae00d21f2eeb9d19c98edc24359a003bb3
 progress:
-  total_phases: 5
-  completed_phases: 1
-  total_plans: 17
-  completed_plans: 17
-  percent: 20
-current_phase: 18
-current_phase_name: Verification + Calibration Harness
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -29,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-09-15 after v3.0 milestone)
 
 ## Current Position
 
-Phase: Milestone v3.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-15 — Milestone v3.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-09-15 — Milestone v3.1 started
 
 ## Performance Metrics
 
