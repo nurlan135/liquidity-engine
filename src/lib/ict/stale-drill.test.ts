@@ -239,3 +239,33 @@ describe('stale-drill: full leg matrix plus boundary coverage', () => {
     expect(out.verdict).toBe('STAND_ASIDE');
   });
 });
+
+// Task 3 close: thin is not a flaw input — the flaw stands clean on a FIRE
+// snapshot with fresh stale — and the ticket carries the thin degraded
+// envelope with thinTierCopy provenance. Thin never yields a full-strength
+// ticket: the degraded envelope always names the thin leg.
+describe('stale-drill: thin-tier cell plus phase gates', () => {
+  it('holds the flaw clean on thin input and degrades the ticket with thin provenance', async () => {
+    const { thinTierCopy } = await import('@/src/lib/thin-tier');
+    const flaw = checkFatalFlaw({
+      trigger: fixtureTrigger(),
+      smt: fixtureSmt(),
+      judas: fixtureJudas(),
+      rollover: null,
+      stale: fixtureStale(),
+      asOf: AS_OF,
+    });
+    expect(flaw.invalidated).toBe(false);
+    expect(flaw.reasonKey).toBe('NONE');
+
+    const provenance = thinTierCopy('range-thin', 12);
+    expect(provenance.length).toBeGreaterThan(0);
+    const ticket = ticketForFlaw(flaw, { stale: false, thin: true, leg: 'nq' });
+    expect(ticket.degraded).toEqual({ stale: false, thin: true, leg: 'nq' });
+    const fullStrength =
+      (ticket.verdict === 'EXECUTE_LONG' || ticket.verdict === 'EXECUTE_SHORT') &&
+      ticket.degraded.thin === false;
+    expect(fullStrength).toBe(false);
+    void provenance;
+  });
+});
