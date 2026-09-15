@@ -175,3 +175,67 @@ describe('stale-drill: single stale leg flaw-first to STAND_ASIDE', () => {
     expect(ticket.degraded).toEqual({ stale: true, thin: false, leg: 'es' });
   });
 });
+
+// Task 2 matrix: four single legs plus all-stale plus V5 boundary pair. No
+// cell may return EXECUTE on any stale input; every cell carries leg-correct
+// provenance in the degraded envelope.
+describe('stale-drill: full leg matrix plus boundary coverage', () => {
+  it('kills each single leg as HARD STALE_LEG with leg-correct provenance', () => {
+    for (const leg of ['nq', 'es', 'nq1h', 'nq15m'] as const) {
+      const flaw = checkFatalFlaw({
+        trigger: fixtureTrigger(),
+        smt: fixtureSmt(),
+        judas: fixtureJudas(),
+        rollover: null,
+        stale: fixtureStale({ [leg]: true }),
+        asOf: AS_OF,
+      });
+      expect(flaw.invalidated).toBe(true);
+      expect(flaw.downgraded).toBe(false);
+      expect(flaw.flawClass).toBe('HARD');
+      expect(flaw.reasonKey).toBe('STALE_LEG');
+      expect(flaw.unblock.length).toBeGreaterThan(0);
+
+      const ticket = ticketForFlaw(flaw, { stale: true, thin: false, leg });
+      expect(ticket.verdict).toBe('STAND_ASIDE');
+      expect(ticket.verdict === 'EXECUTE_LONG' || ticket.verdict === 'EXECUTE_SHORT').toBe(false);
+      expect(ticket.reason).toBe(REASON_BY_KEY.STALE_LEG);
+      expect(ticket.degraded).toEqual({ stale: true, thin: false, leg });
+    }
+  });
+
+  it('kills all-stale as HARD STALE_LEG first-match-wins with rollover absent', () => {
+    const flaw = checkFatalFlaw({
+      trigger: fixtureTrigger(),
+      smt: fixtureSmt(),
+      judas: fixtureJudas(),
+      rollover: null,
+      stale: fixtureStale({ nq: true, es: true, nq1h: true, nq15m: true }),
+      asOf: AS_OF,
+    });
+    expect(flaw.invalidated).toBe(true);
+    expect(flaw.flawClass).toBe('HARD');
+    expect(flaw.reasonKey).toBe('STALE_LEG');
+    const ticket = ticketForFlaw(flaw, { stale: true, thin: false, leg: 'nq+es+nq1h+nq15m' });
+    expect(ticket.verdict).toBe('STAND_ASIDE');
+  });
+
+  it('throws a got-string error on a malformed string stale envelope', () => {
+    expect(() =>
+      checkFatalFlaw({
+        trigger: fixtureTrigger(),
+        smt: fixtureSmt(),
+        judas: fixtureJudas(),
+        rollover: null,
+        stale: 'stale' as unknown as FatalFlawInput['stale'],
+        asOf: AS_OF,
+      }),
+    ).toThrow('got');
+  });
+
+  it('degrades null trigger to honest STAND_ASIDE, never null', () => {
+    const out = computeTicket(fixtureInput({ trigger: null, flaw: fixtureCleanFlaw() }));
+    expect(out).not.toBe(null);
+    expect(out.verdict).toBe('STAND_ASIDE');
+  });
+});
