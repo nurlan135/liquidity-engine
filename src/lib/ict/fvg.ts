@@ -171,16 +171,18 @@ export function detectTransition(
 // D-11 §2 Delivery Cycle prose: deterministic IRL-aware delivery sentence
 // selected from transition state. Null (no transition) names the ERL state
 // token; a transition names IRL together with the origin bounds and trigger
-// date. Neutral trap-vs-genuine house wording, no new report section.
+// date. Azerbaijani rendered copy per the English-identifiers /
+// Azerbaijani-copy house rule (report.ts header, trigger.ts D-09 precedent);
+// neutral trap-vs-genuine house wording, no new report section.
 export function describeDeliveryTransition(transition: TransitionState | null): string {
   if (transition === null) {
-    return 'Delivery stays ERL: price holds external range and no fair-value gap shows a sweep-then-reject, so a trap read has no trigger yet.';
+    return 'Çatdırılma ERL qalır: qiymət xarici diapazonda qalır və heç bir FVG süpürülüb rədd göstərmir, ona görə tələ oxunuşunun tətiki yoxdur.';
   }
   const { originFvg, triggerCandle } = transition;
   assertFiniteGap(originFvg, 'describeDeliveryTransition');
   return (
-    `Delivery flips IRL: the ${originFvg.polarity === 'BULLISH' ? 'bullish' : 'bearish'} gap ` +
-    `${originFvg.bottom}–${originFvg.top} swept and rejected on ${triggerCandle}, ` +
-    'so genuine follow-through reads through that zone first and a trap read fades only on a second failure.'
+    `Çatdırılma IRL-ə keçdi: ${originFvg.polarity === 'BULLISH' ? 'yüksəliş' : 'düşüş'} boşluq ` +
+    `${originFvg.bottom}–${originFvg.top} ${triggerCandle} tarixində süpürülüb rədd edildi, ` +
+    'ona görə həqiqi davam əvvəlcə bu zonadan oxunur — tələ oxunuşu yalnız ikinci uğursuzluqda sönür.'
   );
 }

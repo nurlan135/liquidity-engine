@@ -216,6 +216,51 @@ describe('fvg: delivery sentence', () => {
   });
 });
 
+// Claim 4 (terminal-screenshot-audit): delivery prose renders user-facing via
+// selectLiquidityPath, so it must be Azerbaijani per the English-identifiers /
+// Azerbaijani-copy house rule (report.ts header). Pins the verbatim copy.
+describe('fvg: delivery sentence Azerbaijani copy', () => {
+  it('ERL pins the verbatim Azerbaijani sentence', () => {
+    expect(describeDeliveryTransition(null)).toBe(
+      'Çatdırılma ERL qalır: qiymət xarici diapazonda qalır və heç bir FVG süpürülüb rədd göstərmir, ona görə tələ oxunuşunun tətiki yoxdur.',
+    );
+  });
+
+  it('IRL bullish pins the verbatim Azerbaijani sentence', () => {
+    const transition = {
+      state: 'IRL' as const,
+      originFvg: {
+        polarity: 'BULLISH' as const,
+        top: 20040,
+        bottom: 20027,
+        originDate: dated(6),
+        mitigated: false,
+      },
+      triggerCandle: dated(8),
+    };
+    expect(describeDeliveryTransition(transition)).toBe(
+      'Çatdırılma IRL-ə keçdi: yüksəliş boşluq 20027–20040 2026-01-08 tarixində süpürülüb rədd edildi, ona görə həqiqi davam əvvəlcə bu zonadan oxunur — tələ oxunuşu yalnız ikinci uğursuzluqda sönür.',
+    );
+  });
+
+  it('IRL bearish uses the düşüş polarity word', () => {
+    const transition = {
+      state: 'IRL' as const,
+      originFvg: {
+        polarity: 'BEARISH' as const,
+        top: 20027,
+        bottom: 20000,
+        originDate: dated(6),
+        mitigated: false,
+      },
+      triggerCandle: dated(9),
+    };
+    expect(describeDeliveryTransition(transition)).toBe(
+      'Çatdırılma IRL-ə keçdi: düşüş boşluq 20000–20027 2026-01-09 tarixində süpürülüb rədd edildi, ona görə həqiqi davam əvvəlcə bu zonadan oxunur — tələ oxunuşu yalnız ikinci uğursuzluqda sönür.',
+    );
+  });
+});
+
 describe('fvg: closedOnly discipline', () => {
   it('ignores forming candles when scanning', () => {
     const prev = candle(dated(5), 20000);
