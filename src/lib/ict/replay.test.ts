@@ -114,18 +114,29 @@ function combinedOf(trigger: TriggerOutput, flaw: FatalFlawOutput): CombinedStat
   return 'FIRING';
 }
 
-// Pinned transition table (D-03): forward-only legal edges asserted per bar.
-// FIRING to ARMED is legal ONLY via SOFT downgrade carrying the armed reason;
-// a clean-flaw FIRING to ARMED is flicker and throws. FIRING to QUIET always
-// throws. INVALIDATED is terminal within one setup (only the same-state hold
-// is legal). Same-state hold is always legal; a null previous state opens a
+// Pinned transition table (D-03) with cause asserts (T-18-01): forward-only
+// legal edges asserted per bar on the full (trigger, flaw) triple — never
+// the verdict string alone. FIRING to ARMED is legal ONLY via SOFT downgrade
+// carrying the armed reason; a clean-flaw FIRING to ARMED is flicker and
+// throws. FIRING to QUIET always throws. FIRING to INVALIDATED requires the
+// HARD invalidated flag. ARMED to QUIET additionally requires the next
+// trigger gate count at 1 or fewer (reduced gates, never a vanished FIRE).
+// INVALIDATED is terminal within one setup (only the same-state hold is
+// legal). Same-state hold is always legal; a null previous state opens a
 // new setup chain (session boundary).
+function gatePasses(trigger: TriggerOutput): number {
+  return (
+    (trigger.gates.timing ? 1 : 0) + (trigger.gates.purge ? 1 : 0) + (trigger.gates.displacement ? 1 : 0)
+  );
+}
+
 function assertLegalEdge(
   prev: CombinedState | null,
-  next: CombinedState,
-  flawCtx: { downgraded: boolean; carriedArmedReason: TriggerReasonKey | null },
-): void {
-  if (prev === null || prev === next) return;
+  trigger: TriggerOutput,
+  flaw: FatalFlawOutput,
+): CombinedState {
+  const next = combinedOf(trigger, flaw);
+  if (prev === null || prev === next) return next;
   if (prev === 'INVALIDATED') {
     throw new Error(
       `illegal replay edge INVALIDATED -> ${next}: INVALIDATED is terminal within one setup`,
@@ -137,12 +148,35 @@ function assertLegalEdge(
     );
   }
   if (prev === 'FIRING' && next === 'ARMED') {
-    if (flawCtx.downgraded !== true || flawCtx.carriedArmedReason === null || flawCtx.carriedArmedReason === undefined) {
+    const firing = trigger.verdict === 'FIRE_LONG' || trigger.verdict === 'FIRE_SHORT';
+    if (
+      !firing ||
+      flaw.downgraded !== true ||
+      flaw.carriedArmedReason === null ||
+      flaw.carriedArmedReason === undefined
+    ) {
       throw new Error(
         'illegal replay edge FIRING -> ARMED with clean flaw: SOFT downgrade with carriedArmedReason required (flicker)',
       );
     }
+    return next;
   }
+  if (prev === 'FIRING' && next === 'INVALIDATED') {
+    if (flaw.invalidated !== true) {
+      throw new Error(
+        'illegal replay edge FIRING -> INVALIDATED without HARD invalidation',
+      );
+    }
+    return next;
+  }
+  if (prev === 'ARMED' && next === 'QUIET') {
+    if (gatePasses(trigger) > 1) {
+      throw new Error(
+        `illegal replay edge ARMED -> QUIET with ${gatePasses(trigger)} gates: gate count must drop to 1 or fewer (reduced gates, never a vanished FIRE)`,
+      );
+    }
+  }
+  return next;
 }
 
 interface ReplayBarResult extends ReplayBarInput {
@@ -158,7 +192,7 @@ function runReplay(sessions: ReplayBarInput[][]): ReplayBarResult[] {
   const log: ReplayBarResult[] = [];
   for (const bars of sessions) {
     let firedThisSession = false;
-    let prev: CombinedState | null = null;
+    let prevCombined: CombinedState | null = null;
     for (const bar of bars) {
       const trigger = evaluateTrigger({
         judas: bar.judas,
@@ -177,15 +211,12 @@ function runReplay(sessions: ReplayBarInput[][]): ReplayBarResult[] {
         asOf: bar.asOf,
       });
       const combined = combinedOf(trigger, flaw);
-      assertLegalEdge(prev, combined, {
-        downgraded: flaw.downgraded,
-        carriedArmedReason: flaw.carriedArmedReason,
-      });
+      assertLegalEdge(prevCombined, trigger, flaw);
       if (trigger.verdict === 'FIRE_LONG' || trigger.verdict === 'FIRE_SHORT') {
         firedThisSession = true;
       }
       log.push({ ...bar, trigger, flaw, combined });
-      prev = combined;
+      prevCombined = combined;
     }
   }
   return log;
@@ -423,9 +454,23 @@ describe('replay: tracer mini-replay QUIET to FIRING to INVALIDATED', () => {
   });
 
   it('rejects the illegal FIRING to QUIET edge when injected', () => {
-    expect(() =>
-      assertLegalEdge('FIRING', 'QUIET', { downgraded: false, carriedArmedReason: null }),
-    ).toThrow('FIRING -> QUIET');
+    const waitTrigger = {
+      verdict: 'WAIT_FOR_MANIPULATION',
+      gates: { timing: false, purge: false, displacement: false },
+    } as TriggerOutput;
+    const cleanFlaw = { invalidated: false, downgraded: false } as FatalFlawOutput;
+    expect(() => assertLegalEdge('FIRING', waitTrigger, cleanFlaw)).toThrow(
+      'FIRING -> QUIET',
+    );
+  });
+
+  it('rejects a clean-flaw FIRING to ARMED edge as flicker', () => {
+    const armedTrigger = {
+      verdict: 'ARMED',
+      gates: { timing: true, purge: true, displacement: false },
+    } as TriggerOutput;
+    const cleanFlaw = { invalidated: false, downgraded: false } as FatalFlawOutput;
+    expect(() => assertLegalEdge('FIRING', armedTrigger, cleanFlaw)).toThrow('flicker');
   });
 });
 
@@ -784,6 +829,64 @@ describe('replay: 20-session population with killzone-edge probes', () => {
     expect(new Set(dates.map(mondayOfNyDate)).size).toBe(4);
     expect(summary.sessions).toBe(20);
     expect(summary.firesPerWeek).toBe(summary.fires / 4);
+
+    // Band verdict is correct against the 4-week denominator (D-08):
+    // recompute IN-BAND vs OUT-OF-BAND from the emission itself.
+    const expected =
+      summary.firesPerWeek >= 1 && summary.firesPerWeek <= 4 ? 'IN-BAND' : 'OUT-OF-BAND';
+    expect(summary.verdict).toBe(expected);
+    expect(summary.band).toBe('1-4/week');
+  });
+
+  it('holds every ARMED to QUIET edge to reduced gate counts', () => {
+    const log = runReplay(buildPopulationSessions());
+    let edges = 0;
+    for (let i = 1; i < log.length; i++) {
+      if (
+        log[i - 1].sessionDate === log[i].sessionDate &&
+        log[i - 1].combined === 'ARMED' &&
+        log[i].combined === 'QUIET'
+      ) {
+        edges += 1;
+        expect(gatePasses(log[i].trigger)).toBeLessThanOrEqual(1);
+      }
+    }
+    expect(edges).toBeGreaterThan(0);
+  });
+
+  it('proves the full 20-session driver byte-identical on double run', () => {
+    const first = runReplay(buildPopulationSessions());
+    const second = runReplay(buildPopulationSessions());
+    expect(second).toEqual(first);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  });
+
+  it('throws a got-string error on a malformed judas envelope string', () => {
+    const asOf = nyMinuteEpoch('2026-08-04', '03:00');
+    expect(() =>
+      evaluateTrigger({
+        judas: 'malformed' as unknown as JudasOutput,
+        amd: null,
+        smt: null,
+        fvg: null,
+        asOf,
+        alreadyFired: false,
+      }),
+    ).toThrow('got');
+  });
+
+  it('degrades null smt plus null judas to honest WAIT instead of throwing', () => {
+    const asOf = nyMinuteEpoch('2026-08-04', '03:00');
+    const out = evaluateTrigger({
+      judas: null,
+      amd: null,
+      smt: null,
+      fvg: null,
+      asOf,
+      alreadyFired: false,
+    });
+    expect(out.verdict).toBe('WAIT_FOR_MANIPULATION');
+    expect(out.reasonKey).toBe('WAIT_FOR_MANIPULATION');
   });
 });
 
