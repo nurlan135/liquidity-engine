@@ -15,7 +15,7 @@
 - [x] **Phase 15: WHY NOW Trigger Engine** - Three-gate FIRE/ARMED/QUIET verdict with firing log (completed 2026-09-11, verified PASS)
 - [x] **Phase 16: Fatal-Flaw Invalidation** - Flaw-supersedes-fire on a shared snapshot, HARD/SOFT split (completed 2026-09-11)
 - [x] **Phase 17: Paper Ticket + §§4–6 Live UI + Chart Pins** - Deterministic ticket, live report blocks, PAPER chrome (completed 2026-09-14, verified 15/15)
-- [ ] **Phase 18: Verification + Calibration Harness** - Replay monotonicity, reason parity, stale drill, fire-rate band
+- [x] **Phase 18: Verification + Calibration Harness** - Replay monotonicity, reason parity, stale drill, fire-rate band
 
 ## Phase Details
 
@@ -138,12 +138,12 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 18-01-PLAN.md — Bar-by-bar replay with transition table plus calibration summary (VERF-01)
-- [ ] 18-02-PLAN.md — Same-snapshot AMD/SMT parity contradiction roster (VERF-02)
+- [x] 18-01-PLAN.md — Bar-by-bar replay with transition table plus calibration summary (VERF-01)
+- [x] 18-02-PLAN.md — Same-snapshot AMD/SMT parity contradiction roster (VERF-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 18-03-PLAN.md — Stale leg matrix plus thin-tier plus full-suite gate (VERF-03)
+- [x] 18-03-PLAN.md — Stale leg matrix plus thin-tier plus full-suite gate (VERF-03)
 
 ## Progress
 
@@ -153,7 +153,7 @@ Plans:
 | 15. WHY NOW Trigger Engine | 0/0 | Not started | - |
 | 16. Fatal-Flaw Invalidation | 0/0 | Not started | - |
 | 17. Paper Ticket + §§4–6 Live UI + Chart Pins | 0/0 | Not started | - |
-| 18. Verification + Calibration Harness | 0/0 | Not started | - |
+| 18. Verification + Calibration Harness | 3/3 | Complete | 2026-09-15 |
 
 <details>
 <summary>✅ v1.0 Live Terminal (Phases 1–3 + 03.1, 03.2) — SHIPPED 2026-09-06</summary>
