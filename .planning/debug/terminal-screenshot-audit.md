@@ -1,8 +1,9 @@
 ---
-status: investigating
+status: resolved
 trigger: Dashboard screenshot audit — 7 UI claims from live terminal screenshot to verify-then-fix one by one
 created: 2026-09-15
 updated: 2026-09-15
+resolved: 2026-09-15
 ---
 
 # Debug Session: terminal-screenshot-audit
