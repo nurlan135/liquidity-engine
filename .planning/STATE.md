@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 milestone: v3.0
 milestone_name: Execution (Modul 4) — ACTIVE
 current_phase: 18
-current_phase_name: verification-calibration-harness
+current_phase_name: Verification + Calibration Harness
 status: phase_complete
-stopped_at: Phase 18 context gathered
-last_updated: "2026-09-14T11:19:59.221Z"
-last_activity: 2026-09-14
-last_activity_desc: Phase 17 gap closure verified 15/15
-state_head: e013a1a690d5a57d0766c178740cdc2cf7088aad
+stopped_at: Phase 18 complete — all 3 harnesses green
+last_updated: "2026-09-15T15:30:00.000Z"
+last_activity: 2026-09-15
+last_activity_desc: Phase 18 complete — VERF-01/02/03 proven, full suite 420 green
+state_head: 3e6fff5f99cfaf02295b14800cf722909702e6fc
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 14
+  total_plans: 17
   completed_plans: 14
   percent: 20
 ---
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-09 after v3.0 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 17 — Paper Ticket + §§4–6 Live UI + Chart Pins
+**Current focus:** Phase 18 — Verification + Calibration Harness
 
 ## Current Position
 
-Phase: 17 (paper-ticket-4-6-live-ui-chart-pins) — COMPLETE, verified 15/15
-Plan: 5 of 5 (17-05 gap closure)
-Status: Phase 17 complete, ready for Phase 18
-Last activity: 2026-09-14 — Phase 17 gap closure executed and verified
+Phase: 18 (Verification + Calibration Harness) — COMPLETE, verified 3/3
+Plan: 3 of 3
+Status: Phase 18 complete
+Last activity: 2026-09-15 — Phase 18 complete, full suite 420 green
 
 ## Performance Metrics
 
