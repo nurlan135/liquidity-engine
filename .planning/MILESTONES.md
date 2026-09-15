@@ -1,5 +1,30 @@
 # Milestones
 
+## v3.0 Execution (Modul 4) (Shipped: 2026-09-15)
+
+**Phases completed:** 5 phases, 17 plans, 45 tasks
+
+**Key accomplishments:**
+
+- Thin-tier surface shrunk to four public names with boundary pins migrated to resolveThinTier, zero behavior change
+- Co-located ict purity guard green with mutation-proof red-on-violation, Asia fallback rationale documented, zero behavior change
+- Pure three-gate evaluateTrigger plus co-located gate tests plus selectTrigger with capped firing log, proven end to end on first commit
+- Full ARMED counting matrix, per-session cooldown, entry-FVG downgrade with most-recent selection, boundary pins, and malformed-input throws — 31/31 trigger tests green with zero source changes
+- Verbatim prose locked with suffix matrix, firing log hardened with cap plus dedup plus pure calibration serializer, live selector tests green — 344/344 full suite with purity guard clean
+- Pure checkFatalFlaw disjunction (HARD rollover/stale kill vs SOFT SMT/opposite-sweep downgrade) on the exact trigger snapshot, co-located taxonomy plus determinism tests, and a selectFatalFlaw selector sharing one epoch
+- Falsifiable direction-cross-sweepSide sentence table plus 3-entry Azerbaijani challenge bank with toBe pins, and flaw-stale plus flaw-coherence store selector cases on one shared epoch
+- SMT SOFT downgrade proven live through selectFatalFlaw with carried FIRE_LONG reason; opposite-sweep documented as synthetic-only with selector impossibility proof and corrected test title
+- Pure fixed-order paper-ticket derivation (direction → OTE×FVG entry → OQ-2 SL → structure-first TP → TP1 R/R ≥ 1:3 → verdict) plus risk÷distance NQ sizing and store wiring, proven end-to-end before any UI renders it
+- Whole-tree banned-word quarantine with Position allowlist plus REPORT_SECTIONS 4-6 flipped live with PAPER section 5 title, both pinned by green contract tests
+- Three math-free live panels plus §§4–6 live report blocks plus persistent KAGIZ/PAPER banner plus shell panel swap with ticket-to-chart prop wiring, all rendering proven selector prose with STAND ASIDE clearing
+- T trigger pin third in J-S-T marker order plus Entry/SL/TP1/TP2/TP3 accent price lines with empty-marker-set and unconditional-removal clearing on STAND ASIDE — the chart half of TICK-04 per D-09 and D-10
+- Pure trigger derivation plus one explicit poll-tick commit point restores the flaw-after-trigger same-snapshot contract; flaw is judged on the FIRE the ticket prices, never the ARMED_ALREADY_FIRED echo.
+- Bar-by-bar replay harness over a hand-built 20-session fixture with pinned transition table, cause asserts, determinism pin, and calibration summary emission
+- Same-snapshot AMD/SMT-vs-trigger reason parity harness with five contradiction rules, NY-hours AMD exemption, suppressed-SMT pair asserts, and an ARMED-or-better sweep
+- Stale-serve leg-matrix drill with flaw-first routing, leg-correct degraded provenance, thin-tier cell, and full-suite green
+
+---
+
 ## v2.1 Cleanup & Polish (Shipped: 2026-09-09)
 
 **Phases completed:** 4 phases, 7 plans, 12 tasks

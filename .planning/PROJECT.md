@@ -45,10 +45,14 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Chart HiDPI/resize polish: library-native autosize with view-lock + fallback gate, overlays/chrome byte-identical, UAT 6/6 — v2.1
 - ✓ Vercel hygiene: drill token deleted 2026-09-09, Standard Protection intentional + documented, drill-preview branch gone, prod 200/200, kept scripts green — v2.1
 - ✓ Honest thin history: thin-tier truth + persistent banner + uniform 0.5 zone/level dimming, 17/17 verified, UAT 2/2, 298/298 tests — v2.1
+- ✓ Audit debt cleanup: zoneBands narrowed, thin-tier surface shrunk to 4 public names, co-located ict purity guard green, zero behavior change — v3.0
+- ✓ WHY NOW trigger: three-gate FIRE/ARMED/QUIET engine with killzone timing + confirmed purge + displacement, verbatim Azerbaijani reasons, per-session cooldown, capped firing log with calibration-JSON export, CALIBRATION-PROVISIONAL thresholds pinned by boundary tests — v3.0
+- ✓ Fatal-flaw invalidation: checkFatalFlaw on the same snapshot as trigger, HARD (rollover/stale) vs SOFT (SMT/opposite-sweep downgrade) split, falsifiable sentence + Azerbaijani challenge bank, live report §6 — v3.0
+- ✓ Paper ticket: fixed-order derivation (direction → OTE×FVG entry → SL → TP ladder → R/R ≥ 1:3 gate → EXECUTE/STAND ASIDE), risk÷distance sizing, banned-word quarantine green, §§4–6 live report blocks + three dashboard panels + persistent KAĞIZ/PAPER banner + chart T pin + entry/SL/TP lines — v3.0
+- ✓ Verification + calibration harness: 20-session replay with pinned transition table + calibration summary JSON, 5-rule AMD/SMT-vs-trigger parity harness, full stale-leg matrix drill with degraded-with-provenance — 420/420 tests, UAT 10/10 — v3.0
 
 ### Active
 
-- [ ] v3.0 Execution (Modul 4): WHY NOW trigger + fatal flaw + paper order ticket — live observation continues, thresholds calibratable
 - [ ] Pain Threshold map (§1 BSL/SSL projection) — deferred to v3.1, independent of execution chain
 
 ### Out of Scope
@@ -64,6 +68,7 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 Shipped v1.0 Live Terminal (2026-09-06): 5 phases, 16 plans, 152 commits, +26105/−906 across 158 files. 133/133 tests green, lint clean. Live at https://liquidity-engine-nine.vercel.app.
 Shipped v2.0 Modul 3 (2026-09-08): 4 phases, 14 plans, 32 tasks, 32 files +5141/−83. 283/283 tests green, tsc clean. Audit passed after remediation (ICT-11 closure + retroactive 08/09 VERIFICATIONs). Live observation period recommended before v3.0 scoping (Judas confirm rate, SMT rollover behavior, Asia live alignment, 09-07 Mandelbug recurrence watch).
 Shipped v2.1 Cleanup & Polish (2026-09-09): 4 phases, 7 plans, 12 tasks, 61 files +6984/−95, 67 commits over 2 days. 298/298 tests green, tsc clean, all UAT green (1/1 + 6/6 + 6/6 + 2/2). Audit tech_debt with zero gaps (7/7 reqs, 9/9 integration, 3/3 flows); 7 non-blocking debt items carried (dead thinHistory arg, orphaned export/type, Nyquist process notes — see v2.1-MILESTONE-AUDIT.md).
+Shipped v3.0 Execution (Modul 4) (2026-09-15): 5 phases, 17 plans, 45 tasks. 420/420 tests green. Terminal oxumaqdan icraya keçdi — WHY NOW trigger, fatal-flaw invalidation, kağız ticket, verification harness hamısı canlı. UAT 10/10, audit təmiz.
 Tech stack: Next.js 16 App Router, Zustand 5, lightweight-charts v5 (dynamic ssr:false), date-fns-tz, Tailwind v4, shadcn primitives (button, dropdown-menu, dialog, toast, calendar, card).
 Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc LayoutProps error (app/layout.tsx), Vercel token + Deployment Protection + drill-preview branch leftovers, thinHistory display gap.
 - Brownfield origin: Next.js 16.3.4 + React 19 scaffold; home page was stock placeholder, replaced by dashboard in Phase 2.
@@ -112,9 +117,9 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [13] Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a) | Per-candle wall-clock session resolution; fallback makes selectAsia non-null more often, tone stays accent/stale by design | ✓ Good — en passant fix |
 | [14] Audit debt cleanup: zoneBands narrowed to high/low/eq, thin-tier surface shrunk to 4 public names, co-located ict purity guard green | Mechanical cleanup, zero behavior change; 300/300 tests, tsc clean, UAT 3/3 | ✓ Good — Phase 15 trigger code inherits a clean surface |
 
-## Current State: v2.1 Shipped
+## Current State: v3.0 Shipped
 
-**Shipped 2026-09-09.** Terminal is clean: zero tsc errors, crisp resize-clean chart, documented Vercel hygiene, honest thin-history rendering. Next: live observation continues (2–4 weeks of daily §3-vs-market notes), then `/gsd-new-milestone` for v3.0 Execution with facts, not assumptions.
+**Shipped 2026-09-15.** Terminal oxumaqdan icraya keçdi: WHY NOW trigger (FIRE/ARMED/QUIET + firing log), fatal-flaw invalidation (HARD/SOFT + §6), kağız ticket (fixed-order derivation + §§4–6 UI + chart pins), verification harness (replay + parity + stale drill). 420/420 tests, UAT 10/10. Next: `/gsd-new-milestone` for v3.1 (Pain Threshold §1 + execution polish P2).
 
 <details>
 <summary>Previous milestone: v2.1 Cleanup & Polish (goal + targets, archived)</summary>
@@ -164,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-10 after Phase 14*
+*Last updated: 2026-09-15 after v3.0 milestone*
