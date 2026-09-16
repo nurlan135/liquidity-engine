@@ -95,19 +95,38 @@ export function TerminalShell() {
   const ticketTP1 = isTicketExecute ? (ticket?.tp.tp1 ?? null) : null;
   const ticketTP2 = isTicketExecute ? (ticket?.tp.tp2 ?? null) : null;
   const ticketTP3 = isTicketExecute ? (ticket?.tp.tp3 ?? null) : null;
-  // Phase 20 pool-to-chart wiring (D-19/D-21): the same stable-function
-  // derivation during render as the overlay selectors above. Derive during
-  // render the first ACTIVE BSL pool top and bottom plus degraded flags
-  // from the single selection return — thin flagged not nulled, stale
+  // Phase 20 pool-to-chart wiring (D-16/D-18/D-19/D-21): the same
+  // stable-function derivation during render as the overlay selectors
+  // above. Derive during render the full pool prop set from the single
+  // selection return: nearest-2-per-side counting ranked ACTIVE pools only
+  // (first two ACTIVE BSL plus first two ACTIVE SSL in selector return
+  // order; equal-distance ties at the cut line resolve by return order —
+  // the array arrives rank-ordered, and return order is the deterministic
+  // stable tiebreak), swept pools collected separately as ghosts riding
+  // outside the cap and never counted toward it. Statuses consume verbatim
+  // with zero recomputed swept-ness; thin flags through (not nulled), stale
   // arrives as null so the chart clears via the unconditional-removal path.
-  // Rank-1 is the first ACTIVE BSL pool in selector return order (D-18);
-  // swept-ness is consumed verbatim, never recomputed.
+  // No verdict gate and no bar-date loop — pools are D1-NQ geometry
+  // attaching by price. Null selection fans out to all-null pool props so
+  // no last-known pools survive a null return (D-14).
   const selectPoolsShell = useDashboard((s) => s.selectPools);
   const poolsSelection = selectPoolsShell();
-  const rank1Bsl =
-    poolsSelection === null
-      ? null
-      : (poolsSelection.pools.find((p) => p.side === 'BSL' && p.status === 'ACTIVE') ?? null);
+  const poolActiveBsl =
+    poolsSelection === null ? [] : poolsSelection.pools.filter((p) => p.side === 'BSL' && p.status === 'ACTIVE').slice(0, 2);
+  const poolActiveSsl =
+    poolsSelection === null ? [] : poolsSelection.pools.filter((p) => p.side === 'SSL' && p.status === 'ACTIVE').slice(0, 2);
+  const poolGhostBsl =
+    poolsSelection === null ? [] : poolsSelection.pools.filter((p) => p.side === 'BSL' && p.status === 'SWEPT');
+  const poolGhostSsl =
+    poolsSelection === null ? [] : poolsSelection.pools.filter((p) => p.side === 'SSL' && p.status === 'SWEPT');
+  const poolBslPairs = poolActiveBsl.map((p) => ({ top: p.top, bottom: p.bottom }));
+  const poolSslPairs = poolActiveSsl.map((p) => ({ top: p.top, bottom: p.bottom }));
+  const poolBslGhosts = poolGhostBsl.map((p) => ({ top: p.top, bottom: p.bottom }));
+  const poolSslGhosts = poolGhostSsl.map((p) => ({ top: p.top, bottom: p.bottom }));
+  // Tracer pair backwards-compat: the scalar rank-1 BSL pair props keep the
+  // Phase 01 contract — rank-1 is the first ACTIVE BSL in selector return
+  // order (D-18); null when the selection is null or carries no ACTIVE BSL.
+  const rank1Bsl = poolActiveBsl.length > 0 ? poolActiveBsl[0] : null;
   const poolBslTop = rank1Bsl?.top ?? null;
   const poolBslBottom = rank1Bsl?.bottom ?? null;
   const poolDegradedStale = false;
@@ -351,6 +370,10 @@ export function TerminalShell() {
                   fireBarDate={fireBarDate}
                   poolBslTop={poolBslTop}
                   poolBslBottom={poolBslBottom}
+                  poolBslPairs={poolBslPairs}
+                  poolSslPairs={poolSslPairs}
+                  poolBslGhosts={poolBslGhosts}
+                  poolSslGhosts={poolSslGhosts}
                   poolDegradedStale={poolDegradedStale}
                   poolDegradedThin={poolDegradedThin}
                 />
