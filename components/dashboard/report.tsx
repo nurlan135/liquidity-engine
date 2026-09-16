@@ -145,17 +145,38 @@ export function Report() {
           // verbatim). Null selector renders the empty copy only, never
           // cached pools (D-08). Placed before the generic unavailable
           // branch (D-03). No trigger, flaw, or ticket derivation touched
-          // (D-17); no new ict math (D-20).
+          // (D-17); no new ict math (D-20). ATR distance is display-only
+          // prose derived from the shipped read-only selectors
+          // (selectRegime + selectLastClose) — throw-safe to empty copy so a
+          // selector throw blanks the sentence, never the section.
           if (section.index === 1) {
             const nqLeg = useDashboard.getState().nq;
-            const rank1 =
-              poolsSelection === null
-                ? null
-                : (poolsSelection.pools.find((p) => p.status === 'ACTIVE') ?? null);
-            const rank1Atr =
-              rank1 !== null && poolsLastClose !== null && regimeOutput !== null
-                ? regimeOutput.atr
-                : null;
+            let rank1: {
+              side: string;
+              top: number;
+              bottom: number;
+              status: string;
+              reason?: string;
+            } | null = null;
+            let rank1AtrCopy: string | null = null;
+            try {
+              rank1 =
+                poolsSelection === null
+                  ? null
+                  : (poolsSelection.pools.find((p) => p.status === 'ACTIVE') ?? null);
+              if (rank1 !== null && poolsLastClose !== null && regimeOutput !== null) {
+                const atr = regimeOutput.atr;
+                rank1AtrCopy =
+                  Number.isFinite(atr) && atr > 0
+                    ? (Math.abs((rank1.top + rank1.bottom) / 2 - poolsLastClose) / atr).toFixed(2)
+                    : '—';
+              } else if (rank1 !== null) {
+                rank1AtrCopy = '—';
+              }
+            } catch {
+              rank1 = null;
+              rank1AtrCopy = null;
+            }
             return (
               <section key={section.index} data-slot="report-section">
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
@@ -172,11 +193,17 @@ export function Report() {
                     {nqLeg.lastError ?? S3_EMPTY_COPY}
                   </p>
                 ) : rank1 === null ? (
-                  <div data-slot="s1-pain-threshold">
+                  <div
+                    data-slot="s1-pain-threshold"
+                    className={poolsSelection.degraded.thin ? 'opacity-45' : undefined}
+                  >
                     <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
                       Ağrı Həddi
                     </h4>
                     <p className="text-base font-semibold">{S1_NO_POOLS_COPY}</p>
+                    {poolsSelection.degraded.thin ? (
+                      <p className="text-xs text-muted-foreground">{S1_THIN_NOTE}</p>
+                    ) : null}
                   </div>
                 ) : (
                   <div
@@ -193,13 +220,11 @@ export function Report() {
                           : 'text-base font-semibold'
                       }
                     >
-                      {`${rank1.side} ${rank1.bottom.toFixed(2)}–${rank1.top.toFixed(2)} · ATR `}
                       <span className="font-mono tabular-nums">
-                        {rank1Atr !== null && Number.isFinite(rank1Atr) && rank1Atr > 0 && poolsLastClose !== null
-                          ? (Math.abs((rank1.top + rank1.bottom) / 2 - poolsLastClose) / rank1Atr).toFixed(2)
-                          : '—'}
+                        {`${rank1.side} ${rank1.bottom.toFixed(2)}–${rank1.top.toFixed(2)} · ATR ${rank1AtrCopy ?? '—'} · ${rank1.status}`}
                       </span>
-                      {` · ${rank1.status} ${S1_HEDGE}`}
+                      {rank1.reason !== undefined && rank1.reason.length > 0 ? ` ${rank1.reason}` : ''}
+                      {` ${S1_HEDGE}`}
                     </p>
                     {poolsSelection.degraded.thin ? (
                       <p className="text-xs text-muted-foreground">{S1_THIN_NOTE}</p>
