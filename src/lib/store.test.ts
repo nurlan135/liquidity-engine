@@ -993,6 +993,59 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  it('pools-refusal: stale or empty NQ leg forces selectPools null, ES-stale keeps pools live', async () => {
+    const { useDashboard } = await resetDualState();
+    stubFourLegs();
+    await useDashboard.getState().refreshNQ();
+    await useDashboard.getState().refreshES();
+    await useDashboard.getState().refreshNQ1H();
+    await useDashboard.getState().refreshNQ15M();
+
+    // Phase 19 thin envelope (D-21, POOL-06): a healthy NQ D1 leg yields a
+    // ranked PoolsSelection with one sharedEpoch call behind it.
+    const healthy = useDashboard.getState().selectPools();
+    expect(healthy).not.toBeNull();
+    expect(Array.isArray(healthy!.pools)).toBe(true);
+    expect(typeof healthy!.asOf).toBe('string');
+    expect(Number.isInteger(healthy!.epoch)).toBe(true);
+
+    // Stale NQ refuses pools; stale ES must NOT null pools (D1-NQ geometry).
+    useDashboard.setState({
+      es: { ...useDashboard.getState().es, stale: true, lastError: 'es stale' },
+    });
+    expect(useDashboard.getState().selectPools()).not.toBeNull();
+    useDashboard.setState({
+      nq: { ...useDashboard.getState().nq, stale: true, lastError: 'nq stale' },
+    });
+    expect(useDashboard.getState().selectPools()).toBeNull();
+    expect(useDashboard.getState().nq.lastError).toBe('nq stale');
+
+    // Empty closed NQ leg refuses pools without throwing.
+    useDashboard.setState({
+      nq: { ...useDashboard.getState().nq, stale: false, candles: [] },
+    });
+    let empty: unknown = 'unset';
+    expect(() => {
+      empty = useDashboard.getState().selectPools();
+    }).not.toThrow();
+    expect(empty).toBeNull();
+
+    // Garbage input never throws into render.
+    useDashboard.setState({
+      nq: {
+        ...useDashboard.getState().nq,
+        stale: false,
+        candles: [{ date: 'x', open: NaN, high: NaN, low: NaN, close: NaN }],
+      },
+    });
+    let garbage: unknown = 'unset';
+    expect(() => {
+      garbage = useDashboard.getState().selectPools();
+    }).not.toThrow();
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('asia-fallback: empty newest session falls back to the last completed Asia window', async () => {
     const { useDashboard } = await resetDualState();
     // Yesterday's completed 20:00-23:00 + today's morning rows (no 20:00 yet).
