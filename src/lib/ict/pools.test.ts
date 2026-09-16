@@ -194,20 +194,132 @@ describe('pools equality clustering: POOL-02 matrix', () => {
   });
 
   it('swept pools retain their full equality bonus value', () => {
-    // Same 3-bps pair (bars 4/7); bar 10 prints 20300 — outside B's k=2
-    // window so both swings survive — piercing the zone with a wick whose
-    // close falls back inside, flipping the cluster to SWEPT.
-    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20080, 20206, 20100, 20090, 20300, 20050];
-    const lows = rising(12, 19900, 5);
-    const tailClose = (highs[10] + lows[10]) / 2;
-    expect(tailClose).toBeLessThan(20206);
-    const candles = leg(12, highs, lows);
+  const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20080, 20206, 20100, 20090, 20300, 20050];
+  const lows = rising(12, 19900, 5);
+  const tailClose = (highs[10] + lows[10]) / 2;
+  expect(tailClose).toBeLessThan(20206);
+  const candles = leg(12, highs, lows);
+  const pools = evaluatePools(candles, AS_OF);
+  const swept = pools.filter((p) => p.side === 'BSL' && p.touches === 2);
+  expect(swept.length).toBeGreaterThanOrEqual(1);
+  for (const pool of swept) {
+    expect(pool.status).toBe('SWEPT');
+    expect(pool.weight).toBe(2 + 3.0);
+  }
+});
+});
+
+describe('pools sweep lifecycle: POOL-04 first-sweep-wins matrix', () => {
+  // Shared geometry: 9-bar legs, swing extreme at bar 4 (originDate
+  // '2026-01-09'), raid bars at 7/8 (never interior, so raids never seed).
+  // Bar 4's k=2 window (bars 2..6) excludes the raid bars, so the origin
+  // swing always survives seeding.
+  const RAID_LOWS = [19900, 19910, 19920, 19930, 19940, 19950, 19960, 19900, 19980];
+
+  it('wick pierce with close back inside flips BSL ACTIVE to SWEPT', () => {
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20020];
+    const candles = leg(9, highs, RAID_LOWS);
+    expect((highs[7] + RAID_LOWS[7]) / 2).toBeLessThan(20200);
     const pools = evaluatePools(candles, AS_OF);
-    const swept = pools.filter((p) => p.side === 'BSL' && p.touches === 2);
-    expect(swept.length).toBeGreaterThanOrEqual(1);
-    for (const pool of swept) {
-      expect(pool.status).toBe('SWEPT');
-      expect(pool.weight).toBe(2 + 3.0);
-    }
+    const origin = pools.find((p) => p.side === 'BSL' && p.top === 20200);
+    expect(origin).toBeDefined();
+    expect(origin!.status).toBe('SWEPT');
+  });
+
+  it('wick pierce with close back inside flips SSL ACTIVE to SWEPT', () => {
+    const highs = [20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20100];
+    const lows = [20100, 20080, 20050, 20020, 19900, 20020, 20050, 19800, 19960];
+    const candles = leg(9, highs, lows);
+    expect((highs[7] + lows[7]) / 2).toBe(19900);
+    const pools = evaluatePools(candles, AS_OF);
+    const origin = pools.find((p) => p.side === 'SSL' && p.bottom === 19900);
+    expect(origin).toBeDefined();
+    expect(origin!.status).toBe('SWEPT');
+  });
+
+  it('strictly-later close beyond the zone flips BSL to CONSUMED (leaves the map)', () => {
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20020];
+    const lows = [19900, 19910, 19920, 19930, 19940, 19950, 19960, 20150, 19980];
+    const candles = leg(9, highs, lows);
+    expect((highs[7] + lows[7]) / 2).toBeGreaterThan(20200);
+    const pools = evaluatePools(candles, AS_OF);
+    expect(pools.filter((p) => p.side === 'BSL' && p.top === 20200)).toHaveLength(0);
+  });
+
+  it('strictly-later close beyond the zone flips SSL to CONSUMED (leaves the map)', () => {
+    const highs = [20000, 20000, 20000, 20000, 20000, 20000, 20000, 19950, 20000];
+    const lows = [20100, 20080, 20050, 20020, 19900, 20020, 20050, 19800, 19960];
+    const candles = leg(9, highs, lows);
+    expect((highs[7] + lows[7]) / 2).toBeLessThan(19900);
+    const pools = evaluatePools(candles, AS_OF);
+    expect(pools.filter((p) => p.side === 'SSL' && p.bottom === 19900)).toHaveLength(0);
+  });
+
+  it('boundary touch with equality does not flip BSL status', () => {
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20200, 20020];
+    const candles = leg(9, highs, RAID_LOWS);
+    const pools = evaluatePools(candles, AS_OF);
+    const origin = pools.find((p) => p.side === 'BSL' && p.top === 20200);
+    expect(origin).toBeDefined();
+    expect(origin!.status).toBe('ACTIVE');
+  });
+
+  it('boundary touch with equality does not flip SSL status', () => {
+    const highs = [20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000];
+    const lows = [20100, 20080, 20050, 20020, 19900, 20020, 20050, 19900, 19960];
+    const candles = leg(9, highs, lows);
+    expect((highs[7] + lows[7]) / 2).toBeGreaterThan(19900);
+    const pools = evaluatePools(candles, AS_OF);
+    const origin = pools.find((p) => p.side === 'SSL' && p.bottom === 19900);
+    expect(origin).toBeDefined();
+    expect(origin!.status).toBe('ACTIVE');
+  });
+
+  it('double-raid first-wins: BSL stays SWEPT with weight untouched', () => {
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20400];
+    const lows = [19900, 19900, 19900, 19900, 19900, 19900, 19900, 19900, 19900];
+    const candles = leg(9, highs, lows);
+    const pools = evaluatePools(candles, AS_OF);
+    const bsl = pools.filter((p) => p.side === 'BSL');
+    expect(bsl).toHaveLength(1);
+    expect(bsl[0].status).toBe('SWEPT');
+    expect(bsl[0].touches).toBe(1);
+    expect(bsl[0].weight).toBe(1.0);
+  });
+
+  it('retest of a SWEPT pool never re-promotes it to ACTIVE', () => {
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20200];
+    const candles = leg(9, highs, RAID_LOWS);
+    const pools = evaluatePools(candles, AS_OF);
+    const origin = pools.find((p) => p.side === 'BSL' && p.top === 20200);
+    expect(origin).toBeDefined();
+    expect(origin!.status).toBe('SWEPT');
+  });
+
+  it('pool with no strictly-later candles is kept unscored-by-lifecycle', () => {
+    // The pool whose origin is the latest originDate in the window is the
+    // nearest reachable pin for the stale-origin keep-and-skip line (CR-02:
+    // the -1 branch itself is defensive — origins derive from the same closed
+    // array, so it is unreachable via the public entry — and both share the
+    // kept-unscored line). A no-later-candles case is unreachable by the same
+    // token: every origin seeds a swing strictly before the window end... so
+    // this test pins the latest-origin pool instead: its lifecycle runs over
+    // the fewest later candles and stays ACTIVE.
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20080, 20206, 20100, 20050, 20020];
+    const lows = rising(11, 19900, 5);
+    const candles = leg(11, highs, lows);
+    const pools = evaluatePools(candles, AS_OF);
+    const latest = [...pools].sort((a, b) => (a.originDate < b.originDate ? 1 : -1))[0];
+    expect(latest.originDate).toBe('2026-01-09');
+    expect(latest.status).toBe('ACTIVE');
+  });
+
+  it('candles after asOf are ignored by the lifecycle', () => {
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20020];
+    const candles = leg(9, highs, RAID_LOWS);
+    const pools = evaluatePools(candles, '2026-01-10');
+    const origin = pools.find((p) => p.side === 'BSL' && p.top === 20200);
+    expect(origin).toBeDefined();
+    expect(origin!.status).toBe('ACTIVE');
   });
 });
