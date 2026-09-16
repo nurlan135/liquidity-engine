@@ -105,9 +105,16 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 20-01-PLAN.md — Tracer: contract flip + rank-1 branch + shell fan-out + single chart pair
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 20-02-PLAN.md — Section 1 state matrix: honest empties + swept tone + inline hedge
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 20-03-PLAN.md — Chart overlay: nearest-2-per-side pairs + ghosts + z-order + dimming/clearing
 
 **UI hint**: yes
