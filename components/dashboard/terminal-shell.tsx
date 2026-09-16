@@ -95,6 +95,23 @@ export function TerminalShell() {
   const ticketTP1 = isTicketExecute ? (ticket?.tp.tp1 ?? null) : null;
   const ticketTP2 = isTicketExecute ? (ticket?.tp.tp2 ?? null) : null;
   const ticketTP3 = isTicketExecute ? (ticket?.tp.tp3 ?? null) : null;
+  // Phase 20 pool-to-chart wiring (D-19/D-21): the same stable-function
+  // derivation during render as the overlay selectors above. Derive during
+  // render the first ACTIVE BSL pool top and bottom plus degraded flags
+  // from the single selection return — thin flagged not nulled, stale
+  // arrives as null so the chart clears via the unconditional-removal path.
+  // Rank-1 is the first ACTIVE BSL pool in selector return order (D-18);
+  // swept-ness is consumed verbatim, never recomputed.
+  const selectPoolsShell = useDashboard((s) => s.selectPools);
+  const poolsSelection = selectPoolsShell();
+  const rank1Bsl =
+    poolsSelection === null
+      ? null
+      : (poolsSelection.pools.find((p) => p.side === 'BSL' && p.status === 'ACTIVE') ?? null);
+  const poolBslTop = rank1Bsl?.top ?? null;
+  const poolBslBottom = rank1Bsl?.bottom ?? null;
+  const poolDegradedStale = false;
+  const poolDegradedThin = poolsSelection?.degraded.thin ?? false;
   // fireBarDate: containing D1 bar for the ticket asOf epoch — the same
   // containing-bar loop as judasBarDate above, never judasBarDate itself
   // for the T pin (Pitfall 6). Null on STAND ASIDE so the T pin clears.
@@ -332,6 +349,10 @@ export function TerminalShell() {
                   ticketTP2={ticketTP2}
                   ticketTP3={ticketTP3}
                   fireBarDate={fireBarDate}
+                  poolBslTop={poolBslTop}
+                  poolBslBottom={poolBslBottom}
+                  poolDegradedStale={poolDegradedStale}
+                  poolDegradedThin={poolDegradedThin}
                 />
               ) : (
                 <div data-slot="chart-empty">

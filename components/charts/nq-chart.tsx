@@ -47,6 +47,15 @@ export interface NqChartProps {
   ticketTP2?: number | null;
   ticketTP3?: number | null;
   fireBarDate?: string | null;
+  // Phase 20 pool overlay (tracer single-pair slice): terminal-shell fans
+  // the rank-1 ACTIVE BSL pool top/bottom plus degraded flags through
+  // these optional nullable props beside the Asia props. Null means no
+  // pool input — the chart renders clean candles and never blocks.
+  // Expansion (nearest-2-per-side plus ghosts) lands in the next plan.
+  poolBslTop?: number | null;
+  poolBslBottom?: number | null;
+  poolDegradedStale?: boolean;
+  poolDegradedThin?: boolean;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).
@@ -142,7 +151,7 @@ function buildOverlayMarkers(
   return markers;
 }
 
-export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full', ticketVerdict = null, ticketDirection = null, ticketEntry = null, ticketSL = null, ticketTP1 = null, ticketTP2 = null, ticketTP3 = null, fireBarDate = null }: NqChartProps) {
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full', ticketVerdict = null, ticketDirection = null, ticketEntry = null, ticketSL = null, ticketTP1 = null, ticketTP2 = null, ticketTP3 = null, fireBarDate = null, poolBslTop = null, poolBslBottom = null, poolDegradedStale = false, poolDegradedThin = false }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -163,14 +172,18 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const tp1LineRef = useRef<unknown>(null);
   const tp2LineRef = useRef<unknown>(null);
   const tp3LineRef = useRef<unknown>(null);
+  // Phase 20 pool BSL rank-1 pair refs: remove-then-create like the Asia
+  // pair; nulled on unmount and on every update cycle before re-creation.
+  const poolBslTopLineRef = useRef<unknown>(null);
+  const poolBslBottomLineRef = useRef<unknown>(null);
   // Phase 9 series-markers plugin handle (v5 createSeriesMarkers form only).
   const markersPluginRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
-  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate });
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate, poolBslTop, poolBslBottom, poolDegradedStale, poolDegradedThin });
   // Sync the latest props outside render so the zone-fill getter reads live
   // values without violating the react-hooks/refs render-phase rule.
   useEffect(() => {
-    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate };
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate, poolBslTop, poolBslBottom, poolDegradedStale, poolDegradedThin };
   });
 
   // Create the chart once per container; lightweight-charts loads lazily so
@@ -266,6 +279,47 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         } catch {
           asiaHighLineRef.current = null;
           asiaLowLineRef.current = null;
+        }
+      }
+      // Phase 20 pool BSL rank-1 pair: dashed width-1 lines through the
+      // remove-then-create ref cycle following the Asia mount precedent
+      // (D-09). Tracer single-pair slice: one BSL top/bottom pair from the
+      // shell fan-out. Colors resolve from the up-terminal token (NOT
+      // accent); degraded (stale/thin) desaturates to muted gray (D-13).
+      // Finite-guarded inputs with per-leg try/catch that nulls only the
+      // failing leg (T-20-02); a null selector leaves zero lines (D-14).
+      // Created after Asia and before ticket legs (D-11) so ticket stays
+      // on top and pools sit above zones.
+      if (props.poolBslTop !== null && props.poolBslTop !== undefined && props.poolBslBottom !== null && props.poolBslBottom !== undefined) {
+        const poolDegraded = props.poolDegradedStale === true || props.poolDegradedThin === true;
+        const poolColor = poolDegraded ? MUTED_GRAY : up;
+        try {
+          const poolInputs = asiaLineInputs(props.poolBslTop, props.poolBslBottom);
+          try {
+            poolBslTopLineRef.current = typed.createPriceLine({
+              price: poolInputs.asiaHigh,
+              color: poolColor,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: 'BSL-1-top',
+            });
+          } catch {
+            poolBslTopLineRef.current = null;
+          }
+          try {
+            poolBslBottomLineRef.current = typed.createPriceLine({
+              price: poolInputs.asiaLow,
+              color: poolColor,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: 'BSL-1-bottom',
+            });
+          } catch {
+            poolBslBottomLineRef.current = null;
+          }
+        } catch {
+          poolBslTopLineRef.current = null;
+          poolBslBottomLineRef.current = null;
         }
       }
       // Overlay markers via the v5 plugin form (D-06/D-07 plus Phase 17 T
@@ -404,6 +458,8 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       tp1LineRef.current = null;
       tp2LineRef.current = null;
       tp3LineRef.current = null;
+      poolBslTopLineRef.current = null;
+      poolBslBottomLineRef.current = null;
       markersPluginRef.current = null;
     };
   }, []);
@@ -438,6 +494,10 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       if (tp1LineRef.current !== null) live.removePriceLine(tp1LineRef.current);
       if (tp2LineRef.current !== null) live.removePriceLine(tp2LineRef.current);
       if (tp3LineRef.current !== null) live.removePriceLine(tp3LineRef.current);
+      // Pool lines remove unconditionally (D-14): skipping creation alone
+      // leaves stale pool lines after a null-selector flip.
+      if (poolBslTopLineRef.current !== null) live.removePriceLine(poolBslTopLineRef.current);
+      if (poolBslBottomLineRef.current !== null) live.removePriceLine(poolBslBottomLineRef.current);
       q1LineRef.current = null;
       q3LineRef.current = null;
       oteBullLineRef.current = null;
@@ -449,7 +509,10 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       tp1LineRef.current = null;
       tp2LineRef.current = null;
       tp3LineRef.current = null;
+      poolBslTopLineRef.current = null;
+      poolBslBottomLineRef.current = null;
       const accent = readVar(VAR_ACCENT, '#00D9FF');
+      const up = readVar(VAR_UP, '#00FF88');
       const overlayTone = overlayStale ? MUTED_GRAY : accent;
       // Thin-history dimming (D-05/D-06/D-10): mirrors the mount effect; a
       // tier-derivation failure renders the full-strength chart (rule 5).
@@ -537,6 +600,45 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
+      // Phase 20 pool BSL rank-1 pair (D-09/D-11): created after Asia and
+      // before ticket legs so ticket stays on top and pools sit above
+      // zones. No verdict gate — render whenever pool props are non-null;
+      // null leaves zero lines after the unconditional removal above
+      // (D-14). Degraded (stale/thin flags or chart-level stale) uses
+      // MUTED_GRAY (D-13); per-leg try/catch nulls only the failing leg
+      // (T-20-02).
+      if (poolBslTop !== null && poolBslTop !== undefined && poolBslBottom !== null && poolBslBottom !== undefined) {
+        const poolDegraded = overlayStale || poolDegradedStale === true || poolDegradedThin === true;
+        const poolColor = poolDegraded ? MUTED_GRAY : up;
+        try {
+          const poolInputs = asiaLineInputs(poolBslTop, poolBslBottom);
+          try {
+            poolBslTopLineRef.current = live.createPriceLine({
+              price: poolInputs.asiaHigh,
+              color: poolColor,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: 'BSL-1-top',
+            });
+          } catch {
+            poolBslTopLineRef.current = null;
+          }
+          try {
+            poolBslBottomLineRef.current = live.createPriceLine({
+              price: poolInputs.asiaLow,
+              color: poolColor,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: 'BSL-1-bottom',
+            });
+          } catch {
+            poolBslBottomLineRef.current = null;
+          }
+        } catch {
+          poolBslTopLineRef.current = null;
+          poolBslBottomLineRef.current = null;
+        }
+      }
       // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): remove-then-create like the
       // Asia pair. EXECUTE verdict only; each leg renders independently —
       // null or non-finite legs (legal on a partial TP ladder) are skipped
@@ -602,10 +704,11 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       zoneRef.current.opacityScale = status === 'stale' || refreshDimmed ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
-  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate]);
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate, poolBslTop, poolBslBottom, poolDegradedStale, poolDegradedThin]);
 
   const latest = candles.length > 0 ? candles[candles.length - 1] : null;
   const hasAsiaLines = asiaHigh !== null && asiaHigh !== undefined && asiaLow !== null && asiaLow !== undefined;
+  const hasPoolLines = poolBslTop !== null && poolBslTop !== undefined && poolBslBottom !== null && poolBslBottom !== undefined;
   const hasJudasMarkers =
     judas !== null && judas !== undefined && (judas.confirmed === true || judas.candidate === true) &&
     (judas.sweepSide === 'HIGH' || judas.sweepSide === 'LOW') &&
@@ -625,6 +728,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       {hasJudasMarkers ? <span data-slot="judas-markers" aria-hidden="true" className="hidden" /> : null}
       {hasSmtMarker ? <span data-slot="smt-marker" aria-hidden="true" className="hidden" /> : null}
       {hasTicketPin ? <span data-slot="ticket-pin" aria-hidden="true" className="hidden" /> : null}
+      {hasPoolLines ? <span data-slot="pool-lines" aria-hidden="true" className="hidden" /> : null}
       <div
         ref={containerRef}
         data-slot="nq-chart"
