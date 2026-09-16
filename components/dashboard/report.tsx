@@ -43,6 +43,7 @@ const S3_NY_LINE = 'NY: Gözlənilir — v2.0-da ölçülmür.';
 // never confident prose (D-05).
 const S1_THIN_NOTE = 'İncə tarixçə — proyeksiya zəif etimadla göstərilir.';
 const S1_HEDGE = '(proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)';
+const S1_NO_POOLS_COPY = 'Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.';
 
 // SMT suppressed envelopes carry a machine reason; the owning sub-block shows
 // it verbatim plus the locked tag (D-11).
@@ -175,7 +176,7 @@ export function Report() {
                     <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
                       Ağrı Həddi
                     </h4>
-                    <p className="text-base font-semibold">{S3_EMPTY_COPY}</p>
+                    <p className="text-base font-semibold">{S1_NO_POOLS_COPY}</p>
                   </div>
                 ) : (
                   <div
