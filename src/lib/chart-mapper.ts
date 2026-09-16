@@ -58,6 +58,23 @@ export function asiaLineInputs(high: number, low: number): AsiaLineInputs {
   return { asiaHigh: high, asiaLow: low };
 }
 
+export interface PoolLineInputs {
+  top: number;
+  bottom: number;
+}
+
+// Pass one pool zone through unchanged for dashed price-line creation
+// (Phase 20 D-09). Mirrors the asiaLineInputs finite guard: throws naming
+// poolLineInputs on any non-finite input; the NqChart caller wraps in
+// try-catch so a throw renders no lines for that leg and never blocks the
+// chart. A throw nulls only the failing leg — sibling legs still render.
+export function poolLineInputs(top: number, bottom: number): PoolLineInputs {
+  if (!isFiniteNumber(top) || !isFiniteNumber(bottom)) {
+    throw new Error(`poolLineInputs requires finite pool top and bottom, got ${String(top)} ${String(bottom)}`);
+  }
+  return { top, bottom };
+}
+
 export interface LevelLineInputs {
   q1: number;
   q3: number;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs } from '@/src/lib/chart-mapper';
 import type { LevelsOutput } from '@/src/lib/ict/levels';
 
 describe('chart-mapper: candle to series mapping', () => {
@@ -48,6 +48,24 @@ describe('chart-mapper: Asia line inputs', () => {
 
   it('returns coincident values without throwing on equal high-low (zero-width)', () => {
     expect(asiaLineInputs(20150, 20150)).toEqual({ asiaHigh: 20150, asiaLow: 20150 });
+  });
+});
+
+describe('chart-mapper: pool line inputs', () => {
+  it('passes a finite top-bottom zone through unchanged', () => {
+    expect(poolLineInputs(20215.5, 20100.25)).toEqual({ top: 20215.5, bottom: 20100.25 });
+  });
+
+  it('throws naming poolLineInputs on a NaN top', () => {
+    expect(() => poolLineInputs(Number.NaN, 20100.25)).toThrow(/poolLineInputs/);
+  });
+
+  it('throws naming poolLineInputs on a positive-Infinity bottom', () => {
+    expect(() => poolLineInputs(20215.5, Number.POSITIVE_INFINITY)).toThrow(/poolLineInputs/);
+  });
+
+  it('returns coincident values without throwing on equal top-bottom (zero-width)', () => {
+    expect(poolLineInputs(20150, 20150)).toEqual({ top: 20150, bottom: 20150 });
   });
 });
 
