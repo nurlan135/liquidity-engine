@@ -4,7 +4,8 @@
 // English identifiers; locked English chip UNAVAILABLE untouched.
 
 import { describe, expect, it } from 'vitest';
-import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS } from '@/src/lib/report';
+import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS, describePool } from '@/src/lib/report';
+import type { LiquidityPool } from '@/src/lib/ict/pools';
 
 describe('report', () => {
   it('holds exactly 6 entries with all six sections live', () => {
@@ -37,5 +38,34 @@ describe('report', () => {
     expect(REGIME_BADGE.expansion).toBe('Genişlənmə');
     expect(REGIME_BADGE.compression).toBe('Sıxılma');
     expect(PRE_NEWS_BADGE).toBe('Yüksək təsirli xəbər gözlənilir');
+  });
+
+  // Phase 20 gap-1 fix (D-01/D-04): the descriptor helper composes the reason
+  // clause display-only from verbatim pool fields — exact-match pins for an
+  // ACTIVE pool and a SWEPT pool.
+  it('describePool pins the ACTIVE reason clause by exact match', () => {
+    const pool: LiquidityPool = {
+      side: 'BSL',
+      top: 20300,
+      bottom: 20290,
+      touches: 3,
+      weight: 5,
+      originDate: '2026-01-07',
+      status: 'ACTIVE',
+    };
+    expect(describePool(pool)).toBe('BSL toxunuş 3 çəki 5.00 status ACTIVE');
+  });
+
+  it('describePool pins the SWEPT reason clause by exact match', () => {
+    const pool: LiquidityPool = {
+      side: 'SSL',
+      top: 19994,
+      bottom: 19990,
+      touches: 1,
+      weight: 1,
+      originDate: '2026-01-09',
+      status: 'SWEPT',
+    };
+    expect(describePool(pool)).toBe('SSL toxunuş 1 çəki 1.00 status SWEPT');
   });
 });

@@ -3,6 +3,7 @@
 // copy; locked English chip UNAVAILABLE untouched.
 
 import type { RegimeState } from '@/src/lib/ict/types';
+import type { LiquidityPool } from '@/src/lib/ict/pools';
 
 export type ReportSectionState = 'live' | 'unavailable';
 
@@ -33,6 +34,19 @@ export const REGIME_BADGE: Record<RegimeState, string> = {
 
 // Pre-news override: a high-impact event inside the window supersedes the ATR badge.
 export const PRE_NEWS_BADGE = 'Yüksək təsirli xəbər gözlənilir';
+
+// Phase 20 §1 rank-1 reason clause (D-01/D-04, gap-1 fix option A): pools
+// carry no detector reason field (D-18 locks the shape, D-20 forbids new ict
+// math), so the clause is composed display-only from verbatim pool field
+// values — side token, touch count, formatted weight, status token. Pure:
+// string formatting only, no numeric derivation, no detector or shape change.
+// The parameter names exactly the fields displayed so callers pass views
+// without the full pool shape.
+export function describePool(
+  pool: Pick<LiquidityPool, 'side' | 'touches' | 'weight' | 'status'>,
+): string {
+  return `${pool.side} toxunuş ${pool.touches} çəki ${pool.weight.toFixed(2)} status ${pool.status}`;
+}
 
 // §3 conviction line label prefix (ICT-15): tier display words stay sourced
 // from confluence.ts — no duplicated mapping table here.
