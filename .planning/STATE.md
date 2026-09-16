@@ -4,16 +4,16 @@ milestone: v3.1
 milestone_name: Pain Threshold (§1) + Execution Polish
 current_phase: 19
 current_phase_name: Pools Math
-status: planning
+status: executing
 stopped_at: Phase 19 context gathered
-last_updated: "2026-09-15T14:29:30.309Z"
-last_activity: 2026-09-15
-last_activity_desc: v3.1 roadmap created (Phases 19–21)
-state_head: 936460710f7198de1afdce05bec8b71ba3ea164f
+last_updated: "2026-09-16T05:56:10.854Z"
+last_activity: 2026-09-16
+last_activity_desc: Phase 19 execution resumed (wave continue)
+state_head: 42f3962d8e35272c04b53aa40b18d5ee3b09859d
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-15 after v3.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 19 Pools Math (v3.1 milestone, roadmap created)
+**Current focus:** Phase 19 — Pools Math
 
 ## Current Position
 
-Phase: 19 of 21 (Pools Math)
-Plan: — (ready to plan)
-Status: Ready to plan Phase 19
-Last activity: 2026-09-15 — v3.1 roadmap created (Phases 19–21)
+Phase: 19 (Pools Math) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 19
+Last activity: 2026-09-16 — Phase 19 execution resumed (wave continue)
 
 Progress: [░░░░░░░░░░] 0%
 

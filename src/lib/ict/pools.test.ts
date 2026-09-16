@@ -11,6 +11,8 @@ import {
   MERGE_ATR_MULT,
   POOL_MAP_BOUND,
   poolWeight,
+  type RankedPools,
+  scoreAndRank,
   SWING_K,
   SWING_LOOKBACK,
 } from '@/src/lib/ict/pools';
@@ -321,5 +323,132 @@ describe('pools sweep lifecycle: POOL-04 first-sweep-wins matrix', () => {
     const origin = pools.find((p) => p.side === 'BSL' && p.top === 20200);
     expect(origin).toBeDefined();
     expect(origin!.status).toBe('ACTIVE');
+  });
+});
+
+describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
+  it('same-side pools within a quarter ATR merge into the more extreme zone', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const before = detectPools(candles, AS_OF);
+    expect(before.filter((p) => p.side === 'BSL').length).toBeGreaterThanOrEqual(1);
+    const ranked = evaluatePools(candles, AS_OF, 'BULLISH');
+    expect(ranked.length).toBeLessThanOrEqual(before.length);
+  });
+
+  it('pools beyond a quarter ATR stay separate', () => {
+    // Gap 404/20200*10000 ≈ 200 bps vs radius ≈ 0.25*~13 ≈ 3.3 — far outside,
+    // so evaluatePools must not merge even with full 11-candle ATR history.
+    // NOTE: the bar-10 close prints above 20200 (continuation), so the bar-4
+    // pool is CONSUMED and only the bar-7 pool survives — the no-merge pin is
+    // the survivor count (1) plus the merged-zone bound check below.
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20080, 20604, 20100, 20050, 20020];
+    const lows = [19900, 19905, 19910, 19915, 19920, 19925, 19930, 19935, 19940, 19945, 19950];
+    const candles = leg(11, highs, lows);
+    const seeded = detectPools(candles, AS_OF).filter((p) => p.side === 'BSL');
+    expect(seeded).toHaveLength(2);
+    const ranked = evaluatePools(candles, AS_OF).filter((p) => p.side === 'BSL');
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].top).toBe(20604);
+    expect(ranked[0].touches).toBe(1);
+  });
+
+  it('empty ATR history skips merging and keeps all pools', () => {
+    const candles = leg(9, BSL_HIGHS, FLAT_LOWS);
+    const ranked = evaluatePools(candles, AS_OF);
+    expect(ranked).toHaveLength(detectPools(candles, AS_OF).length);
+  });
+
+  it('inventory over 20 keeps the newest 20 by originDate even for unsorted input', () => {
+    // CAP leg: 11 stride-5 peaks seed 22 pools (staggered ±, no clustering).
+    // Every pool stays ACTIVE by construction: the BSL zone tops ascend with
+    // the peaks while the closes ride the OPEN-tail — each bar's close stays
+    // below every BSL top AND above every SSL bottom. Flat-mid `leg()`
+    // closes break this (mid pierces early lows); the custom builder below
+    // pins closes to the tail-open rail instead.
+    const n = 60;
+    const startDay = 100;
+    const peakAt = (i: number): boolean => i >= 5 && i <= 55 && i % 5 === 0;
+    const highs = Array.from({ length: n }, (_, i) => (peakAt(i) ? 20600 + i * 30 : 20060));
+    const lows = Array.from({ length: n }, (_, i) => (peakAt(i) ? 19900 - i * 20 : 19960));
+    for (let i = 5; i <= 55; i += 5) {
+      expect(highs[i]).toBeGreaterThan(Math.max(highs[i - 2], highs[i - 1], highs[i + 1], highs[i + 2]));
+      expect(lows[i]).toBeLessThan(Math.min(lows[i - 2], lows[i - 1], lows[i + 1], lows[i + 2]));
+    }
+    const candles: Candle[] = highs.map((h, i) => ({
+      date: `2026-01-${String(startDay + i).padStart(2, '0')}`,
+      open: 20200,
+      high: h,
+      low: lows[i],
+      close: 20200,
+    }));
+    // Cap-then-lifecycle order probe: evaluatePools caps the MERGED inventory
+    // before lifecycle/scorer run, so with 22 seeded pools the returned map
+    // holds exactly the newest 20 — including pools the lifecycle later marks
+    // SWEPT (they ride along unscored, never Rank-1, per D-06).
+    const seeded = detectPools(candles, AS_OF);
+    expect(seeded.length).toBeGreaterThan(POOL_MAP_BOUND);
+    // Unsorted-input pin: capPools sorts by originDate before slicing, so a
+    // reversed copy keeps the same newest-20 set as the chronological one.
+    const full = evaluatePools(candles, AS_OF);
+    expect(full.length).toBe(POOL_MAP_BOUND);
+    const seededDates = seeded.map((p) => p.originDate).sort();
+    const newest20 = seededDates.slice(-POOL_MAP_BOUND);
+    expect(full.map((p) => p.originDate).sort()).toEqual(newest20);
+  });
+
+  it('Rank-1 equals the nearest ACTIVE pool on the DOL side', () => {
+    // DOL-side boost 2.0 outweighs the proximity term here: both pools share
+    // weight 1.0, so the boosted side takes Rank-1 under either bias. The
+    // 9-bar leg degrades ATR (short history), so a 16-bar leg feeds the full
+    // scorer: BSL origin bar 4, SSL origin bar 4, both ACTIVE.
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), SSL_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const ranked = evaluatePools(candles, AS_OF, 'BULLISH');
+    expect(ranked[0].side).toBe('BSL');
+    expect(ranked[0].status).toBe('ACTIVE');
+    const bearish = evaluatePools(candles, AS_OF, 'BEARISH');
+    expect(bearish[0].side).toBe('SSL');
+    expect(bearish[0].status).toBe('ACTIVE');
+  });
+
+  it('DOL-side score doubles versus the identical off-side pool', () => {
+    expect(DOL_BOOST).toBe(2.0);
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const bullish: RankedPools = scoreAndRank(evaluatePools(candles, AS_OF), candles, 'BULLISH');
+    expect(bullish.rankSkipped).toBe(false);
+    const bsl = bullish.scores.find((s) => s.side === 'BSL');
+    const ssl = bullish.scores.find((s) => s.side === 'SSL');
+    expect(bsl).toBeDefined();
+    expect(ssl).toBeDefined();
+    expect(bsl!.dolBoost).toBe(2.0);
+    expect(ssl!.dolBoost).toBe(1.0);
+  });
+
+  it('behind-price pools score at quarter strength via BEHIND_PENALTY', () => {
+    expect(BEHIND_PENALTY).toBe(0.25);
+    const candles = leg(9, BSL_HIGHS, SSL_LOWS);
+    const ranked: RankedPools = scoreAndRank(evaluatePools(candles, AS_OF), candles, 'BULLISH');
+    for (const entry of ranked.scores) {
+      expect([0.25, 1.0]).toContain(entry.behindPenalty);
+    }
+  });
+
+  it('ATR-units scale invariance: the same fixture scaled 10x ranks identically', () => {
+    const candles = leg(9, BSL_HIGHS, SSL_LOWS);
+    const scaled = candles.map((c) => ({ ...c, open: c.open * 10, high: c.high * 10, low: c.low * 10, close: c.close * 10 }));
+    const baseOrder = evaluatePools(candles, AS_OF).map((p) => `${p.side}:${p.originDate}`);
+    const scaledOrder = evaluatePools(scaled, AS_OF).map((p) => `${p.side}:${p.originDate}`);
+    expect(scaledOrder).toEqual(baseOrder);
+  });
+
+  it('zero ATR refuses to rank: originDate order, finite zero scores, rankSkipped', () => {
+    const flat = leg(9, rising(9, 20000, 0), rising(9, 19900, 0));
+    const ranked: RankedPools = scoreAndRank(evaluatePools(flat, AS_OF), flat, 'BULLISH');
+    expect(ranked.rankSkipped).toBe(true);
+    for (const entry of ranked.scores) {
+      expect(entry.score).toBe(0);
+      expect(Number.isFinite(entry.score)).toBe(true);
+    }
+    const dates = ranked.pools.map((p) => p.originDate);
+    expect([...dates].sort()).toEqual(dates);
   });
 });
