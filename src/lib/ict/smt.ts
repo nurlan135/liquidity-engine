@@ -2,16 +2,17 @@ import type { Candle } from '@/src/lib/ict/types';
 import { closedOnly } from '@/src/lib/ict/types';
 import { computeATR } from '@/src/lib/ict/regime';
 import { detectRollover } from '@/src/lib/ict/rollover';
+// Phase 19 D-12: shared swing truth lives in swings.ts (pools share the
+// same k=2 strict-fractal contract, never a forked loop). Re-exported here
+// so smt.ts keeps its public surface; bodies are the moved-verbatim logic.
+import { isSwingHigh, isSwingLow, SWING_K, SWING_LOOKBACK } from '@/src/lib/ict/swings';
 
-// D-02: fractal swing parameter shared by both legs, pinned by test.
-export const SWING_K = 2;
+export { isSwingHigh, isSwingLow, SWING_K, SWING_LOOKBACK };
 // D-03: fixed non-confirmation tolerance in basis points, pinned by test.
 export const SMT_TOL_BPS = 25;
 // D-05: rolling correlation gate window and decouple threshold, pinned by test.
 export const CORR_WINDOW = 20;
 export const CORR_MIN = 0.7;
-// D-02: trailing daily-bar window inside which swings are paired.
-export const SWING_LOOKBACK = 60;
 
 export interface MatchedSwing {
   windowStart: string;
@@ -43,40 +44,6 @@ export interface SmtSuppressed {
 }
 
 export type SmtOutput = SmtSignal | SmtSuppressed;
-
-// Strict fractal swing high: high[i] is the strict maximum of its k
-// neighbors each side. Equality means no swing.
-export function isSwingHigh(highs: number[], i: number, k: number): boolean {
-  if (!Number.isInteger(k) || k < 1) {
-    throw new Error(`isSwingHigh requires a positive integer k, got ${k}`);
-  }
-  if (i < k || i + k >= highs.length) {
-    return false;
-  }
-  for (let j = i - k; j <= i + k; j++) {
-    if (j !== i && highs[j] >= highs[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// Strict fractal swing low: low[i] is the strict minimum of its k
-// neighbors each side. Equality means no swing.
-export function isSwingLow(lows: number[], i: number, k: number): boolean {
-  if (!Number.isInteger(k) || k < 1) {
-    throw new Error(`isSwingLow requires a positive integer k, got ${k}`);
-  }
-  if (i < k || i + k >= lows.length) {
-    return false;
-  }
-  for (let j = i - k; j <= i + k; j++) {
-    if (j !== i && lows[j] <= lows[i]) {
-      return false;
-    }
-  }
-  return true;
-}
 
 function hasFiniteOhlc(c: Candle): boolean {
   return (

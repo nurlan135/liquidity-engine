@@ -11,7 +11,7 @@
   "perplexity": false,
   "jina": false,
   "git": {
-    "branching_strategy": "none",
+    "branching_strategy": "phase",
     "create_tag": true,
     "phase_branch_template": "gsd/phase-{phase}-{slug}",
     "milestone_branch_template": "gsd/{milestone}-{slug}",
@@ -47,7 +47,8 @@
     "security_enforcement": true,
     "security_asvs_level": 1,
     "security_block_on": "high",
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "use_worktrees": true
   },
   "ship": {
     "pr_body_sections": [
@@ -89,5 +90,6 @@
   },
   "resolve_model_ids": "omit",
   "mode": "yolo",
-  "granularity": "standard"
+  "granularity": "standard",
+  "runtime": "opencode"
 }

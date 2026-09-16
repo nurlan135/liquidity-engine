@@ -14,6 +14,7 @@ import { asiaRange, type AsiaRange } from '@/src/lib/ict/asia';
 import { judasSwing, type JudasOutput } from '@/src/lib/ict/judas';
 import { evaluateSMT, type SmtOutput } from '@/src/lib/ict/smt';
 import { amdPhase, type AmdOutput } from '@/src/lib/ict/amd';
+import { evaluatePools, type LiquidityPool } from '@/src/lib/ict/pools';
 import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransition } from '@/src/lib/ict/fvg';
 import type { FvgGap } from '@/src/lib/ict/fvg';
 import {
@@ -40,6 +41,19 @@ export type { FatalFlawOutput } from '@/src/lib/ict/invalidation';
 // Canonical ticket output lives in ticket.ts (brokerage math, never ict/);
 // the store re-exports the type only beside the firing-log precedent above.
 export type { TicketOutput } from '@/src/lib/ticket';
+// Canonical pool shape lives in pools.ts; the store re-exports the type
+// only so selectors stay thin beside the verdict precedent above.
+export type { LiquidityPool } from '@/src/lib/ict/pools';
+export interface PoolsSelection {
+  pools: LiquidityPool[];
+  asOf: string;
+  epoch: number;
+  // Phase 19-03 thin/thin-history provenance (D-21, T-19-02): the selectTicket
+  // degraded precedent — stale never appears here (stale NQ refuses null),
+  // thin:true names the nq leg so Phase 20 dims instead of printing
+  // full-strength geometry.
+  degraded: { stale: boolean; thin: boolean; leg: string | null };
+}
 /** Session-ephemeral paper-note entry (OQ-4 lock): appended by KAĞIZ QEYD, capped at 50. */
 export interface PaperLogEntry {
   asOf: number;
@@ -265,6 +279,7 @@ export interface DashboardState {
   selectLevels: () => LevelsOutput | null;
   selectRollover: () => RolloverFlag | null;
   selectSMT: () => SmtOutput | null;
+  selectPools: () => PoolsSelection | null;
   selectAsia: () => AsiaRange | null;
   selectJudas: () => JudasOutput | null;
   selectAMD: (asOf?: number) => AmdOutput | null;
@@ -813,6 +828,38 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     if (nq.candles.length === 0 || es.candles.length === 0) return null;
     try {
       return evaluateSMT(nq.candles, es.candles, asOfBaku);
+    } catch {
+      return null;
+    }
+  },
+
+  // Phase 19 hardened selectPools (D-21, POOL-06): the selectSMT guard
+  // verbatim but adapted to the NQ D1 leg only — pools are D1-NQ geometry,
+  // so ES-stale must NOT null pools (no es.stale read anywhere in this
+  // selector). Stale NQ refuses null with the reason on nq.lastError;
+  // empty closed NQ refuses null; thin history yields the ranked result
+  // wrapped with degraded { stale: false, thin: true, leg: 'nq' } following
+  // the selectTicket degraded precedent instead of null — Phase 20 dims on
+  // the flag. One sharedEpoch call, NQ-leg derivation via evaluatePools,
+  // full try/catch returning null, zero set calls. Null means degraded,
+  // never a throw into render.
+  selectPools: () => {
+    const { nq, asOfBaku } = get();
+    if (nq.stale) return null;
+    const closed = closedOnly(nq.candles);
+    if (closed.length === 0) return null;
+    try {
+      const epoch = sharedEpoch(get);
+      // The range read doubles as the finiteness probe: NaN/Infinity OHLC
+      // rows survive closedOnly but poison high/low, so non-finite geometry
+      // refuses null (garbage can never render as pools).
+      const range = computeRange(nq.candles, asOfBaku, ANCHOR_WINDOW);
+      if (!Number.isFinite(range.high) || !Number.isFinite(range.low)) return null;
+      const pools = evaluatePools(nq.candles, asOfBaku);
+      const degraded = range.thinHistory
+        ? { stale: false, thin: true, leg: 'nq' as const }
+        : { stale: false, thin: false, leg: null as string | null };
+      return { pools, asOf: asOfBaku, epoch, degraded };
     } catch {
       return null;
     }
