@@ -37,6 +37,13 @@ function positionLabel(position: number): string {
 const S3_EMPTY_COPY = 'Məlumat yoxdur';
 const S3_NY_LINE = 'NY: Gözlənilir — v2.0-da ölçülmür.';
 
+// Phase 20 §1 locked copy (UI-SPEC copywriting contract, D-01 through D-08).
+// Rank-1 sentence names side + zone bounds + ATR distance + swept status with
+// the inline projection hedge; degraded states get distinct honest copy and
+// never confident prose (D-05).
+const S1_THIN_NOTE = 'İncə tarixçə — proyeksiya zəif etimadla göstərilir.';
+const S1_HEDGE = '(proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)';
+
 // SMT suppressed envelopes carry a machine reason; the owning sub-block shows
 // it verbatim plus the locked tag (D-11).
 function smtSuppressionReason(smt: { suppressed: true; reason: string }): string {
@@ -74,6 +81,12 @@ export function Report() {
   const selectSMT = useDashboard((s) => s.selectSMT);
   const selectAMD = useDashboard((s) => s.selectAMD);
   const selectConfluence = useDashboard((s) => s.selectConfluence);
+  // Phase 20 §1 selectors: same stable-function subscription with
+  // derivation during render (selectLevels precedent — avoids useShallow
+  // loops on fresh nested identities). PoolsSelection wraps LiquidityPool[],
+  // so derivation happens once during render below, never in a shallow hook.
+  const selectPools = useDashboard((s) => s.selectPools);
+  const selectLastClose = useDashboard((s) => s.selectLastClose);
   // Phase 17 §§4-6 selectors: same stable-function subscription with
   // derivation during render (selectLevels precedent — avoids useShallow
   // loops on fresh nested identities). Math-free: panels print selector
@@ -91,6 +104,8 @@ export function Report() {
   const smt = selectSMT();
   const amd = selectAMD();
   const tier = selectConfluence();
+  const poolsSelection = selectPools();
+  const poolsLastClose = selectLastClose();
   const trigger = selectTrigger();
   const flaw = selectFatalFlaw();
   const ticket = selectTicket();
@@ -120,6 +135,79 @@ export function Report() {
       </CardHeader>
       <CardContent>
         {REPORT_SECTIONS.map((section) => {
+          // Phase 20 §1 live block (D-01 through D-08): copying the §3
+          // branch shape — section title h3, lastUpdatedISO null skeleton,
+          // null-selector Məlumat yoxdur copy, data-slot report-section plus
+          // the fixed Ağrı Həddi sub-slot. Rank-1 is the first ACTIVE pool
+          // in the returned array order (D-18 — the array arrives
+          // rank-ordered; never recompute swept-ness, consume status
+          // verbatim). Null selector renders the empty copy only, never
+          // cached pools (D-08). Placed before the generic unavailable
+          // branch (D-03). No trigger, flaw, or ticket derivation touched
+          // (D-17); no new ict math (D-20).
+          if (section.index === 1) {
+            const nqLeg = useDashboard.getState().nq;
+            const rank1 =
+              poolsSelection === null
+                ? null
+                : (poolsSelection.pools.find((p) => p.status === 'ACTIVE') ?? null);
+            const rank1Atr =
+              rank1 !== null && poolsLastClose !== null && regimeOutput !== null
+                ? regimeOutput.atr
+                : null;
+            return (
+              <section key={section.index} data-slot="report-section">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : poolsSelection === null ? (
+                  <p className="text-base font-semibold">
+                    {nqLeg.lastError ?? S3_EMPTY_COPY}
+                  </p>
+                ) : rank1 === null ? (
+                  <div data-slot="s1-pain-threshold">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      Ağrı Həddi
+                    </h4>
+                    <p className="text-base font-semibold">{S3_EMPTY_COPY}</p>
+                  </div>
+                ) : (
+                  <div
+                    data-slot="s1-pain-threshold"
+                    className={poolsSelection.degraded.thin ? 'opacity-45' : undefined}
+                  >
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      Ağrı Həddi
+                    </h4>
+                    <p
+                      className={
+                        rank1.status === 'SWEPT'
+                          ? 'text-base font-semibold text-muted-foreground'
+                          : 'text-base font-semibold'
+                      }
+                    >
+                      {`${rank1.side} ${rank1.bottom.toFixed(2)}–${rank1.top.toFixed(2)} · ATR `}
+                      <span className="font-mono tabular-nums">
+                        {rank1Atr !== null && Number.isFinite(rank1Atr) && rank1Atr > 0 && poolsLastClose !== null
+                          ? (Math.abs((rank1.top + rank1.bottom) / 2 - poolsLastClose) / rank1Atr).toFixed(2)
+                          : '—'}
+                      </span>
+                      {` · ${rank1.status} ${S1_HEDGE}`}
+                    </p>
+                    {poolsSelection.degraded.thin ? (
+                      <p className="text-xs text-muted-foreground">{S1_THIN_NOTE}</p>
+                    ) : null}
+                  </div>
+                )}
+              </section>
+            );
+          }
           // Phase 9 §3 live block (D-01 through D-04, D-09 through D-12):
           // conviction line plus three sub-blocks in fixed stable order with
           // per-block verbatim reasons, never a §3-level banner.

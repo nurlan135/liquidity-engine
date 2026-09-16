@@ -13,11 +13,12 @@ export interface ReportSection {
 }
 
 // Six institutional report sections in fixed order; section 1 (Retail
-// Exposure) stays unavailable, sections 2-6 render live. Section 5 carries
+// Exposure) renders live from the selectPools refuse-null envelope (Phase 20
+// D-22), sections 2-6 render live. Section 5 carries
 // the PAPER prefix (D-06) so the terminal can never be mistaken for real
 // brokerage.
 export const REPORT_SECTIONS: ReportSection[] = [
-  { index: 1, title: '1. RETAIL EXPOSURE & SENTIMENT ENGINEERING', state: 'unavailable' },
+  { index: 1, title: '1. RETAIL EXPOSURE & SENTIMENT ENGINEERING', state: 'live' },
   { index: 2, title: '2. MACRO DEALING RANGE & VOLATILITY REGIME (D1/4H)', state: 'live' },
   { index: 3, title: '3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)', state: 'live' },
   { index: 4, title: '4. "WHY NOW?" EXECUTION PROTOCOL (5M/1M)', state: 'live' },

@@ -1,4 +1,5 @@
-// Report contract tests: six sections in fixed order, sections 2-6 live.
+// Report contract tests: six sections in fixed order, all six live
+// (Phase 20 D-22 flips section 1 from unavailable to live).
 // Section 5 carries the PAPER prefix (D-06).
 // English identifiers; locked English chip UNAVAILABLE untouched.
 
@@ -6,12 +7,12 @@ import { describe, expect, it } from 'vitest';
 import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS } from '@/src/lib/report';
 
 describe('report', () => {
-  it('holds exactly 6 entries with only indexes 2 through 6 live', () => {
+  it('holds exactly 6 entries with all six sections live', () => {
     expect(REPORT_SECTIONS).toHaveLength(6);
     expect(REPORT_SECTIONS.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
     const live = REPORT_SECTIONS.filter((s) => s.state === 'live');
-    expect(live).toHaveLength(5);
-    expect(live.map((s) => s.index)).toEqual([2, 3, 4, 5, 6]);
+    expect(live).toHaveLength(6);
+    expect(live.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('locks the §3 title and the conviction label prefix', () => {
