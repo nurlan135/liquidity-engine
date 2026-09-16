@@ -993,7 +993,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
-  it('pools-refusal: stale or empty NQ leg forces selectPools null, ES-stale keeps pools live', async () => {
+  it('pools-matrix: POOL-06 degrade envelope — stale/empty null, thin flagged, ES-stale live, garbage safe, epoch shared', async () => {
     const { useDashboard } = await resetDualState();
     stubFourLegs();
     await useDashboard.getState().refreshNQ();
@@ -1001,28 +1001,50 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     await useDashboard.getState().refreshNQ1H();
     await useDashboard.getState().refreshNQ15M();
 
-    // Phase 19 thin envelope (D-21, POOL-06): a healthy NQ D1 leg yields a
-    // ranked PoolsSelection with one sharedEpoch call behind it.
+    // Healthy full-history leg: clean envelope, thin false, leg null.
     const healthy = useDashboard.getState().selectPools();
     expect(healthy).not.toBeNull();
     expect(Array.isArray(healthy!.pools)).toBe(true);
     expect(typeof healthy!.asOf).toBe('string');
     expect(Number.isInteger(healthy!.epoch)).toBe(true);
+    expect(healthy!.degraded).toEqual({ stale: false, thin: false, leg: null });
 
-    // Stale NQ refuses pools; stale ES must NOT null pools (D1-NQ geometry).
+    // ES-stale must NOT null pools (D1-NQ geometry, no es.stale read).
     useDashboard.setState({
       es: { ...useDashboard.getState().es, stale: true, lastError: 'es stale' },
     });
+    const esStale = useDashboard.getState().selectPools();
+    expect(esStale).not.toBeNull();
+    expect(esStale!.degraded).toEqual({ stale: false, thin: false, leg: null });
+    useDashboard.setState({
+      es: { ...useDashboard.getState().es, stale: false, lastError: null },
+    });
+
+    // Thin history (5 closed < ANCHOR_WINDOW 20): flagged result, not null.
+    const thinCandles = fixtureCandles().filter((c) => !c.forming).slice(0, 5);
+    expect(thinCandles).toHaveLength(5);
+    useDashboard.setState({
+      nq: { ...useDashboard.getState().nq, stale: false, lastError: null, candles: thinCandles },
+    });
+    const thin = useDashboard.getState().selectPools();
+    expect(thin).not.toBeNull();
+    expect(thin!.degraded).toEqual({ stale: false, thin: true, leg: 'nq' });
+    expect(Array.isArray(thin!.pools)).toBe(true);
+
+    // Re-seed the healthy leg before the refusal flips below.
+    await useDashboard.getState().refreshNQ();
     expect(useDashboard.getState().selectPools()).not.toBeNull();
+
+    // Stale NQ refuses null with the reason on nq.lastError.
     useDashboard.setState({
       nq: { ...useDashboard.getState().nq, stale: true, lastError: 'nq stale' },
     });
     expect(useDashboard.getState().selectPools()).toBeNull();
     expect(useDashboard.getState().nq.lastError).toBe('nq stale');
 
-    // Empty closed NQ leg refuses pools without throwing.
+    // Empty closed NQ leg refuses null without throwing.
     useDashboard.setState({
-      nq: { ...useDashboard.getState().nq, stale: false, candles: [] },
+      nq: { ...useDashboard.getState().nq, stale: false, lastError: null, candles: [] },
     });
     let empty: unknown = 'unset';
     expect(() => {
@@ -1035,6 +1057,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       nq: {
         ...useDashboard.getState().nq,
         stale: false,
+        lastError: null,
         candles: [{ date: 'x', open: NaN, high: NaN, low: NaN, close: NaN }],
       },
     });
@@ -1042,6 +1065,18 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     expect(() => {
       garbage = useDashboard.getState().selectPools();
     }).not.toThrow();
+    expect(garbage).toBeNull();
+
+    // Back-to-back calls share one epoch (single sharedEpoch per invocation
+    // on the same state — no torn time).
+    await useDashboard.getState().refreshNQ();
+    const first = useDashboard.getState().selectPools();
+    const second = useDashboard.getState().selectPools();
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(second!.epoch).toBe(first!.epoch);
+    expect(second!.asOf).toBe(first!.asOf);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
 
     useDashboard.getState().stopDualPoll();
   });
