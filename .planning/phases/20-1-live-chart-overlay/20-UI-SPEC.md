@@ -1,7 +1,8 @@
 ---
 phase: "20"
 slug: "1-live-chart-overlay"
-status: draft
+status: approved
+reviewed_at: "2026-09-16"
 shadcn_initialized: true
 preset: base-nova (b2fA, neutral, lucide, geist)
 created: "2026-09-16"
@@ -185,12 +186,12 @@ No third-party block enters the contract; the registry vetting gate was not trig
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: FLAG (focal point unnamed — non-blocking; recommended: §1 rank-1 sentence)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** APPROVED — 6 PASS, 1 FLAG (non-blocking)
