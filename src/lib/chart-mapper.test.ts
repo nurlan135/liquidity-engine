@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs } from '@/src/lib/chart-mapper';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs, shouldCreatePoolLines } from '@/src/lib/chart-mapper';
 import type { LevelsOutput } from '@/src/lib/ict/levels';
 
 describe('chart-mapper: candle to series mapping', () => {
@@ -66,6 +66,22 @@ describe('chart-mapper: pool line inputs', () => {
 
   it('returns coincident values without throwing on equal top-bottom (zero-width)', () => {
     expect(poolLineInputs(20150, 20150)).toEqual({ top: 20150, bottom: 20150 });
+  });
+});
+
+describe('chart-mapper: pool creation verdict gate', () => {
+  it('returns false for STAND_ASIDE so ghosts clear instead of re-creating', () => {
+    expect(shouldCreatePoolLines('STAND_ASIDE')).toBe(false);
+  });
+
+  it('returns true for EXECUTE_LONG and EXECUTE_SHORT', () => {
+    expect(shouldCreatePoolLines('EXECUTE_LONG')).toBe(true);
+    expect(shouldCreatePoolLines('EXECUTE_SHORT')).toBe(true);
+  });
+
+  it('returns true for null and undefined, preserving current rendering behavior', () => {
+    expect(shouldCreatePoolLines(null)).toBe(true);
+    expect(shouldCreatePoolLines(undefined)).toBe(true);
   });
 });
 

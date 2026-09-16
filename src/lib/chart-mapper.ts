@@ -75,6 +75,19 @@ export function poolLineInputs(top: number, bottom: number): PoolLineInputs {
   return { top, bottom };
 }
 
+// Local verdict view for the pool overlay gate (Phase 20 D-15). The
+// dependency direction stays component-ward per D-20: the mapper owns no
+// ticket types — the chart passes its already-bound ticketVerdict prop, and
+// the gate answers whether pool and swept-ghost creation may run. STAND_ASIDE
+// suppresses creation while the shared unconditional-removal paths still
+// clear; every other verdict (EXECUTE_LONG, EXECUTE_SHORT, null, undefined)
+// preserves current rendering behavior.
+export type PoolVerdict = 'EXECUTE_LONG' | 'EXECUTE_SHORT' | 'STAND_ASIDE' | null | undefined;
+
+export function shouldCreatePoolLines(verdict: PoolVerdict): boolean {
+  return verdict !== 'STAND_ASIDE';
+}
+
 export interface LevelLineInputs {
   q1: number;
   q3: number;

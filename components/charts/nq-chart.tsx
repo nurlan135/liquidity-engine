@@ -5,7 +5,7 @@ import type { LevelsOutput } from '@/src/lib/ict/levels';
 import type { JudasOutput } from '@/src/lib/ict/judas';
 import type { SmtOutput } from '@/src/lib/ict/smt';
 import type { PoolSide } from '@/src/lib/ict/pools';
-import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs } from '@/src/lib/chart-mapper';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs, shouldCreatePoolLines } from '@/src/lib/chart-mapper';
 import type { ThinTier } from '@/src/lib/thin-tier';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
@@ -317,10 +317,13 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       // MUTED_GRAY and stay visible (D-12); degraded (stale/thin) ACTIVE
       // legs desaturate to muted gray under the uniform discipline (D-13).
       // Finite-guarded inputs with per-leg try/catch that nulls only the
-      // failing leg (T-20-06); a null selector leaves zero lines (D-14).
+      // failing leg (T-20-06); a null selector leaves zero lines (D-14). A
+      // STAND_ASIDE verdict gates the whole creation region — pools and
+      // ghosts — while the unconditional-removal paths above still clear,
+      // so the update cycle cannot re-create ghosts after removal (D-15).
       // Created after Asia and before ticket legs (D-11) so ticket stays
       // on top and pools sit above zones.
-      {
+      if (shouldCreatePoolLines(props.ticketVerdict)) {
         const poolUp = up;
         const poolDown = down;
         const poolUpDim = 'rgba(0,255,136,0.5)';
@@ -765,16 +768,18 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
-      // Phase 20 pool overlay (D-09/D-10/D-11/D-13): created after Asia and
-      // before ticket legs so ticket stays on top and pools sit above
-      // zones. No verdict gate — render whenever pool array props carry
-      // entries; null leaves zero lines after the unconditional removal
-      // above (D-14). Degraded (stale/thin flags or chart-level stale/thin)
-      // uses MUTED_GRAY under the uniform halved discipline (D-13); per-leg
-      // try/catch nulls only the failing leg (T-20-06). Rank pairs mount
-      // through the same inline twin as mount (titles {SIDE}-{rank}-{leg},
-      // BSL up tone / SSL down tone, rank-1 full / rank-2 same hue halved).
-      {
+      // Phase 20 pool overlay (D-09/D-10/D-11/D-13/D-15): created after
+      // Asia and before ticket legs so ticket stays on top and pools sit
+      // above zones. The whole refresh region — both pool refresh calls plus
+      // both ghost refresh calls — runs only when the verdict gate allows;
+      // STAND_ASIDE leaves zero lines after the unconditional removal above
+      // (D-15), null leaves zero lines (D-14). Degraded (stale/thin flags or
+      // chart-level stale/thin) uses MUTED_GRAY under the uniform halved
+      // discipline (D-13); per-leg try/catch nulls only the failing leg
+      // (T-20-06). Rank pairs mount through the same inline twin as mount
+      // (titles {SIDE}-{rank}-{leg}, BSL up tone / SSL down tone, rank-1
+      // full / rank-2 same hue halved).
+      if (shouldCreatePoolLines(ticketVerdict)) {
         const poolUp = up;
         const poolDown = down;
         const poolUpDim = 'rgba(0,255,136,0.5)';
@@ -980,7 +985,11 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const hasScalarPoolPair = poolBslTop !== null && poolBslTop !== undefined && poolBslBottom !== null && poolBslBottom !== undefined;
   const hasPoolPairArrays = (poolBslPairs !== null && poolBslPairs !== undefined && poolBslPairs.length > 0) || (poolSslPairs !== null && poolSslPairs !== undefined && poolSslPairs.length > 0);
   const hasPoolGhosts = (poolBslGhosts !== null && poolBslGhosts !== undefined && poolBslGhosts.length > 0) || (poolSslGhosts !== null && poolSslGhosts !== undefined && poolSslGhosts.length > 0);
-  const hasPoolLines = hasScalarPoolPair || hasPoolPairArrays || hasPoolGhosts;
+  // Phase 20 D-15: the sentinel stays honest when creation is gated — under
+  // STAND_ASIDE the effects create zero pool or ghost lines, so the slot
+  // reports none even while the shell fans verdict-free pool props.
+  const poolLinesAllowed = shouldCreatePoolLines(ticketVerdict);
+  const hasPoolLines = poolLinesAllowed && (hasScalarPoolPair || hasPoolPairArrays || hasPoolGhosts);
   const hasJudasMarkers =
     judas !== null && judas !== undefined && (judas.confirmed === true || judas.candidate === true) &&
     (judas.sweepSide === 'HIGH' || judas.sweepSide === 'LOW') &&
