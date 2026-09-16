@@ -756,6 +756,125 @@ describe('terminal shell fans the full pool overlay to the chart (20-03 nearest-
   });
 });
 
+describe('terminal shell renders the live §1 rank-1 sentence (20-04 gap-1 closure)', () => {
+  // Spread-peak fixture: strict k=2 swing HIGHS placed >500pt apart so no
+  // same-side clustering merges them (merge radius 0.25 × ATR ≈ 22–30pt).
+  // Peaks 20460/20400/20340/20300/20260 ride below the last close, the SSL
+  // trough 19994 never pierces, so every pool stays ACTIVE and nothing
+  // consumes: the scorer keeps the full ranked-ACTIVE prefix.
+  function rank1Candles(): Candle[] {
+    const start = Date.UTC(2026, 0, 5);
+    const date = (i: number) => new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+    const highs = [
+      20010, 20015, 20460, 20015, 20010, 20012, 20014,
+      20400, 20010, 20012, 20014, 20011, 20013,
+      20340, 20010, 20012, 20014, 20011, 20013,
+      20300, 20010, 20012, 20014, 20011, 20013,
+      20260, 20010, 20012, 20014, 20011, 20013,
+      20180, 20010, 20012,
+    ];
+    return highs.map((high, i) => {
+      const low = 20000 - (i % 7);
+      const mid = (high + low) / 2;
+      return {
+        date: date(i),
+        open: mid,
+        high,
+        low,
+        close: mid,
+      };
+    });
+  }
+
+  function seedLegs(candles: Candle[]) {
+    const seededISO = new Date().toISOString();
+    const seededAsOf = candles[candles.length - 1].date;
+    useDashboard.setState({
+      candles,
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: seededISO,
+      stale: false,
+      source: 'live',
+      inFlight: false,
+      lastError: null,
+      asOfBaku: seededAsOf,
+      nq: { candles, contractHint: 'NQ=F · CME', lastUpdatedISO: seededISO, stale: false, source: 'live', lastError: null },
+    });
+    return seededAsOf;
+  }
+
+  function rank1Envelope(candles: Candle[]) {
+    return {
+      candles,
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: new Date().toISOString(),
+      stale: false,
+      source: 'live',
+    };
+  }
+
+  it('rank-1-live-sentence: settled selection renders the full sentence with side, bounds, ATR, status, reason, and hedge', async () => {
+    const seeded = rank1Candles();
+    seedLegs(seeded);
+    const fetchFn = vi.fn(async () => Response.json(rank1Envelope(seeded)));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const pain = container.querySelector('[data-slot="s1-pain-threshold"]');
+    expect(pain).not.toBeNull();
+    const prose = pain!.querySelector('p.text-base');
+    expect(prose).not.toBeNull();
+    expect(prose!.textContent).toBe(
+      'SSL 19994.00–19994.00 · ATR 0.11 · ACTIVE SSL toxunuş 4 çəki 10.00 status ACTIVE (proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)',
+    );
+  });
+
+  it('rank-1-swept-names-muted: all-swept book names the top SWEPT pool with the status token in the muted tone', async () => {
+    const seeded = rank1Candles();
+    const n = seeded.length;
+    const last = seeded[n - 1];
+    // One wick pierce above the highest BSL top (20460) plus a low pierce
+    // below the SSL bottom (19994) with the close back inside: every pool
+    // sweeps, none consumes (no close crosses any zone edge).
+    seeded[n - 1] = { ...last, high: 20461, low: 19990, close: 20052 };
+    seedLegs(seeded);
+    const fetchFn = vi.fn(async () => Response.json(rank1Envelope(seeded)));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const pain = container.querySelector('[data-slot="s1-pain-threshold"]');
+    expect(pain).not.toBeNull();
+    const prose = pain!.querySelector('p.text-base');
+    expect(prose).not.toBeNull();
+    expect(prose!.textContent).toBe(
+      'BSL 20460.00–20460.00 · ATR 3.43 · SWEPT BSL toxunuş 1 çəki 1.00 status SWEPT (proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)',
+    );
+    expect(prose!.className).toContain('text-muted-foreground');
+  });
+
+  it('rank-1-empty-book: empty pools array renders the no-pools copy with no confident prose', async () => {
+    // Gapped fixture: a lone gapped close invents no strict k=2 swing, so
+    // the selector resolves with zero pools (empty array, not null).
+    const seeded = gappedCandles();
+    seedLegs(seeded);
+    const selection = useDashboard.getState().selectPools();
+    expect(selection).not.toBeNull();
+    expect(selection!.pools).toEqual([]);
+    const fetchFn = vi.fn(async () => Response.json({ ...gappedEnvelope(), candles: seeded }));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+
+    const pain = container.querySelector('[data-slot="s1-pain-threshold"]');
+    expect(pain).not.toBeNull();
+    expect(pain!.textContent).toContain('Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.');
+    expect(pain!.textContent).not.toContain('toxunuş');
+    expect(pain!.textContent).not.toContain('ATR');
+  });
+});
+
 describe('terminal shell shows chart-header freshness matching the strip (W2)', () => {
   async function headerAndStrip(container: HTMLElement) {
     const header = container.querySelector('[data-slot="chart-freshness"]');
