@@ -30,6 +30,9 @@ export const BEHIND_PENALTY = 0.25;
 /** Epsilon for tolerance-boundary compares (WR-02: divide-then-multiply float error). */
 // CALIBRATION-PROVISIONAL: seeded 2026-09-16, unobserved live. Phase 21 reviews against firing log.
 export const TOL_EPS_BPS = 1e-9;
+/** Diminishing equality-bonus steps per extra touch (D-05, T-19-03 mitigation). */
+// CALIBRATION-PROVISIONAL: seeded 2026-09-16, unobserved live. Phase 21 reviews against firing log.
+export const EQUAL_BONUS_STEPS = [3.0, 2.0, 1.0, 0.5];
 
 export type PoolSide = 'BSL' | 'SSL';
 export type PoolStatus = 'ACTIVE' | 'SWEPT' | 'CONSUMED';
@@ -80,6 +83,33 @@ export function withinTolerance(a: number, b: number): boolean {
   return bpsGap(a, b) - EQUAL_TOL_BPS <= TOL_EPS_BPS;
 }
 
+// Diminishing equality bonus (D-01..D-05, T-19-03): the 2nd touch earns
+// steps[0], the 3rd steps[1], and so on — increments shrink 3.0, 2.0, 1.0,
+// 0.5. Beyond the 4 shipped steps each extra touch adds 0.5, capped at 2
+// extra steps (bonus(6)=7, bonus(7+)=7). A lone touch earns no bonus.
+export function equalityBonus(touches: number): number {
+  if (!Number.isInteger(touches) || touches < 2) {
+    return 0;
+  }
+  let bonus = 0;
+  const extra = touches - 1;
+  const capped = Math.min(extra, EQUAL_BONUS_STEPS.length + 2);
+  for (let i = 0; i < capped; i++) {
+    bonus += i < EQUAL_BONUS_STEPS.length ? EQUAL_BONUS_STEPS[i] : 0.5;
+  }
+  return bonus;
+}
+
+// Weight from raw touch count: touches plus the cumulative equality bonus.
+// Per D-04 the lifecycle never edits weight — a SWEPT pool keeps its full
+// bonus (reduced presence flows through scorer eligibility, never weight).
+export function poolWeight(touches: number): number {
+  if (!Number.isInteger(touches) || touches < 1) {
+    return 1.0;
+  }
+  return touches + equalityBonus(touches);
+}
+
 interface SwingSeed {
   side: PoolSide;
   price: number;
@@ -95,9 +125,13 @@ function windowCandles(candles: Candle[]): Candle[] {
     .slice(-SWING_LOOKBACK);
 }
 
-// Thin D-05 seed: single sweep of shared swings — swing highs seed BSL
-// candidates, swing lows seed SSL candidates. Full equality clustering plus
-// the diminishing bonus curve land in Plan 02.
+// Equality-clustering seed (D-01..D-05): same-side swings whose relative
+// gap stays within EQUAL_TOL_BPS cluster into one pool with touches = member
+// count, merged zone = min-max span of member extremes, originDate = earliest
+// member date, weight via poolWeight(). Greedy chronological: each seed joins
+// the earliest open cluster it tolerates, otherwise it opens a new one. A
+// lone swing keeps a point zone plus single touch plus weight 1.0 (D-05:
+// minimum 2 touches earns the bonus).
 function seedPools(window: Candle[]): LiquidityPool[] {
   const highs = window.map((c) => c.high);
   const lows = window.map((c) => c.low);
@@ -110,23 +144,52 @@ function seedPools(window: Candle[]): LiquidityPool[] {
       seeds.push({ side: 'SSL', price: window[i].low, date: window[i].date });
     }
   }
-  // D-15 thin: one seed is a point zone plus single touch. EQUAL_TOL_BPS
-  // clustering widens zones to min-max spans in Plan 02.
-  return seeds.map((s) => ({
-    side: s.side,
-    top: s.price,
-    bottom: s.price,
-    touches: 1,
-    weight: 1.0,
-    originDate: s.date,
-    status: 'ACTIVE' as PoolStatus,
-  }));
+  seeds.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  interface Cluster {
+    side: PoolSide;
+    extremes: number[];
+    originDate: string;
+  }
+  const clusters: Cluster[] = [];
+  for (const seed of seeds) {
+    let joined = false;
+    for (const cluster of clusters) {
+      if (
+        cluster.side === seed.side &&
+        cluster.extremes.every((price) => withinTolerance(seed.price, price))
+      ) {
+        cluster.extremes.push(seed.price);
+        if (seed.date < cluster.originDate) cluster.originDate = seed.date;
+        joined = true;
+        break;
+      }
+    }
+    if (!joined) {
+      clusters.push({ side: seed.side, extremes: [seed.price], originDate: seed.date });
+    }
+  }
+  return clusters.map((cluster) => {
+    const top = Math.max(...cluster.extremes);
+    const bottom = Math.min(...cluster.extremes);
+    return {
+      side: cluster.side,
+      top,
+      bottom,
+      touches: cluster.extremes.length,
+      weight: poolWeight(cluster.extremes.length),
+      originDate: cluster.originDate,
+      status: 'ACTIVE' as PoolStatus,
+    };
+  });
 }
 
 // Thin lifecycle (D-18): single chronological pass strictly after originDate.
 // BSL wick pierce (high > top) marks SWEPT; strictly-later close above top
 // marks CONSUMED. SSL mirrors with low < bottom and close below bottom.
-// First sweep wins, no re-promotion; origin absent is kept and skipped.
+// Boundary touch with == is not a sweep (strict inequality per the judas
+// pierce idiom). First sweep wins, no re-promotion; origin absent is kept
+// and skipped. A pierce whose close stays inside yields SWEPT, never
+// CONSUMED (sweep-then-reject per the fvg close-through idiom).
 function applyLifecycle(pools: LiquidityPool[], closed: Candle[], asOf: string): LiquidityPool[] {
   const out: LiquidityPool[] = [];
   for (const pool of pools) {
