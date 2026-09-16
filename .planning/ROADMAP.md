@@ -102,7 +102,14 @@ Plans:
   3. User can see BSL/SSL zones as dashed price-line pairs on the chart, capped to nearest-2-per-side, with rank-1 highlighted and swept pools dimmed
   4. User sees pool lines dim under stale/thin tiers and sees ghost lines clear when the ticket stands aside, with ticket entry/SL/TP lines on top
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 20-01-PLAN.md — Tracer: contract flip + rank-1 branch + shell fan-out + single chart pair
+- [ ] 20-02-PLAN.md — Section 1 state matrix: honest empties + swept tone + inline hedge
+- [ ] 20-03-PLAN.md — Chart overlay: nearest-2-per-side pairs + ghosts + z-order + dimming/clearing
+
 **UI hint**: yes
 
 ### Phase 21: Execution Polish
