@@ -359,32 +359,45 @@ describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
   });
 
   it('inventory over 20 keeps the newest 20 by originDate even for unsorted input', () => {
-    // CAP leg: 11 stride-5 peaks seed 22 pools (staggered ±, no clustering).
-    // Every pool stays ACTIVE by construction: the BSL zone tops ascend with
-    // the peaks while the closes ride the OPEN-tail — each bar's close stays
-    // below every BSL top AND above every SSL bottom. Flat-mid `leg()`
-    // closes break this (mid pierces early lows); the custom builder below
-    // pins closes to the tail-open rail instead.
+    // CAP leg: converging triangle seeds 22 pools — 11 BSL peaks at bars
+    // 5,10,...,55 with tops descending 21650->20150 toward the rail, plus 11
+    // SSL troughs at bars 7,12,...,57 with bottoms ascending 18350->19850.
+    // Same-side step is 150 (~70 bps, above the 25 bps cluster floor), so
+    // nothing clusters. Nothing is ever consumed (every BSL top stays above
+    // the pinned 20000 close, every SSL bottom below it) and nothing is ever
+    // swept (later extremes converge inward, never piercing earlier zones),
+    // so all 22 stay ACTIVE through the lifecycle. Merge cannot fuse them
+    // either: extremes converge toward the rail, so late-window TR stays
+    // small, ATR stays far below the 150-per-step stagger (radius << gap).
+    // Pipeline order is lifecycle->merge->cap: the cap keeps exactly the
+    // newest 20 of the 22 seeded pools.
     const n = 60;
     const startDay = 100;
-    const peakAt = (i: number): boolean => i >= 5 && i <= 55 && i % 5 === 0;
-    const highs = Array.from({ length: n }, (_, i) => (peakAt(i) ? 20600 + i * 30 : 20060));
-    const lows = Array.from({ length: n }, (_, i) => (peakAt(i) ? 19900 - i * 20 : 19960));
-    for (let i = 5; i <= 55; i += 5) {
-      expect(highs[i]).toBeGreaterThan(Math.max(highs[i - 2], highs[i - 1], highs[i + 1], highs[i + 2]));
-      expect(lows[i]).toBeLessThan(Math.min(lows[i - 2], lows[i - 1], lows[i + 1], lows[i + 2]));
+    const isBslPeak = (i: number): boolean => i >= 5 && i <= 55 && (i - 5) % 5 === 0;
+    const isSslTrough = (i: number): boolean => i >= 7 && i <= 57 && (i - 7) % 5 === 0;
+    const peakTop = (k: number): number => 21650 - k * 150;
+    const troughBottom = (k: number): number => 18350 + k * 150;
+    const highs = Array.from({ length: n }, (_, i) =>
+      (isBslPeak(i) ? peakTop((i - 5) / 5) : 20020));
+    const lows = Array.from({ length: n }, (_, i) =>
+      (isSslTrough(i) ? troughBottom((i - 7) / 5) : 19980));
+    for (let k = 0; k <= 10; k++) {
+      const i = 5 + k * 5;
+      expect(highs[i]).toBeGreaterThan(
+        Math.max(highs[i - 2], highs[i - 1], highs[i + 1], highs[i + 2]),
+      );
+      const j = 7 + k * 5;
+      expect(lows[j]).toBeLessThan(
+        Math.min(lows[j - 2], lows[j - 1], lows[j + 1], lows[j + 2]),
+      );
     }
     const candles: Candle[] = highs.map((h, i) => ({
       date: `2026-01-${String(startDay + i).padStart(2, '0')}`,
-      open: 20200,
+      open: 20000,
       high: h,
       low: lows[i],
-      close: 20200,
+      close: 20000,
     }));
-    // Cap-then-lifecycle order probe: evaluatePools caps the MERGED inventory
-    // before lifecycle/scorer run, so with 22 seeded pools the returned map
-    // holds exactly the newest 20 — including pools the lifecycle later marks
-    // SWEPT (they ride along unscored, never Rank-1, per D-06).
     const seeded = detectPools(candles, AS_OF);
     expect(seeded.length).toBeGreaterThan(POOL_MAP_BOUND);
     // Unsorted-input pin: capPools sorts by originDate before slicing, so a
@@ -394,6 +407,8 @@ describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
     const seededDates = seeded.map((p) => p.originDate).sort();
     const newest20 = seededDates.slice(-POOL_MAP_BOUND);
     expect(full.map((p) => p.originDate).sort()).toEqual(newest20);
+    const reversed = evaluatePools([...candles].reverse(), AS_OF);
+    expect(reversed.map((p) => p.originDate).sort()).toEqual(newest20);
   });
 
   it('Rank-1 equals the nearest ACTIVE pool on the DOL side', () => {
