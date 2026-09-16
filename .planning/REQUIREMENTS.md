@@ -9,12 +9,12 @@ Requirements for v3.1 milestone. Each maps to roadmap phases.
 
 ### Pools Math
 
-- [ ] **POOL-01**: User sees BSL/SSL pools detected from D1 swing highs/lows (shared swings.ts, k=2 strict fractal)
-- [ ] **POOL-02**: Equal highs/lows get extra weight (EQUAL_TOL_BPS provisional, test-pinned)
-- [ ] **POOL-03**: Pools project as zones (side, top, bottom, touches, weight, originDate, status), trailing cap
-- [ ] **POOL-04**: Sweep-status lifecycle ACTIVE/SWEPT/CONSUMED (wick-pierce=swept, close-through=consumed, first-sweep-wins)
-- [ ] **POOL-05**: Proximity × DOL-side scorer ranks pools (provisional constants exported, boundary-tested)
-- [ ] **POOL-06**: selectPools selector with refuse-null envelope + sharedEpoch + never-throws
+- [x] **POOL-01**: User sees BSL/SSL pools detected from D1 swing highs/lows (shared swings.ts, k=2 strict fractal)
+- [x] **POOL-02**: Equal highs/lows get extra weight (EQUAL_TOL_BPS provisional, test-pinned)
+- [x] **POOL-03**: Pools project as zones (side, top, bottom, touches, weight, originDate, status), trailing cap
+- [x] **POOL-04**: Sweep-status lifecycle ACTIVE/SWEPT/CONSUMED (wick-pierce=swept, close-through=consumed, first-sweep-wins)
+- [x] **POOL-05**: Proximity × DOL-side scorer ranks pools (provisional constants exported, boundary-tested)
+- [x] **POOL-06**: selectPools selector with refuse-null envelope + sharedEpoch + never-throws
 
 ### §1 Live Report
 
@@ -64,12 +64,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| POOL-01 | Phase 19 | Pending |
-| POOL-02 | Phase 19 | Pending |
-| POOL-03 | Phase 19 | Pending |
-| POOL-04 | Phase 19 | Pending |
-| POOL-05 | Phase 19 | Pending |
-| POOL-06 | Phase 19 | Pending |
+| POOL-01 | Phase 19 | Complete |
+| POOL-02 | Phase 19 | Complete |
+| POOL-03 | Phase 19 | Complete |
+| POOL-04 | Phase 19 | Complete |
+| POOL-05 | Phase 19 | Complete |
+| POOL-06 | Phase 19 | Complete |
 | S1-01 | Phase 20 | Pending |
 | S1-02 | Phase 20 | Pending |
 | S1-03 | Phase 20 | Pending |
@@ -82,6 +82,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POL-04 | Phase 21 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 16 total
 - Mapped to phases: 16
 - Unmapped: 0 ✓
