@@ -79,7 +79,12 @@ Full detail: `.planning/milestones/v3.0-ROADMAP.md`
   2. Equal highs/lows rank heavier than single touches, and every pool shows side, zone bounds, weight, origin and ACTIVE/SWEPT/CONSUMED status
   3. Swept pools stay swept (wick-pierce marks SWEPT, close-through marks CONSUMED, first-sweep-wins, no re-promotion)
   4. Pool selector degrades honestly on stale/empty/thin legs (refuse-null envelope, sharedEpoch) and never throws
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 19-01-PLAN.md — Tracer: shared swings extraction + thin pools pipeline + thin selectPools
+- [ ] 19-02-PLAN.md — Full math matrix: equality bonus + lifecycle + ATR-merge/cap + scorer
+- [ ] 19-03-PLAN.md — Guarded delivery: selectPools degrade matrix + swings pins + suite proof
 
 ### Phase 20: §1 Live + Chart Overlay
 **Goal**: Users see the live Pain Threshold map in report §1 and as chart overlays
