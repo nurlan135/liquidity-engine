@@ -5,7 +5,7 @@ import type { LevelsOutput } from '@/src/lib/ict/levels';
 import type { JudasOutput } from '@/src/lib/ict/judas';
 import type { SmtOutput } from '@/src/lib/ict/smt';
 import type { PoolSide } from '@/src/lib/ict/pools';
-import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs, shouldCreatePoolLines } from '@/src/lib/chart-mapper';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs, shouldCreatePoolLines, ticketLineInputs } from '@/src/lib/chart-mapper';
 import type { ThinTier } from '@/src/lib/thin-tier';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
@@ -484,14 +484,37 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       // chart never blocks. Stale legs desaturate to muted gray.
       if (props.ticketVerdict === 'EXECUTE_LONG' || props.ticketVerdict === 'EXECUTE_SHORT') {
         const ticketColor = props.overlayStale ? MUTED_GRAY : accent;
-        const ticketLegs = [
-          { ref: entryLineRef, price: props.ticketEntry, title: 'Entry', style: LineStyle.Dashed },
-          { ref: slLineRef, price: props.ticketSL, title: 'SL', style: LineStyle.Solid },
-          { ref: tp1LineRef, price: props.ticketTP1, title: 'TP1', style: LineStyle.Dashed },
-          { ref: tp2LineRef, price: props.ticketTP2, title: 'TP2', style: LineStyle.Dashed },
-          { ref: tp3LineRef, price: props.ticketTP3, title: 'TP3', style: LineStyle.Dashed },
-        ];
-        for (const leg of ticketLegs) {
+        // Phase 21 buffered ticket lines (D-07): the legs thread through
+        // the ticketLineInputs guard so buffered SL/TP values validate
+        // before line creation — moved lines, EXECUTE-only rendering, and
+        // unchanged z-order (after Asia, before pools) all hold. A guard
+        // throw renders no ticket lines and never blocks the chart.
+        let ticketLegs: Array<{ ref: { current: unknown }; price: number | null; title: string; style: unknown }> | null = null;
+        try {
+          const inputs = ticketLineInputs(
+            props.ticketEntry ?? null,
+            props.ticketSL ?? null,
+            props.ticketTP1 ?? null,
+            props.ticketTP2 ?? null,
+            props.ticketTP3 ?? null,
+          );
+          ticketLegs = [
+            { ref: entryLineRef, price: inputs.entry, title: 'Entry', style: LineStyle.Dashed },
+            { ref: slLineRef, price: inputs.sl, title: 'SL', style: LineStyle.Solid },
+            { ref: tp1LineRef, price: inputs.tp1, title: 'TP1', style: LineStyle.Dashed },
+            { ref: tp2LineRef, price: inputs.tp2, title: 'TP2', style: LineStyle.Dashed },
+            { ref: tp3LineRef, price: inputs.tp3, title: 'TP3', style: LineStyle.Dashed },
+          ];
+        } catch {
+          ticketLegs = null;
+        }
+        if (ticketLegs === null) {
+          entryLineRef.current = null;
+          slLineRef.current = null;
+          tp1LineRef.current = null;
+          tp2LineRef.current = null;
+          tp3LineRef.current = null;
+        } else for (const leg of ticketLegs) {
           if (typeof leg.price !== 'number' || !Number.isFinite(leg.price)) continue;
           try {
             leg.ref.current = typed.createPriceLine({
@@ -913,32 +936,50 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         refreshGhostPairs(poolBslGhosts, 'BSL', ghostBslTopLineRefs, ghostBslBottomLineRefs);
         refreshGhostPairs(poolSslGhosts, 'SSL', ghostSslTopLineRefs, ghostSslBottomLineRefs);
       }
-      // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): remove-then-create like the
-      // Asia pair. EXECUTE verdict only; each leg renders independently —
-      // null or non-finite legs (legal on a partial TP ladder) are skipped
-      // while finite legs still render. Removal already happened
-      // unconditionally above, so STAND ASIDE and INVALIDATED leave zero
-      // ticket lines (D-10, Pitfall 6). A create throw nulls only that leg.
+      // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09, Phase 21 D-07): the
+      // legs thread through the ticketLineInputs guard so buffered SL/TP
+      // values validate before line creation — moved lines, EXECUTE-only
+      // rendering, and unchanged z-order (after Asia, before pools) all
+      // hold. A guard throw renders no ticket lines and never blocks the
+      // chart.
       if (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') {
-        const ticketLegs = [
-          { ref: entryLineRef, price: ticketEntry, title: 'Entry', style: LineStyle.Dashed },
-          { ref: slLineRef, price: ticketSL, title: 'SL', style: LineStyle.Solid },
-          { ref: tp1LineRef, price: ticketTP1, title: 'TP1', style: LineStyle.Dashed },
-          { ref: tp2LineRef, price: ticketTP2, title: 'TP2', style: LineStyle.Dashed },
-          { ref: tp3LineRef, price: ticketTP3, title: 'TP3', style: LineStyle.Dashed },
-        ];
-        for (const leg of ticketLegs) {
-          if (typeof leg.price !== 'number' || !Number.isFinite(leg.price)) continue;
-          try {
-            leg.ref.current = live.createPriceLine({
-              price: leg.price,
-              color: overlayTone,
-              lineWidth: 1,
-              lineStyle: leg.style,
-              title: leg.title,
-            });
-          } catch {
-            leg.ref.current = null;
+        // Phase 21 buffered ticket lines (D-07): legs thread through the
+        // ticketLineInputs guard so buffered SL/TP values validate before
+        // line creation — a guard throw renders no ticket lines and never
+        // blocks the chart.
+        let guarded: { entry: number; sl: number; tp1: number; tp2: number | null; tp3: number | null } | null = null;
+        try {
+          guarded = ticketLineInputs(ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3);
+        } catch {
+          guarded = null;
+        }
+        if (guarded === null) {
+          entryLineRef.current = null;
+          slLineRef.current = null;
+          tp1LineRef.current = null;
+          tp2LineRef.current = null;
+          tp3LineRef.current = null;
+        } else {
+          const directLegs = [
+            { ref: entryLineRef, price: guarded.entry, title: 'Entry', style: LineStyle.Dashed },
+            { ref: slLineRef, price: guarded.sl, title: 'SL', style: LineStyle.Solid },
+            { ref: tp1LineRef, price: guarded.tp1, title: 'TP1', style: LineStyle.Dashed },
+            { ref: tp2LineRef, price: guarded.tp2, title: 'TP2', style: LineStyle.Dashed },
+            { ref: tp3LineRef, price: guarded.tp3, title: 'TP3', style: LineStyle.Dashed },
+          ];
+          for (const leg of directLegs) {
+            if (typeof leg.price !== 'number' || !Number.isFinite(leg.price)) continue;
+            try {
+              leg.ref.current = live.createPriceLine({
+                price: leg.price,
+                color: overlayTone,
+                lineWidth: 1,
+                lineStyle: leg.style,
+                title: leg.title,
+              });
+            } catch {
+              leg.ref.current = null;
+            }
           }
         }
       }

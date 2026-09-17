@@ -88,6 +88,45 @@ export function shouldCreatePoolLines(verdict: PoolVerdict): boolean {
   return verdict !== 'STAND_ASIDE';
 }
 
+export interface TicketLineInputs {
+  entry: number;
+  sl: number;
+  tp1: number;
+  tp2: number | null;
+  tp3: number | null;
+}
+
+// Pass the buffered ticket legs through unchanged for EXECUTE-only price
+// line creation (Phase 21 D-07): the shell fans ticket.sl plus ticket.tp
+// from the buffered computeTicket output, so the SL/TP lines move off the
+// extreme with the buffer note in prose. Guards with the module
+// isFiniteNumber predicate and throws naming ticketLineInputs on any
+// non-finite entry, SL, or TP1 (TP2/TP3 stay nullable legs —
+// unresolvable legs are legal nulls, never fillers); the NqChart caller
+// wraps in try-catch so a throw renders no lines and never blocks the
+// chart. Z-order unchanged: ticket legs create after Asia and before pool
+// lines per the existing D-11 order.
+export function ticketLineInputs(
+  entry: number | null,
+  sl: number | null,
+  tp1: number | null,
+  tp2: number | null,
+  tp3: number | null,
+): TicketLineInputs {
+  if (!isFiniteNumber(entry) || !isFiniteNumber(sl) || !isFiniteNumber(tp1)) {
+    throw new Error(
+      `ticketLineInputs requires finite entry, sl, and tp1, got ${String(entry)} ${String(sl)} ${String(tp1)}`,
+    );
+  }
+  if (tp2 !== null && tp2 !== undefined && !isFiniteNumber(tp2)) {
+    throw new Error(`ticketLineInputs requires finite tp2 or null, got ${String(tp2)}`);
+  }
+  if (tp3 !== null && tp3 !== undefined && !isFiniteNumber(tp3)) {
+    throw new Error(`ticketLineInputs requires finite tp3 or null, got ${String(tp3)}`);
+  }
+  return { entry, sl, tp1, tp2: tp2 ?? null, tp3: tp3 ?? null };
+}
+
 export interface LevelLineInputs {
   q1: number;
   q3: number;

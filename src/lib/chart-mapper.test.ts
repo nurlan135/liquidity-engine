@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs, shouldCreatePoolLines } from '@/src/lib/chart-mapper';
+import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, poolLineInputs, priceLineInputs, shouldCreatePoolLines, ticketLineInputs } from '@/src/lib/chart-mapper';
 import type { LevelsOutput } from '@/src/lib/ict/levels';
 
 describe('chart-mapper: candle to series mapping', () => {
@@ -114,5 +114,45 @@ describe('chart-mapper: quadrant/OTE level lines', () => {
     expect(() =>
       levelLineInputs({ ...levelsFixture, bullOTE: { lo: 20210, hi: Number.POSITIVE_INFINITY } }),
     ).toThrow(/levelLineInputs/);
+  });
+});
+
+describe('chart-mapper: buffered ticket line inputs (21-02 buffered placement)', () => {
+  it('passes buffered SL/TP legs through unchanged: SL 20075, TPs 20210/20256/20256', () => {
+    // Shared tracer structure with the stop-side buffered build (entry
+    // 20097.5, SL 20085 − 0.25×40 = 20075) plus the TP-side pullback
+    // shape (TP2/TP3 20260 − 0.10×40 = 20256, TP1 20210 unchanged): the
+    // chart lines move off the extreme with the buffer note in prose.
+    expect(ticketLineInputs(20097.5, 20075, 20210, 20256, 20256)).toEqual({
+      entry: 20097.5,
+      sl: 20075,
+      tp1: 20210,
+      tp2: 20256,
+      tp3: 20256,
+    });
+  });
+
+  it('passes null TP2/TP3 partial-ladder legs through as null (never fillers)', () => {
+    expect(ticketLineInputs(20097.5, 20075, 20210, null, null)).toEqual({
+      entry: 20097.5,
+      sl: 20075,
+      tp1: 20210,
+      tp2: null,
+      tp3: null,
+    });
+  });
+
+  it('throws naming ticketLineInputs on a NaN buffered SL', () => {
+    expect(() => ticketLineInputs(20097.5, Number.NaN, 20210, 20256, 20256)).toThrow(/ticketLineInputs/);
+  });
+
+  it('throws naming ticketLineInputs on a non-finite TP1', () => {
+    expect(() => ticketLineInputs(20097.5, 20075, Number.POSITIVE_INFINITY, 20256, 20256)).toThrow(
+      /ticketLineInputs/,
+    );
+  });
+
+  it('throws naming ticketLineInputs on a non-finite TP2 while null TP2 stays legal', () => {
+    expect(() => ticketLineInputs(20097.5, 20075, 20210, Number.NaN, 20256)).toThrow(/ticketLineInputs/);
   });
 });

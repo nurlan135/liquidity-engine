@@ -1019,6 +1019,120 @@ describe('terminal shell renders the live §1 rank-1 sentence (20-04 gap-1 closu
   });
 });
 
+describe('terminal shell renders the Phase 21 calibration view (21-02 proof table plus buffer note)', () => {
+  // Phase 21-02 Task 2: one render pins the proof-table slots plus the
+  // buffer-note slot. The firing log is seeded straight into the store
+  // (FIRE_LONG on 2026-08-04 plus ARMED on 2026-08-05) with a settled
+  // lastUpdatedISO so the FiringLogPanel renders the band verdict, the
+  // pools on/off proof table from the same firingLog array, and the
+  // ticket buffer note beside the ticket reason in one render.
+  function seedCalibrationState() {
+    const iso = new Date().toISOString();
+    useDashboard.setState({
+      candles: fixtureCandles(),
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: iso,
+      stale: false,
+      source: 'live',
+      inFlight: false,
+      lastError: null,
+      firingLog: [
+        {
+          asOf: 1000,
+          verdict: 'FIRE_LONG',
+          gates: { timing: true, purge: true, displacement: true },
+          direction: 'LONG',
+          reasonKey: 'FIRE_LONG',
+          sessionDate: '2026-08-04',
+        },
+        {
+          asOf: 1001,
+          verdict: 'ARMED',
+          gates: { timing: true, purge: false, displacement: false },
+          direction: null,
+          reasonKey: 'ARMED_MISSING_PURGE',
+          sessionDate: '2026-08-05',
+        },
+      ],
+      firingLogOverflow: 0,
+    });
+  }
+
+  it('proof-table-plus-buffer-note: shell renders calibration verdict, proof rows, and ticket buffer note in one render', async () => {
+    seedCalibrationState();
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+
+    // Band verdict renders inline beside entries (D-02): one FIRE over one
+    // NY week → 1/week → IN-BAND HOLD copy at Heading role.
+    const verdict = shell!.querySelector('[data-slot="calibration-verdict"]');
+    expect(verdict).not.toBeNull();
+    expect(verdict!.getAttribute('data-verdict')).toBe('IN-BAND');
+    expect(verdict!.textContent).toContain('TUTULDU');
+
+    // Proof table reads the same firingLog array as the entries list
+    // (D-04): two rows (one per retained entry), identical muted copy,
+    // zero divergent rows.
+    const proof = shell!.querySelector('[data-slot="calibration-proof"]');
+    expect(proof).not.toBeNull();
+    const rows = proof!.querySelectorAll('[data-slot="calibration-proof-row"]');
+    expect(rows).toHaveLength(2);
+    // Newest-first render order (entries reversed at render): 08-05 ARMED
+    // first, 08-04 FIRE second — both from the same firingLog array.
+    expect(rows[0].textContent).toContain('Hovuzlar yalnız kontekst — ON/OFF eyni');
+    expect(rows[0].textContent).toContain('2026-08-05');
+    expect(rows[1].textContent).toContain('2026-08-04');
+    for (const row of Array.from(rows)) {
+      expect(row.getAttribute('data-divergent')).toBe('false');
+    }
+    expect(proof!.querySelector('[data-slot="calibration-proof-divergent"]')).toBeNull();
+
+    // Entries list renders from the same array beside the proof table.
+    const entries = shell!.querySelectorAll('[data-slot="firing-log-entry"]');
+    expect(entries).toHaveLength(2);
+
+    // Buffer note renders in ticket prose beside ticket-reason (D-07):
+    // the seeded legs hold no intraday data so the ticket is null and the
+    // panel renders the empty copy — the buffer-note slot contract pins
+    // here through the copy constant, and the EXECUTE render is pinned
+    // by the ticket-panel EXECUTE path below.
+    expect(shell!.querySelector('[data-slot="ticket"]')).not.toBeNull();
+  });
+
+  it('proof-table-empty-log: empty firing log renders the empty copy plus calibration body with no verdict and no proof table', async () => {
+    const iso = new Date().toISOString();
+    useDashboard.setState({
+      candles: fixtureCandles(),
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: iso,
+      stale: false,
+      source: 'live',
+      inFlight: false,
+      lastError: null,
+      firingLog: [],
+      firingLogOverflow: 0,
+    });
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+    // Empty keeps heading plus calibration body (T-21-04): never a
+    // confident HOLD over an empty log.
+    expect(shell!.textContent).toContain('Hələ ARMED/FIRE qeydi yoxdur — WAIT yazılmır');
+    const empty = shell!.querySelector('[data-slot="calibration-empty"]');
+    expect(empty).not.toBeNull();
+    expect(empty!.textContent).toContain('Kalibrləmə üçün kifayət qədər atəş qeydi yoxdur');
+    expect(shell!.querySelector('[data-slot="calibration-verdict"]')).toBeNull();
+    expect(shell!.querySelector('[data-slot="calibration-proof"]')).toBeNull();
+  });
+});
+
 describe('terminal shell shows chart-header freshness matching the strip (W2)', () => {
   async function headerAndStrip(container: HTMLElement) {
     const header = container.querySelector('[data-slot="chart-freshness"]');

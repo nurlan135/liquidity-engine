@@ -18,6 +18,12 @@ import { useDashboard } from '@/src/lib/store';
 
 const EMPTY_COPY = 'Məlumat yoxdur';
 const RISK_STEP = 0.5;
+// Verbatim buffer note (UI-SPEC copy contract, D-07): buffered placement
+// is visible AND noted — chart SL/TP lines move off the extreme while the
+// ticket prose carries this line beside data-slot ticket-reason in muted
+// Body/mono styling. The R/R gate copy and position stay untouched.
+const BUFFER_NOTE_COPY =
+  'Stop ekstremdən 0.25×ATR kənarda; TP ekstremdən əvvəl — maqnit-xətt yoxdur';
 
 function fmtPrice(value: number | null): string {
   return value === null ? '—' : value.toFixed(2);
@@ -87,6 +93,11 @@ export function TicketPanel() {
             <p data-slot="ticket-reason" className="text-base font-semibold">
               {ticket.reason}
             </p>
+            {isExecute ? (
+              <p data-slot="ticket-buffer-note" className="font-mono text-xs tabular-nums text-muted-foreground">
+                {BUFFER_NOTE_COPY}
+              </p>
+            ) : null}
             {isExecute ? (
               <div>
                 <p data-slot="ticket-entry" className="font-mono text-xl font-semibold tabular-nums">

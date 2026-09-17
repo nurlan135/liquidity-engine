@@ -17,7 +17,7 @@ import type { FiringLogEntry } from '@/src/lib/ict/trigger';
 function fireEntry(
   sessionDate: string,
   asOf: number,
-  verdict: FiringLogEntry['verdict'] = 'FIRE_LONG',
+  verdict: 'FIRE_LONG' | 'FIRE_SHORT' = 'FIRE_LONG',
 ): FiringLogEntry {
   return {
     asOf,
