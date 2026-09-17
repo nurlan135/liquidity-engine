@@ -28,6 +28,12 @@ export const NQ_POINT_VALUE = 20;
 /** Operator risk-% acceptance band: setters clamp here, computeTicket throws outside (D-07). */
 export const RISK_PCT_MIN = 0.1;
 export const RISK_PCT_MAX = 5;
+/** SL buffer beyond the pool extreme as a multiple of ATR (D-05, mirrors MERGE_ATR_MULT 0.25 idiom). */
+// CALIBRATION-PROVISIONAL: seeded 2026-09-17, unobserved live. Phase 21 reviews against firing log.
+export const TICKET_SL_BUFFER_ATR_MULT = 0.25;
+/** TP pullback before the pool extreme as a multiple of ATR (D-06 provisional default). */
+// CALIBRATION-PROVISIONAL: seeded 2026-09-17, unobserved live. Phase 21 reviews against firing log.
+export const TICKET_TP_PULLBACK_ATR_MULT = 0.1;
 /** Stop distances at or below this are degenerate — refused, never sized. */
 const STOP_EPS = 1e-6;
 
@@ -59,6 +65,14 @@ export interface TicketOutput {
   asOf: number;
 }
 
+/** Optional PHASE 21 buffer context (D-05/D-06): ATR unit plus nearest pool extreme. Null degrades to unbuffered structure levels. */
+export interface TicketBufferInput {
+  /** Average True Range unit for the buffer — null means unbuffered. */
+  atr: number | null;
+  /** Nearest pool extreme the stop sits beyond and TPs book before — null means unbuffered. */
+  poolExtreme: number | null;
+}
+
 export interface TicketInput {
   /** Consumed directly — never re-derived (direction, entryFvg handle). */
   trigger: TriggerOutput | null;
@@ -68,6 +82,8 @@ export interface TicketInput {
   range: DealingRange | null;
   dol: DOLTarget | null;
   asia: AsiaRange | null;
+  /** Optional buffer context — null/absent degrades to unbuffered structure levels (T-21-01). */
+  buffer?: TicketBufferInput | null;
   /** Operator risk % — validated and refused (never clamped-to-fake) downstream. */
   riskPct: number;
   /** Degraded provenance carried through so panels dim with the naming leg. */
@@ -216,6 +232,24 @@ function assertValidAsia(asia: TicketInput['asia']): void {
   }
 }
 
+// T-21-01: buffer context crosses the trust boundary here. Malformed
+// non-null ATR or extreme throws with a got-string error; null (or absent)
+// degrades honestly to unbuffered structure levels downstream — never a
+// throw on null.
+function assertValidBuffer(buffer: TicketInput['buffer']): void {
+  if (buffer === null || buffer === undefined) return;
+  if (typeof buffer !== 'object' || Array.isArray(buffer)) {
+    throw new Error(`computeTicket requires a buffer object or null, got ${String(buffer)}`);
+  }
+  const b = buffer as TicketBufferInput;
+  if (b.atr !== null && b.atr !== undefined && !Number.isFinite(b.atr)) {
+    throw new Error(`computeTicket requires a finite buffer atr or null, got ${String(b.atr)}`);
+  }
+  if (b.poolExtreme !== null && b.poolExtreme !== undefined && !Number.isFinite(b.poolExtreme)) {
+    throw new Error(`computeTicket requires a finite buffer poolExtreme or null, got ${String(b.poolExtreme)}`);
+  }
+}
+
 // trigger.ts directionOf precedent: direction is a total function of the
 // FIRE verdict — FIRE_LONG implies LONG, FIRE_SHORT implies SHORT, anything
 // else implies none (STAND ASIDE downstream, never a throw).
@@ -249,8 +283,39 @@ function assertValidRiskPct(riskPct: TicketInput['riskPct']): void {
 // Asia low), SHORT mirrors. A stop on the wrong side of entry is degenerate.
 // A stop at or below the epsilon floor is degenerate too — sized NaN would
 // be false precision, so the caller refuses before any division.
-function resolveSL(direction: 'LONG' | 'SHORT', entry: number, entryFvg: FvgGap, asia: AsiaRange): number | null {
-  const sl = direction === 'LONG' ? Math.min(entryFvg.bottom, asia.low) : Math.max(entryFvg.top, asia.high);
+// PHASE 21 (D-05): with buffer context present (finite positive ATR plus
+// finite extreme on the stop side of entry), the stop sits beyond the pool
+// extreme by TICKET_SL_BUFFER_ATR_MULT × ATR — the extreme itself is never
+// the stop. An extreme on the TP side of entry degrades this leg to the
+// unbuffered structure level (one extreme cannot guard both sides).
+function resolveSL(
+  direction: 'LONG' | 'SHORT',
+  entry: number,
+  entryFvg: FvgGap,
+  asia: AsiaRange,
+  buffer?: TicketBufferInput | null,
+): number | null {
+  const unbuffered =
+    direction === 'LONG' ? Math.min(entryFvg.bottom, asia.low) : Math.max(entryFvg.top, asia.high);
+  let sl = unbuffered;
+  const atr = buffer === null || buffer === undefined ? null : buffer.atr;
+  const extreme = buffer === null || buffer === undefined ? null : buffer.poolExtreme;
+  const buffered =
+    atr !== null &&
+    atr !== undefined &&
+    Number.isFinite(atr) &&
+    (atr as number) > 0 &&
+    extreme !== null &&
+    extreme !== undefined &&
+    Number.isFinite(extreme);
+  if (buffered) {
+    const distance = TICKET_SL_BUFFER_ATR_MULT * (atr as number);
+    if (direction === 'LONG' && (extreme as number) < entry) {
+      sl = (extreme as number) - distance;
+    } else if (direction === 'SHORT' && (extreme as number) > entry) {
+      sl = (extreme as number) + distance;
+    }
+  }
   if (direction === 'LONG' && !(sl < entry)) return null;
   if (direction === 'SHORT' && !(sl > entry)) return null;
   return sl;
@@ -260,24 +325,59 @@ function resolveSL(direction: 'LONG' | 'SHORT', entry: number, entryFvg: FvgGap,
 // (nearest liquidity), TP2 the opposing DOL pool, TP3 the range far edge;
 // SHORT mirrors. A leg resolves only beyond entry in trade direction —
 // unresolvable legs stay null, never fixed-R fillers.
+// PHASE 21 (D-06): with buffer context present (extreme on the TP side of
+// entry), each structure level books before the pool extreme by
+// TICKET_TP_PULLBACK_ATR_MULT × ATR. The extreme is never a target
+// (magnet-to-the-line rejected). An extreme on the stop side of entry
+// degrades this leg transparently: the row below documents which side each
+// fixture extreme guards.
 function resolveTP(
   direction: 'LONG' | 'SHORT',
   entry: number,
   asia: AsiaRange,
   dol: DOLTarget,
   range: DealingRange,
+  buffer?: TicketBufferInput | null,
 ): { tp1: number | null; tp2: number | null; tp3: number | null } {
+  const atr = buffer === null || buffer === undefined ? null : buffer.atr;
+  const extreme = buffer === null || buffer === undefined ? null : buffer.poolExtreme;
+  const buffered =
+    atr !== null &&
+    atr !== undefined &&
+    Number.isFinite(atr) &&
+    (atr as number) > 0 &&
+    extreme !== null &&
+    extreme !== undefined &&
+    Number.isFinite(extreme) &&
+    ((direction === 'LONG' && (extreme as number) > entry) ||
+      (direction === 'SHORT' && (extreme as number) < entry));
+  // Pull each structure level back from the extreme on the entry side. When
+  // the level is not on the extreme's far side of entry (or the pullback
+  // collapses past entry), the leg is unresolvable and stays null.
+  const beforeExtreme = (level: number): number | null => {
+    if (!buffered) return level;
+    const inset = TICKET_TP_PULLBACK_ATR_MULT * (atr as number);
+    const target = direction === 'LONG' ? (extreme as number) - inset : (extreme as number) + inset;
+    const candidate = direction === 'LONG' ? Math.min(level, target) : Math.max(level, target);
+    return candidate;
+  };
   if (direction === 'LONG') {
+    const t1 = beforeExtreme(asia.high);
+    const t2 = beforeExtreme(dol.price);
+    const t3 = beforeExtreme(range.high);
     return {
-      tp1: asia.high > entry ? asia.high : null,
-      tp2: dol.price > entry ? dol.price : null,
-      tp3: range.high > entry ? range.high : null,
+      tp1: t1 !== null && t1 > entry ? t1 : null,
+      tp2: t2 !== null && t2 > entry ? t2 : null,
+      tp3: t3 !== null && t3 > entry ? t3 : null,
     };
   }
+  const t1 = beforeExtreme(asia.low);
+  const t2 = beforeExtreme(dol.price);
+  const t3 = beforeExtreme(range.low);
   return {
-    tp1: asia.low < entry ? asia.low : null,
-    tp2: dol.price < entry ? dol.price : null,
-    tp3: range.low < entry ? range.low : null,
+    tp1: t1 !== null && t1 < entry ? t1 : null,
+    tp2: t2 !== null && t2 < entry ? t2 : null,
+    tp3: t3 !== null && t3 < entry ? t3 : null,
   };
 }
 
@@ -285,7 +385,7 @@ export function computeTicket(input: TicketInput): TicketOutput {
   if (input === null || input === undefined || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error(`computeTicket requires an input object, got ${String(input)}`);
   }
-  const { trigger, flaw, levels, range, dol, asia, riskPct, asOf } = input;
+  const { trigger, flaw, levels, range, dol, asia, riskPct, asOf, buffer } = input;
   if (!Number.isFinite(asOf) || (asOf as number) <= 0) {
     throw new Error(`computeTicket requires a finite positive asOf epoch, got ${String(asOf)}`);
   }
@@ -297,6 +397,7 @@ export function computeTicket(input: TicketInput): TicketOutput {
   assertValidRange(range);
   assertValidDol(dol);
   assertValidAsia(asia);
+  assertValidBuffer(buffer);
   assertValidRiskPct(riskPct);
 
   // Null envelopes degrade to STAND ASIDE — never a throw on null.
@@ -330,8 +431,8 @@ export function computeTicket(input: TicketInput): TicketOutput {
     return standAside(REASON_ENTRY, epoch, degraded);
   }
 
-  // Step 3 — SL from the locked OQ-2 rule table.
-  const sl = resolveSL(direction, entry, trigger.entryFvg as FvgGap, asia);
+  // Step 3 — SL from the locked OQ-2 rule table (buffered beyond the pool extreme with context).
+  const sl = resolveSL(direction, entry, trigger.entryFvg as FvgGap, asia, buffer);
   if (sl === null) {
     return standAside(REASON_SL, epoch, degraded);
   }
@@ -339,7 +440,7 @@ export function computeTicket(input: TicketInput): TicketOutput {
   // Step 4 — structure-first TP ladder (D-01/D-02): TP1 is the gate leg
   // and must resolve; TP2/TP3 omit as null when unresolvable, reported in
   // rMultiples as null — never synthesized fillers.
-  const tp = resolveTP(direction, entry, asia, dol, range);
+  const tp = resolveTP(direction, entry, asia, dol, range, buffer);
   if (tp.tp1 === null) {
     return standAside(REASON_TP, epoch, degraded);
   }

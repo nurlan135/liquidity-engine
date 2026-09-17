@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { summarizeFiringLog, CALIBRATION_HOLD_COPY, CALIBRATION_BREAK_COPY } from '@/src/lib/ict/calibration';
 import { useDashboard } from '@/src/lib/store';
 
 // Firing-log oxuyan panel: store-dakı firingLog tarixçəsini terminalda
@@ -20,6 +21,19 @@ export function FiringLogPanel() {
   const firingLog = useDashboard((s) => s.firingLog);
   const firingLogOverflow = useDashboard((s) => s.firingLogOverflow);
   const entries = firingLog.slice().reverse();
+  // Inline band verdict (D-01/D-02): pure helper read during render from
+  // firingLog plus firingLogOverflow — zero math in render. Null verdict on
+  // zero evidence renders no verdict line over an empty log.
+  const summary =
+    lastUpdatedISO === null || firingLog.length === 0
+      ? null
+      : summarizeFiringLog(firingLog, firingLogOverflow, firingLog.map((entry) => entry.sessionDate));
+  const verdictCopy =
+    summary === null || summary.verdict === null
+      ? null
+      : summary.verdict === 'IN-BAND'
+        ? CALIBRATION_HOLD_COPY
+        : CALIBRATION_BREAK_COPY;
 
   return (
     <Card data-slot="firing-log">
@@ -40,6 +54,19 @@ export function FiringLogPanel() {
             {firingLogOverflow > 0 ? (
               <p data-slot="firing-log-overflow" className="font-mono text-[11px] tracking-widest text-muted-foreground">
                 {`+${firingLogOverflow} köhnə qeyd`}
+              </p>
+            ) : null}
+            {verdictCopy !== null && summary !== null && summary.verdict !== null ? (
+              <p
+                data-slot="calibration-verdict"
+                data-verdict={summary.verdict}
+                className={
+                  summary.verdict === 'IN-BAND'
+                    ? 'text-base font-semibold text-[var(--terminal-up)]'
+                    : 'text-base font-semibold text-destructive'
+                }
+              >
+                {verdictCopy}
               </p>
             ) : null}
             {entries.map((entry) => (
