@@ -10,6 +10,7 @@ import { JSDOM } from 'jsdom';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Candle } from '@/src/lib/ict/types';
+import { shouldCreatePoolLines } from '@/src/lib/chart-mapper';
 
 // ---------------------------------------------------------------------------
 // Test-only module stubs (no impl changes)
@@ -753,6 +754,146 @@ describe('terminal shell fans the full pool overlay to the chart (20-03 nearest-
     expect(props.poolSslPairs).toEqual([]);
     expect(props.poolBslGhosts).toEqual([]);
     expect(props.poolSslGhosts).toEqual([]);
+  });
+});
+
+describe('terminal shell gates pool overlay creation on the ticket verdict (20-05 CHRT-03)', () => {
+  interface VerdictStubProps {
+    ticketVerdict: 'EXECUTE_LONG' | 'EXECUTE_SHORT' | 'STAND_ASIDE' | null;
+    poolBslPairs: Array<{ top: number; bottom: number }>;
+    poolSslPairs: Array<{ top: number; bottom: number }>;
+    poolBslGhosts: Array<{ top: number; bottom: number }>;
+    poolSslGhosts: Array<{ top: number; bottom: number }>;
+  }
+
+  function verdictProps() {
+    return chartCapture.props as unknown as VerdictStubProps;
+  }
+
+  // Multi-swing fixture (20-03 nearest-2-per-side twin): strict k=2 swing
+  // HIGHS so the seed step invents one BSL pool per peak and the lifecycle
+  // consumes nothing — ACTIVE pools prove the selector resolves.
+  function gateSwingCandles(): Candle[] {
+    const start = Date.UTC(2026, 0, 5);
+    const date = (i: number) => new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+    const highs = [
+      20010, 20015, 20300, 20015, 20010, 20012, 20014,
+      20240, 20010, 20012, 20014, 20011, 20013,
+      20180, 20010, 20012, 20014, 20011, 20013,
+      20120, 20010, 20012, 20014, 20011, 20013,
+      20060, 20010, 20012, 20014, 20011, 20013,
+    ];
+    return highs.map((high, i) => {
+      const low = 20000 - (i % 7);
+      const mid = (high + low) / 2;
+      return {
+        date: date(i),
+        open: mid,
+        high,
+        low,
+        close: mid,
+      };
+    });
+  }
+
+  function gateSwingEnvelope() {
+    return {
+      candles: gateSwingCandles(),
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: new Date().toISOString(),
+      stale: false,
+      source: 'live',
+    };
+  }
+
+  it('stand-aside-clears: stale ES leg degrades the ticket to STAND_ASIDE with pools present while the gate suppresses lines', async () => {
+    // Deterministic pre-seed per 20-05 Task 2: the NQ leg holds the settled
+    // multi-swing shape so selectPools resolves with non-empty pairs, while
+    // the ES leg goes stale so selectTicket degrades to STAND_ASIDE through
+    // the HARD STALE_LEG flaw (verbatim reason, es provenance) without
+    // nulling pools — pools are D1-NQ geometry with no es.stale read
+    // anywhere in selectPools per D-21.
+    const seeded = gateSwingCandles();
+    const seededISO = new Date().toISOString();
+    const seededAsOf = seeded[seeded.length - 1].date;
+    const staleEs = { candles: seeded, contractHint: 'ES=F · CME', lastUpdatedISO: seededISO, stale: true, source: 'live', lastError: 'es stale' };
+    useDashboard.setState({
+      candles: seeded,
+      contractHint: 'NQ=F · CME',
+      lastUpdatedISO: seededISO,
+      stale: false,
+      source: 'live',
+      inFlight: false,
+      lastError: null,
+      asOfBaku: seededAsOf,
+      nq: { candles: seeded, contractHint: 'NQ=F · CME', lastUpdatedISO: seededISO, stale: false, source: 'live', lastError: null },
+      es: staleEs,
+      coverage: { nq: seeded.length, es: seeded.length, joined: seeded.length, dropped: 0 },
+    });
+    // Sanity: pools resolve from the healthy NQ leg; the ES-stale flaw path
+    // needs a live trigger, and the trigger needs intraday legs — the seed
+    // below plus the fetch stub land them without touching the D1 truth.
+    expect(useDashboard.getState().selectPools()).not.toBeNull();
+    expect(useDashboard.getState().selectPools()!.pools.length).toBeGreaterThan(0);
+    // The D1 fetch shape preserves the seeded ES-stale truth for both D1
+    // legs (NQ healthy, ES stale) while the intraday stub keeps the trigger
+    // live through the steady 20:30–23:30 Asia window — so the mount refresh
+    // cannot overwrite the seeded STAND_ASIDE mid-test.
+    const fetchFn = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('interval=1h')) {
+        return Response.json({
+          candles: [0, 1, 2, 3].map((i) => ({
+            time: Math.floor(Date.UTC(2026, 1, 10, 1, 30, 0) / 1000) + i * 3600,
+            open: 20000 + i * 10,
+            high: 20000 + i * 10 + 15,
+            low: 20000 + i * 10 - 12,
+            close: 20000 + i * 10 + 5,
+          })),
+          contractHint: 'NQ=F · 1H',
+          lastUpdatedISO: seededISO,
+          stale: false,
+          source: 'live',
+        });
+      }
+      if (u.includes('interval=15m')) {
+        return Response.json({
+          candles: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({
+            time: Math.floor(Date.UTC(2026, 1, 10, 1, 30, 0) / 1000) + i * 900,
+            open: 20010,
+            high: 20018,
+            low: 20004,
+            close: 20013,
+          })),
+          contractHint: 'NQ=F · 15M',
+          lastUpdatedISO: seededISO,
+          stale: false,
+          source: 'live',
+        });
+      }
+      if (u.includes('symbol=ES')) return Response.json({ ...staleEs, stale: true });
+      return Response.json(gateSwingEnvelope());
+    });
+    vi.stubGlobal('fetch', fetchFn);
+
+    await renderShell();
+    // Mount refresh settles the intraday legs back onto the same seeded
+    // shape, so the ticket capture keeps the STAND_ASIDE verdict with pool
+    // props present (shell derivation stays verdict-free per 20-03).
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const ticket = useDashboard.getState().selectTicket();
+    expect(ticket).not.toBeNull();
+    expect(ticket!.verdict).toBe('STAND_ASIDE');
+    const props = verdictProps();
+    expect(props.ticketVerdict).toBe('STAND_ASIDE');
+    expect(props.poolBslPairs.length).toBeGreaterThan(0);
+    // The Task 1 chart gate reads this same predicate in both effects:
+    // false under STAND_ASIDE means zero pool and ghost lines are created
+    // after the shared unconditional removal — the sentinel slot consumes
+    // the identical predicate so it stays honest.
+    expect(shouldCreatePoolLines(props.ticketVerdict)).toBe(false);
   });
 });
 
