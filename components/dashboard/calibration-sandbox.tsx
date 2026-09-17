@@ -22,6 +22,17 @@ import {
   CALIBRATION_MERGE_STEP,
   useDashboard,
 } from '@/src/lib/store';
+import {
+  TRIGGER_DISP_MULT,
+  TRIGGER_KZ_END_MIN,
+  TRIGGER_KZ_START_MIN,
+} from '@/src/lib/ict/trigger';
+import {
+  BEHIND_PENALTY,
+  DOL_BOOST,
+  EQUAL_TOL_BPS,
+  MERGE_ATR_MULT,
+} from '@/src/lib/ict/pools';
 
 // Phase 21 calibration sandbox (D-13/D-14/D-15, T-21-05/T-21-06): display-only
 // review sandbox for both knob families — WHY NOW gate thresholds plus pool
@@ -111,16 +122,19 @@ export function CalibrationSandbox() {
   const ticket = selectTicket();
   const review = selectCalibrationReview();
   // Unapplied preview: any knob drifted off the pinned seeds dims the
-  // preview block at opacity-45 with the visible BAXIŞ tag (D-14, T-21-05).
+  // preview block at opacity-45 with the visible BAXIŞ badge hoisted above
+  // the dim container (D-14, T-21-05, G-21-3). Pristine compares against
+  // the imported pinned constants — never literals — so a constant retune
+  // cannot silently break the comparison.
   const pristine =
     review.applied ||
-    (preview.kzStartMin === 120 &&
-      preview.kzEndMin === 300 &&
-      preview.dispMult === 0.5 &&
-      preview.equalTolBps === 25 &&
-      preview.mergeAtrMult === 0.25 &&
-      preview.dolBoost === 2.0 &&
-      preview.behindPenalty === 0.25);
+    (preview.kzStartMin === TRIGGER_KZ_START_MIN &&
+      preview.kzEndMin === TRIGGER_KZ_END_MIN &&
+      preview.dispMult === TRIGGER_DISP_MULT &&
+      preview.equalTolBps === EQUAL_TOL_BPS &&
+      preview.mergeAtrMult === MERGE_ATR_MULT &&
+      preview.dolBoost === DOL_BOOST &&
+      preview.behindPenalty === BEHIND_PENALTY);
   const degraded = ticket !== null && (ticket.degraded.stale || ticket.degraded.thin);
   const degradedTag =
     ticket !== null && ticket.degraded.stale
@@ -154,12 +168,15 @@ export function CalibrationSandbox() {
                 {degradedTag}
               </p>
             ) : null}
+            {!pristine ? (
+              <p
+                data-slot="sandbox-preview-tag"
+                className="inline-block rounded-full border border-amber-400/60 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300"
+              >
+                {PREVIEW_TAG_COPY}
+              </p>
+            ) : null}
             <div className={pristine ? undefined : 'opacity-45'}>
-              {!pristine ? (
-                <p data-slot="sandbox-preview-tag" className="text-xs text-muted-foreground">
-                  {PREVIEW_TAG_COPY}
-                </p>
-              ) : null}
               <p className="text-[11px] font-semibold uppercase tracking-[0.1em]">TETİK HƏDLƏRİ</p>
               <KnobRow
                 label="Killzone başlanğıc (dəq)"
@@ -246,9 +263,10 @@ export function CalibrationSandbox() {
               </p>
             ) : null}
             {review.applied ? (
-              <p data-slot="sandbox-applied" className="text-xs text-muted-foreground">
-                {review.appliedCopy}
-              </p>
+              <div data-slot="sandbox-applied" className="flex flex-col gap-1">
+                <p className="text-xs font-semibold">{review.verdict}</p>
+                <p className="text-xs text-muted-foreground">{review.appliedCopy}</p>
+              </div>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => applyCalibrationPreview()} data-slot="sandbox-apply">

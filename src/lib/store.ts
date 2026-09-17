@@ -82,12 +82,11 @@ export const CALIBRATION_DOL_BOOST_STEP = 0.1;
 export const CALIBRATION_BEHIND_MIN = 0.0;
 export const CALIBRATION_BEHIND_MAX = 1.0;
 export const CALIBRATION_BEHIND_STEP = 0.05;
-// Module-level session flag for the Phase 21 Apply record (D-03/D-14):
-// true once the operator presses Tətbiq et in this session. Kept OUT of
-// the zustand state shape (and out of setState test resets) so the applied
-// copy fans out beside the preview re-seed without touching selector
-// derivation; refresh resets the preview slice to the pinned seeds.
-let calibrationReviewApplied = false;
+// Phase 21 Apply-record flag (D-03/D-14, G-21-3): true once the operator
+// presses Tətbiq et in this session. Lives IN the zustand state shape as
+// calibrationReviewApplied (reactive) so review-only subscribers re-render
+// and test beforeEach resets clear it via setState; refresh resets the
+// preview slice to the pinned seeds.
 /** Session-scoped what-if preview for both knob families (D-13/D-15). */
 export interface CalibrationPreview {
   kzStartMin: number;
@@ -353,6 +352,11 @@ export interface DashboardState {
   setCalibrationDolBoost: (mult: number) => void;
   setCalibrationBehindPenalty: (mult: number) => void;
   resetCalibrationPreview: () => void;
+  // Phase 21 Apply-record flag (D-03/D-14, G-21-3): reactive boolean in
+  // zustand state, initialized false — true once the operator presses
+  // Apply in this session. Reset paths re-seed the preview only and leave
+  // this flag untouched.
+  calibrationReviewApplied: boolean;
   paperLog: PaperLogEntry[];
   paperLogOverflow: number;
   appendPaperLog: (entry: PaperLogEntry) => void;
@@ -606,6 +610,9 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     dolBoost: DOL_BOOST,
     behindPenalty: BEHIND_PENALTY,
   },
+  // Phase 21 Apply-record flag (D-03/D-14, G-21-3): session-scoped, memory
+  // only — no localStorage reads or writes (T-21-06).
+  calibrationReviewApplied: false,
   paperLog: [],
   paperLogOverflow: 0,
 
@@ -1211,26 +1218,26 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const clamped = Math.min(CALIBRATION_BEHIND_MAX, Math.max(CALIBRATION_BEHIND_MIN, mult));
     set({ calibrationPreview: { ...get().calibrationPreview, behindPenalty: clamped } });
   },
-  // Phase 21 Apply record (D-03/D-14, T-21-06): records the reviewed HOLD
-  // verdict plus the applied-set copy. Writes NO constants: the pinned
+  // Phase 21 Apply record (D-03/D-14, T-21-06, G-21-3): records the reviewed
+  // HOLD verdict plus the applied-set copy. Writes NO constants: the pinned
   // seeds continue unchanged, selectors keep reading pinned constants with
   // zero live re-derivation on movement, and the boundary suites keep
   // pinning the same seeded values with CALIBRATION-PROVISIONAL markers.
-  // Reads the module-level session flag (same zustand store creator closure
-  // the writer sets) so the applied copy fans out in the same tick.
+  // Reads the reactive zustand flag so review-only subscribers re-render.
   selectCalibrationReview: () => {
+    const applied = get().calibrationReviewApplied;
     return {
       verdict: CALIBRATION_REVIEW_HOLD_COPY,
-      appliedCopy: calibrationReviewApplied ? calibrationAppliedCopy() : '',
-      applied: calibrationReviewApplied,
+      appliedCopy: applied ? calibrationAppliedCopy() : '',
+      applied,
     };
   },
   applyCalibrationPreview: () => {
-    // Module-level session flag flip beside the preview re-seed: Apply
+    // Reactive flag flip in the same set() as the preview re-seed: Apply
     // re-pins the preview to the pinned constants and records the reviewed
     // verdict — never a constant rewrite (D-03/D-14).
-    calibrationReviewApplied = true;
     set({
+      calibrationReviewApplied: true,
       calibrationPreview: {
         kzStartMin: TRIGGER_KZ_START_MIN,
         kzEndMin: TRIGGER_KZ_END_MIN,

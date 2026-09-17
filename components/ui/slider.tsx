@@ -9,11 +9,16 @@ function Slider({
   max = 100,
   ...props
 }: SliderPrimitive.Root.Props) {
+  // G-21-3: derive thumb count from value first — a scalar value yields a
+  // single thumb. Only the both-undefined case falls back to the min-max
+  // range pair (two thumbs).
   const _values = Array.isArray(value)
     ? value
-    : Array.isArray(defaultValue)
-      ? defaultValue
-      : [min, max]
+    : value !== undefined
+      ? [value]
+      : Array.isArray(defaultValue)
+        ? defaultValue
+        : [min, max]
 
   return (
     <SliderPrimitive.Root
