@@ -192,6 +192,12 @@ beforeEach(() => {
     coverage: { nq: 0, es: 0, joined: 0, dropped: 0 },
     lastSchedule: null,
   });
+  // G-21-3 isolation: vi.resetModules() keeps the already-imported
+  // useDashboard binding, so the session calibration slice would leak
+  // across tests. Reset the preview to the pinned seeds and the reactive
+  // applied flag to false so every test starts pristine.
+  useDashboard.getState().resetCalibrationPreview();
+  useDashboard.setState({ calibrationReviewApplied: false });
 });
 
 afterEach(async () => {
@@ -1157,6 +1163,14 @@ describe('terminal shell renders the Phase 21 calibration view (21-02 proof tabl
     });
     expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')).not.toBeNull();
     expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')!.textContent).toContain('BAXIŞ');
+    // G-21-3: the hoisted badge sits OUTSIDE the opacity-45 dim container.
+    const previewTag = sandbox.querySelector('[data-slot="sandbox-preview-tag"]')!;
+    expect(previewTag.closest('.opacity-45')).toBeNull();
+    // G-21-3: each scalar knob renders exactly one slider thumb.
+    for (const slot of knobSlots) {
+      const knob = sandbox.querySelector(`[data-slot="${slot}"]`)!;
+      expect(knob.querySelectorAll('[data-slot="slider-thumb"]')).toHaveLength(1);
+    }
     const { TRIGGER_KZ_START_MIN } = await import('@/src/lib/ict/trigger');
     expect(TRIGGER_KZ_START_MIN).toBe(120);
     const verdictBefore = shell!.querySelector('[data-slot="calibration-verdict"]');
@@ -1171,6 +1185,7 @@ describe('terminal shell renders the Phase 21 calibration view (21-02 proof tabl
     });
     const applied = sandbox.querySelector('[data-slot="sandbox-applied"]');
     expect(applied).not.toBeNull();
+    expect(applied!.textContent).toContain('TUTULDU');
     expect(applied!.textContent).toContain('KZ 120–300 dəq');
     expect(applied!.textContent).toContain('sərhəd testləri yenidən təsdiqləndi');
     expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(120);
