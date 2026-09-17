@@ -1103,6 +1103,79 @@ describe('terminal shell renders the Phase 21 calibration view (21-02 proof tabl
     expect(shell!.querySelector('[data-slot="ticket"]')).not.toBeNull();
   });
 
+  it('sandbox-block: shell mounts one calibration sandbox beside the log panel with preview and Apply states', async () => {
+    // Phase 21-03 Task 2: the shell composes exactly one sandbox block next
+    // to the FiringLogPanel (D-01/D-14) — both knob families render from the
+    // installed ui Slider, movement previews dimmed with the BAXIŞ tag, and
+    // the explicit Tətbiq et Apply records the reviewed HOLD verdict with
+    // zero live re-derivation on movement.
+    seedCalibrationState();
+    const fetchFn = vi.fn(async () => Response.json(liveEnvelope()));
+    vi.stubGlobal('fetch', fetchFn);
+
+    const container = await renderShell();
+    const shell = container.querySelector('[data-slot="terminal-shell"]');
+    expect(shell).not.toBeNull();
+
+    // Single mount beside the log panel: one sandbox slot, log panel kept.
+    const sandboxes = shell!.querySelectorAll('[data-slot="calibration-sandbox"]');
+    expect(sandboxes).toHaveLength(1);
+    expect(shell!.querySelector('[data-slot="firing-log"]')).not.toBeNull();
+    const sandbox = sandboxes[0];
+
+    // Both knob families render from the installed ui Slider wrapper: 3
+    // threshold knobs plus 4 tolerance knobs, each with a mono value slot.
+    const knobSlots = [
+      'sandbox-knob-kz-start',
+      'sandbox-knob-kz-end',
+      'sandbox-knob-disp',
+      'sandbox-knob-equal-tol',
+      'sandbox-knob-merge',
+      'sandbox-knob-dol-boost',
+      'sandbox-knob-behind',
+    ];
+    for (const slot of knobSlots) {
+      expect(sandbox.querySelector(`[data-slot="${slot}"]`)).not.toBeNull();
+      const value = sandbox.querySelector(`[data-slot="${slot}-value"]`);
+      expect(value).not.toBeNull();
+      expect(value!.className).toContain('tabular-nums');
+    }
+    // Section labels render at Label role (UI-SPEC copy contract).
+    expect(sandbox.textContent).toContain('TETİK HƏDLƏRİ');
+    expect(sandbox.textContent).toContain('HOVUZ TOLERANSLIĞI');
+
+    // Pristine preview: no dimming, no BAXIŞ tag, Apply present.
+    expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')).toBeNull();
+    expect(sandbox.querySelector('[data-slot="sandbox-apply"]')).not.toBeNull();
+    expect(sandbox.querySelector('[data-slot="sandbox-apply"]')!.textContent).toContain('Tətbiq et');
+
+    // Movement previews what-if dimmed with the visible tag and never
+    // rewrites live derivation: drift one knob, the preview dims, the
+    // pinned constants stay put, and movement alone changes zero verdicts.
+    await act(async () => {
+      useDashboard.getState().setCalibrationKzStartMin(200);
+    });
+    expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')).not.toBeNull();
+    expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')!.textContent).toContain('BAXIŞ');
+    const { TRIGGER_KZ_START_MIN } = await import('@/src/lib/ict/trigger');
+    expect(TRIGGER_KZ_START_MIN).toBe(120);
+    const verdictBefore = shell!.querySelector('[data-slot="calibration-verdict"]');
+    expect(verdictBefore).not.toBeNull();
+    expect(verdictBefore!.textContent).toContain('TUTULDU');
+
+    // Explicit Apply commits into the pinned-constant owners' reviewed set
+    // and re-pins the boundary suites: the applied copy names the seeded
+    // values and the preview re-seeds to the pins.
+    await act(async () => {
+      useDashboard.getState().applyCalibrationPreview();
+    });
+    const applied = sandbox.querySelector('[data-slot="sandbox-applied"]');
+    expect(applied).not.toBeNull();
+    expect(applied!.textContent).toContain('KZ 120–300 dəq');
+    expect(applied!.textContent).toContain('sərhəd testləri yenidən təsdiqləndi');
+    expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(120);
+  });
+
   it('proof-table-empty-log: empty firing log renders the empty copy plus calibration body with no verdict and no proof table', async () => {
     const iso = new Date().toISOString();
     useDashboard.setState({

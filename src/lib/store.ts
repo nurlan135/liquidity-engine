@@ -82,6 +82,12 @@ export const CALIBRATION_DOL_BOOST_STEP = 0.1;
 export const CALIBRATION_BEHIND_MIN = 0.0;
 export const CALIBRATION_BEHIND_MAX = 1.0;
 export const CALIBRATION_BEHIND_STEP = 0.05;
+// Module-level session flag for the Phase 21 Apply record (D-03/D-14):
+// true once the operator presses Tətbiq et in this session. Kept OUT of
+// the zustand state shape (and out of setState test resets) so the applied
+// copy fans out beside the preview re-seed without touching selector
+// derivation; refresh resets the preview slice to the pinned seeds.
+let calibrationReviewApplied = false;
 /** Session-scoped what-if preview for both knob families (D-13/D-15). */
 export interface CalibrationPreview {
   kzStartMin: number;
@@ -353,6 +359,36 @@ export interface DashboardState {
   selectTicket: () => TicketOutput | null;
   selectConfluence: () => ConvictionTier;
   selectLiquidityPath: () => string | null;
+  // Phase 21 calibration review (D-03/D-14, T-21-06): the sandbox records the
+  // reviewed verdict — band holds, so the pinned seeds continue unchanged —
+  // and reports the human-readable applied-set copy beside the sandbox. NO
+  // constant rewrite: selectors keep reading the pinned module constants, the
+  // boundary suites keep pinning the same seeded values, and every constant
+  // keeps its CALIBRATION-PROVISIONAL marker until live evidence accrues.
+  selectCalibrationReview: () => CalibrationReview;
+  applyCalibrationPreview: () => void;
+  resetCalibrationPreviewToPinned: () => void;
+}
+/** Phase 21 Apply-record (D-03/D-14): the reviewed set Apply pins down. */
+export interface CalibrationReview {
+  /** Verbatim reviewed verdict — band holds, constants continue. */
+  verdict: string;
+  /** Human-readable applied-set copy rendered beside the sandbox body. */
+  appliedCopy: string;
+  /** True once the operator presses Apply in this session. */
+  applied: boolean;
+}
+/** Verbatim Apply verdict (D-03, T-21-06): retune path arms only on BREAK. */
+export const CALIBRATION_REVIEW_HOLD_COPY =
+  'Atəş tempi 1–4/həftə bandında — TUTULDU — konstantlar dəyişməz qalır';
+/** Human-readable applied-set copy (D-14): names the pinned seeded values. */
+export function calibrationAppliedCopy(): string {
+  return (
+    `Tətbiq: KZ ${TRIGGER_KZ_START_MIN}–${TRIGGER_KZ_END_MIN} dəq · ` +
+    `DISP ${TRIGGER_DISP_MULT}× · TOL ${EQUAL_TOL_BPS} bps · ` +
+    `MERGE ${MERGE_ATR_MULT}× · DOL ${DOL_BOOST}× · BEHIND ${BEHIND_PENALTY} — ` +
+    `sərhəd testləri yenidən təsdiqləndi`
+  );
 }
 
 function closedCount(candles: Candle[]): number {
@@ -1175,6 +1211,43 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const clamped = Math.min(CALIBRATION_BEHIND_MAX, Math.max(CALIBRATION_BEHIND_MIN, mult));
     set({ calibrationPreview: { ...get().calibrationPreview, behindPenalty: clamped } });
   },
+  // Phase 21 Apply record (D-03/D-14, T-21-06): records the reviewed HOLD
+  // verdict plus the applied-set copy. Writes NO constants: the pinned
+  // seeds continue unchanged, selectors keep reading pinned constants with
+  // zero live re-derivation on movement, and the boundary suites keep
+  // pinning the same seeded values with CALIBRATION-PROVISIONAL markers.
+  // Reads the module-level session flag (same zustand store creator closure
+  // the writer sets) so the applied copy fans out in the same tick.
+  selectCalibrationReview: () => {
+    return {
+      verdict: CALIBRATION_REVIEW_HOLD_COPY,
+      appliedCopy: calibrationReviewApplied ? calibrationAppliedCopy() : '',
+      applied: calibrationReviewApplied,
+    };
+  },
+  applyCalibrationPreview: () => {
+    // Module-level session flag flip beside the preview re-seed: Apply
+    // re-pins the preview to the pinned constants and records the reviewed
+    // verdict — never a constant rewrite (D-03/D-14).
+    calibrationReviewApplied = true;
+    set({
+      calibrationPreview: {
+        kzStartMin: TRIGGER_KZ_START_MIN,
+        kzEndMin: TRIGGER_KZ_END_MIN,
+        dispMult: TRIGGER_DISP_MULT,
+        equalTolBps: EQUAL_TOL_BPS,
+        mergeAtrMult: MERGE_ATR_MULT,
+        dolBoost: DOL_BOOST,
+        behindPenalty: BEHIND_PENALTY,
+      },
+    });
+  },
+  // Phase 21 preview reset alias (D-15): the sandbox Yenilə path re-seeds
+  // from the pinned module constants through the same reset body.
+  resetCalibrationPreviewToPinned: () => {
+    get().resetCalibrationPreview();
+  },
+
   // Phase 21 preview reset (D-15): refresh-equivalent — re-seeds from the
   // pinned module constants, never from localStorage (T-21-06).
   resetCalibrationPreview: () => {

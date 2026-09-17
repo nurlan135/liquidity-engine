@@ -16,6 +16,7 @@ import { Module3 } from '@/components/dashboard/module-3';
 import { Module4 } from '@/components/dashboard/module-4';
 import { SmtRow } from '@/components/dashboard/smt-row';
 import { FiringLogPanel } from '@/components/dashboard/firing-log-panel';
+import { CalibrationSandbox } from '@/components/dashboard/calibration-sandbox';
 import { TicketPanel } from '@/components/dashboard/ticket-panel';
 import { FatalFlaw } from '@/components/dashboard/fatal-flaw';
 import { toast } from '@/components/ui/toast';
@@ -301,6 +302,10 @@ export function TerminalShell() {
           <Module4 />
           <SmtRow />
           <FiringLogPanel />
+          {/* Phase 21 calibration sandbox (D-01/D-14): exactly one sandbox
+              block beside the log panel — preview-only knobs plus explicit
+              Apply, no pools voting change. */}
+          <CalibrationSandbox />
         </div>
 
         <div className="overflow-auto">

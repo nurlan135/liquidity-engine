@@ -1629,6 +1629,68 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  it('calibration-apply: records the reviewed HOLD verdict and re-pins the preview to the pinned constants with markers intact', async () => {
+    const { useDashboard } = await resetDualState();
+    const {
+      TRIGGER_DISP_MULT,
+      TRIGGER_KZ_END_MIN,
+      TRIGGER_KZ_START_MIN,
+    } = await import('@/src/lib/ict/trigger');
+    const { BEHIND_PENALTY, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
+
+    // Pre-Apply: the review reads unapplied — applied copy empty.
+    const before = useDashboard.getState().selectCalibrationReview();
+    expect(before.applied).toBe(false);
+    expect(before.appliedCopy).toBe('');
+
+    // Drift the preview off the pins, then Apply: preview re-seeds to the
+    // pinned seeds, the verdict records HOLD verbatim, the applied copy
+    // names every pinned value, and the constants themselves keep their
+    // CALIBRATION-PROVISIONAL markers (source-text pin, D-03 discipline).
+    useDashboard.getState().setCalibrationKzStartMin(200);
+    useDashboard.getState().setCalibrationDolBoost(3.5);
+    expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(200);
+    useDashboard.getState().applyCalibrationPreview();
+    expect(useDashboard.getState().calibrationPreview).toEqual({
+      kzStartMin: TRIGGER_KZ_START_MIN,
+      kzEndMin: TRIGGER_KZ_END_MIN,
+      dispMult: TRIGGER_DISP_MULT,
+      equalTolBps: EQUAL_TOL_BPS,
+      mergeAtrMult: MERGE_ATR_MULT,
+      dolBoost: DOL_BOOST,
+      behindPenalty: BEHIND_PENALTY,
+    });
+    const after = useDashboard.getState().selectCalibrationReview();
+    expect(after.applied).toBe(true);
+    expect(after.verdict).toBe('Atəş tempi 1–4/həftə bandında — TUTULDU — konstantlar dəyişməz qalır');
+    expect(after.appliedCopy).toContain(`KZ ${TRIGGER_KZ_START_MIN}–${TRIGGER_KZ_END_MIN} dəq`);
+    expect(after.appliedCopy).toContain('sərhəd testləri yenidən təsdiqləndi');
+
+    // Selectors keep reading pinned constants with zero live re-derivation:
+    // the preview drift above changed no pinned constant, and the boundary
+    // suites still pin the same seeded values (markers intact).
+    expect(TRIGGER_KZ_START_MIN).toBe(120);
+    expect(TRIGGER_KZ_END_MIN).toBe(300);
+    expect(TRIGGER_DISP_MULT).toBe(0.5);
+    expect(EQUAL_TOL_BPS).toBe(25);
+    expect(MERGE_ATR_MULT).toBe(0.25);
+    expect(DOL_BOOST).toBe(2.0);
+    expect(BEHIND_PENALTY).toBe(0.25);
+    const modules = import.meta.glob('./ict/trigger.ts', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>;
+    const triggerSrc = Object.values(modules)[0] as string;
+    for (const name of ['TRIGGER_KZ_START_MIN', 'TRIGGER_KZ_END_MIN', 'TRIGGER_DISP_MULT']) {
+      const idx = triggerSrc.indexOf(`export const ${name}`);
+      expect(idx).toBeGreaterThan(-1);
+      expect(triggerSrc.slice(Math.max(0, idx - 400), idx)).toContain('CALIBRATION-PROVISIONAL');
+    }
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('ticket-paperlog: appendPaperLog caps at 50 with oldest dropped and overflow counted', async () => {
     const { useDashboard } = await resetDualState();
     const note = (asOf: number) => ({
