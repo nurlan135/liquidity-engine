@@ -28,7 +28,7 @@ import {
   type TriggerOutput,
 } from '@/src/lib/ict/trigger';
 import { checkFatalFlaw, type FatalFlawOutput } from '@/src/lib/ict/invalidation';
-import { PAPER_EQUITY_USD, RISK_PCT_MAX, RISK_PCT_MIN, computeTicket, type TicketOutput } from '@/src/lib/ticket';
+import { RISK_PCT_MAX, RISK_PCT_MIN, computeTicket, type TicketOutput } from '@/src/lib/ticket';
 import { resolveThinTier } from '@/src/lib/thin-tier';
 
 // Re-exported so consumers read the log shape from the store slice owner;

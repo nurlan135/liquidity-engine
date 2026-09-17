@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fromZonedTime } from 'date-fns-tz';
 import { NY_TZ } from '@/src/lib/ict/aggregate';
 import { evaluateTrigger, nyMinutesOf } from '@/src/lib/ict/trigger';
-import type { TriggerOutput, TriggerReasonKey } from '@/src/lib/ict/trigger';
+import type { TriggerOutput } from '@/src/lib/ict/trigger';
 import { checkFatalFlaw } from '@/src/lib/ict/invalidation';
 import type { FatalFlawOutput } from '@/src/lib/ict/invalidation';
 import type { JudasOutput } from '@/src/lib/ict/judas';

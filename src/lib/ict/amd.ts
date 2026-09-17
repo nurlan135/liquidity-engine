@@ -20,8 +20,6 @@ export const NY_SESSION_START_MIN = 570;
 /** NY session close in NY wall-clock minutes since midnight, exclusive (D-15). */
 export const NY_SESSION_END_MIN = 960;
 
-/** Asia session start in NY wall-clock minutes since midnight, inclusive (D-13). */
-const ASIA_SESSION_START_MIN = 1200;
 /** Confirmation window in seconds: sweep instant plus 45 minutes (D-13). */
 const CONFIRM_WINDOW_SEC = 2700;
 

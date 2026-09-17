@@ -1448,7 +1448,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
   it('trigger-cap: 51 ARMED appends cap at 50 with oldest dropped and overflow counted', async () => {
     const { useDashboard } = await resetDualState();
 
-    const armed = (asOf: number) => ({
+    const armed = () => ({
       verdict: 'ARMED' as const,
       direction: 'LONG' as const,
       reasonKey: 'ARMED_MISSING_TIMING' as const,
@@ -1458,7 +1458,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       inputs: { judas: null, amd: null, smt: null },
     });
     for (let i = 0; i < 51; i++) {
-      useDashboard.getState().appendFiringLog(armed(1000 + i), 1000 + i);
+      useDashboard.getState().appendFiringLog(armed(), 1000 + i);
     }
 
     const state = useDashboard.getState();

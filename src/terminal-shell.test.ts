@@ -362,7 +362,10 @@ describe('terminal shell composes the full grid on live data', () => {
 describe('terminal shell owns the dual staggered always-on poll loop (D-01/D-02/D-03)', () => {
   it('mount triggers the NQ fetch and the staggered NQ/ES timers fire with no visibility gating', async () => {
     vi.useFakeTimers();
-    const fetchFn = vi.fn(async (..._args: unknown[]) => Response.json(liveEnvelope()));
+    const fetchFn = vi.fn(async (...args: unknown[]) => {
+      void args;
+      return Response.json(liveEnvelope());
+    });
     vi.stubGlobal('fetch', fetchFn);
 
     await renderShell();

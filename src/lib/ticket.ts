@@ -225,10 +225,6 @@ function directionOf(trigger: TriggerOutput): TicketDirection {
   return null;
 }
 
-function isCleanFlaw(flaw: FatalFlawOutput): boolean {
-  return flaw.invalidated !== true && flaw.downgraded !== true;
-}
-
 // Entry is the OTE pocket ∩ entry-FVG overlap midpoint: LONG resolves the
 // bullOTE pocket against a BULLISH gap, SHORT mirrors. No overlap, no handle,
 // or wrong polarity refuses with reason — never a midpoint of nothing.
