@@ -8,7 +8,7 @@ status: executing
 stopped_at: Completed 20-1-live-chart-overlay-05-PLAN.md
 last_updated: "2026-09-17T06:05:00.067Z"
 last_activity: 2026-09-17
-last_activity_desc: Phase 20 plan 05 executed (verdict gate + STAND_ASIDE proof)
+last_activity_desc: Phase 20 plan 05 executed (verdict gate + STAND_ASIDE proof); quick 260917-f3m firing-log panel
 state_head: f538b304e5a9c4a3f7a2e1b9c4d5f6a7b8c9d0e1
 progress:
   total_phases: 3
@@ -91,6 +91,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260917-ejc | detectRollover yalnız son pəncərəyə baxsın, bütün tarixə yox | 2026-09-17 | 3d87797 | [260917-ejc-detectrollover-yalniz-son-pencereye-baxs](./quick/260917-ejc-detectrollover-yalniz-son-pencereye-baxs/) |
+| 260917-f3m | firing log-u terminalda göstərən panel əlavə et | 2026-09-17 | 15fd81a | [260917-f3m-firing-log-u-terminalda-gosteren-panel-e](./quick/260917-f3m-firing-log-u-terminalda-gosteren-panel-e/) |
 
 ## Deferred Items
 
