@@ -1,104 +1,176 @@
 ---
-status: human_needed
-score: 10/10 must-haves verified
 phase: 21-execution-polish
-verified: 2026-09-17
-verifier: gsd-verifier
+verified: 2026-09-17T17:10:00Z
+status: gaps_found
+score: 12/13 must-haves verified
+covered_files: [".planning/REQUIREMENTS.md", ".planning/phases/21-execution-polish/21-01-PLAN.md", ".planning/phases/21-execution-polish/21-01-SUMMARY.md", ".planning/phases/21-execution-polish/21-02-PLAN.md", ".planning/phases/21-execution-polish/21-02-SUMMARY.md", ".planning/phases/21-execution-polish/21-03-PLAN.md", ".planning/phases/21-execution-polish/21-03-SUMMARY.md", ".planning/phases/21-execution-polish/21-04-PLAN.md", ".planning/phases/21-execution-polish/21-04-SUMMARY.md", "components/dashboard/calibration-sandbox.tsx", "components/ui/slider.tsx", "src/lib/store.ts", "src/terminal-shell.test.ts"]
+covered_digest: "v1:sha256:c5d4706b825957a7fdade7bdbce5dc2befa264c7c9d456a476f46cb88829935e"
+behavior_unverified: 0
+overrides_applied: 0
+re_verification:
+  previous_status: human_needed
+  previous_score: 10/10
+  gaps_closed:
+    - "BAXIŞ drift badge hoisted outside the opacity-45 dim container as a conspicuous amber chip (pre-Apply path)"
+    - "TUTULDU HOLD verdict rendered in-sandbox post-Apply beside the applied copy"
+    - "calibrationReviewApplied moved from module-level let into reactive zustand state"
+    - "Scalar knobs render exactly one thumb (value-first derivation)"
+    - "Shell beforeEach resets preview to pins plus applied flag to false; thumb/tag/verdict assertions added"
+  gaps_remaining:
+    - "CR-01: pristine OR-ed with review.applied hides all post-Apply preview drift (21-REVIEW.md)"
+  regressions: []
+gaps:
+  - truth: "Drift dims preview with a conspicuous BAXIŞ badge (pre- AND post-Apply)"
+    status: failed
+    reason: "21-REVIEW.md CR-01 confirmed true in current code: pristine = review.applied || (preview matches pins) at calibration-sandbox.tsx:129-137. After Apply the session flag stays true, so any later knob drift never shows the BAXIŞ badge (l171) or the opacity-45 dim (l179) — the operator sees a drifted what-if as the applied set."
+    artifacts:
+      - path: "components/dashboard/calibration-sandbox.tsx"
+        issue: "lines 129-137: review.applied disjunct defeats the constant-pinned pristine comparison post-Apply"
+    missing:
+      - "Drop the review.applied || disjunct so pristine compares preview against imported pinned constants only"
+      - "Extend the shell sandbox test: Apply, then drift a knob, assert preview-tag reappears outside opacity-45"
 ---
 
-# Phase 21: Execution Polish — Verification Report
+# Phase 21: Execution Polish — Re-Verification Report
 
-**Phase goal (ROADMAP.md):** Execution stays calibrated and uncorrupted with pools live — thresholds reviewed, ticket buffered, parity proven.
-**Plans verified:** 21-01 (tracer), 21-02 (calibration proof), 21-03 (slider sandbox).
-**Result:** All automated checks pass. Visual-glance items routed to human verification → `human_needed`.
+**Phase Goal:** Execution stays calibrated and uncorrupted with pools live — thresholds reviewed, ticket buffered, parity proven
+**Verified:** 2026-09-17T17:10:00Z
+**Status:** gaps_found
+**Re-verification:** Yes — after gap-closure plan 21-04 (G-21-3) plus 21-REVIEW.md cross-check
 
-## Must-haves checklist
+## Goal Achievement
 
-| # | Must-have | Status | Evidence (actual codebase, not SUMMARY claims) |
-|---|-----------|--------|-----------------------------------------------|
-| 1 | `summarizeFiringLog` helper: FIRE-only counting, overflow counted conservative, weeks = unique NY-week Mondays min 1, null verdict on empty, 1–4/week band | ✓ VERIFIED | `src/lib/ict/calibration.ts:84-111` exports `summarizeFiringLog`; filter is `FIRE_LONG/FIRE_SHORT` only (l94-96); `fires = retainedFires + overflow` (l99); `weeks = max(1, unique mondayOfNyDate)` (l100); null on `log.length===0 && overflow===0` (l104-106). Pinned by `src/lib/ict/calibration.test.ts` 11/11 pass (FIRE-only, edges 1 & 4, overflow inclusion, empty null, got-string guards). |
-| 2 | Buffered ticket multiples `CALIBRATION-PROVISIONAL`: SL 0.25×ATR beyond extreme, TP 0.10×ATR before extreme, R/R gate unchanged on TP1 | ✓ VERIFIED | `src/lib/ticket.ts:31-36` exports `TICKET_SL_BUFFER_ATR_MULT = 0.25`, `TICKET_TP_PULLBACK_ATR_MULT = 0.1`, both with `CALIBRATION-PROVISIONAL seeded 2026-09-17` marker; side-guarded resolvers (l286-360); `TICKET_RR_MIN = 3` untouched (l21); null/malformed degrade/throw per T-21-01 (l239-249). Boundary matrix `src/lib/ticket.test.ts:288+` pins LONG SL 20075 / SHORT mirror / TP pullback / null-degrade / STOP_EPS + TP1-only gate — suite 21/21 green (run 2026-09-17). |
-| 3 | Pools-parity exact match: trigger+flaw+ticket triple identical pools-on vs pools-off, one-bar skeleton + full 20-session replay, zero tolerance, shared buffered build | ✓ VERIFIED | `src/lib/ict/pools-parity.test.ts` 6/6 green (verbose run): 3 skeleton rows + 3 bulk rows — `replays all 20 sessions pools-on vs pools-off with zero triple divergence` (84 bars, shared STOP-side buffered build, pools toggle only in `cloneParityBar` driver fixtures). Ticket SL/TP deltas inside the match; no tolerance band. |
-| 4 | Proof table + buffer note + chart lines: band verdict + ON/OFF table inline from same `firingLog`, verbatim buffer note in ticket prose, SL/TP chart lines track buffered values, gate copy untouched | ✓ VERIFIED | `firing-log-panel.tsx:41-69` reads `summarizeFiringLog(firingLog, firingLogOverflow, …)` during render, zero math in render; `data-slot="calibration-verdict"` (l108) + `calibration-rate` + `calibration-proof` rows built from the same `firingLog` array (`poolsOn === poolsOff` by construction, divergent → destructive). `ticket-panel.tsx:25-26,97-98` renders verbatim `Stop ekstremdən 0.25×ATR kənarda; TP ekstremdən əvvəl — maqnit-xətt yoxdur` beside `ticket-reason` on EXECUTE. `chart-mapper.ts:109+` `ticketLineInputs` guard validates buffered legs; `nq-chart.tsx:494,952` threads both ticket-line effects through the guard, EXECUTE-only, z-order unchanged. Shell+mapper suites 52/52 green; full scoped run store+mapper+shell 101/101 green. |
-| 5 | Slider sandbox with preview/Apply: 7th primitive installed, both knob families, dimmed what-if preview with visible tag, explicit Apply, session-scoped, refresh resets, no persistence | ✓ VERIFIED | `components/ui/slider.tsx` wraps `@base-ui/react/slider` (`SliderPrimitive.Root`, `data-slot="slider"`, `cn()` merge, accent active-track `bg-[var(--terminal-accent)]`, thumb `size-4` + `after:-inset-[14px]` 44px hit-area). `calibration-sandbox.tsx` Card `data-slot="calibration-sandbox"`, 7 `KnobRow`s rendered ONLY from installed ui `Slider` (l5 import; no raw base-ui import in dashboard), sections `TETİK HƏDLƏRİ` + `HOVUZ TOLERANSLIĞI`, unapplied preview `opacity-45` + `BAXIŞ — tətbiq edilməyib` tag (l38,157-162), `Tətbiq et` Button size sm (l254) + `Yenilə` reset. `store.ts:600,1172-1265` `calibrationPreview` slice seeded from pinned constants, 7 clamped setters refusing NaN/non-finite, zero `localStorage` reads/writes (only comments mention it). `terminal-shell.tsx:19,308` mounts exactly one `CalibrationSandbox` beside `FiringLogPanel`. Store 48/48 + shell 31/31 green. |
-| 6 | `parity.test.ts` byte-identical (untouched regression anchor, D-09) | ✓ VERIFIED | `git hash-object src/lib/ict/parity.test.ts` = `9ecd782e…` matches `git show HEAD:…` blob hash exactly (verified 2026-09-17). File absent from all three plan commit sets; 5-rule suite passes in scoped run (part of 89/89 batch). |
-| 7 | `tsc` clean | ✓ VERIFIED | `npx tsc --noEmit` exit 0 (run 2026-09-17). |
-| 8 | `.planning/PROJECT.md` allowlist reads seven primitives with slider appended (D-16/D-22, first amendment since v1.0) | ✓ VERIFIED | `PROJECT.md:73,79` both shadcn lines read `(…, card, slider)` / `restricted to: …, card, slider` — 7 names, slider appended. |
-| 9 | Selectors read pinned constants only; preview movement changes zero verdicts; pools never vote (D-14/D-17) | ✓ VERIFIED | `store.ts` `selectTrigger` delegates to `selectTriggerPure` (l1069), `selectTicket` derives via `selectTriggerPure` (l1301-1310) — no `calibrationPreview` read in any selector path; `trigger.ts` has zero pools imports. Shell/store tests pin movement→zero-verdict-change; parity harness proves no pools vote. |
-| 10 | Apply records the reviewed HOLD verdict + applied-set copy and re-pins preview; constants keep `CALIBRATION-PROVISIONAL` markers (D-03 discipline; band holds so no retune) | ✓ VERIFIED (documented variant) | `store.ts:1221-1244` `selectCalibrationReview`/`applyCalibrationPreview`: flips module session flag, re-seeds preview to pinned seeds, records `Atəş tempi 1–4/həftə bandında — TUTULDU — konstantlar dəyişməz qalır` + applied copy naming every pinned value + `sərhəd testləri yenidən təsdiqləndi`. Writes NO constants — intentional: band holds per 21-01/21-02 evidence, so rewriting identical values would churn the D-03 discipline for zero calibration effect (SUMMARY 21-03 decision log). Store test `calibration-apply` pins HOLD verdict, applied copy, seed equality, and source-text `CALIBRATION-PROVISIONAL` markers on all three trigger constants. Plan-wording deviation (`writes constants`) is functionally void here; the D-03 retune arm stays conditional on BREAK. Trigger/pools/replay/ticket boundary suites all green (89/89 + 38/38). |
+### Observable Truths
 
-**Score: 10/10 automated must-haves verified. 0 failed. 0 gaps.**
+| # | Truth | Status | Evidence |
+|---|-------|--------|----------|
+| 1 | `summarizeFiringLog` helper: FIRE-only counting, overflow conservative, weeks = unique NY-week Mondays min 1, null on empty, 1–4/week band | ✓ VERIFIED (regression) | Code unchanged since prior verification; `calibration.test.ts` green in scoped run (part of 38/38 batch) |
+| 2 | Buffered ticket multiples `CALIBRATION-PROVISIONAL`: SL 0.25×ATR beyond extreme, TP 0.10×ATR before extreme, R/R gate unchanged | ✓ VERIFIED (regression) | `ticket.test.ts` green in scoped run (part of 38/38 batch) |
+| 3 | Pools-parity exact match: trigger+flaw+ticket triple identical pools-on vs pools-off, skeleton + 20-session replay, zero tolerance | ✓ VERIFIED (regression) | `pools-parity.test.ts` green in scoped run (part of 38/38 batch) |
+| 4 | Proof table + buffer note + chart lines: band verdict + ON/OFF table from same `firingLog`, verbatim buffer note, SL/TP lines track buffered values | ✓ VERIFIED (regression) | No plan-04 touch; shell suite 79/79 green covers render slots |
+| 5 | Slider sandbox with preview/Apply: 7th primitive, both knob families, dimmed what-if preview with visible tag, explicit Apply, session-scoped, refresh resets | ✓ VERIFIED (regression, partial — see #11) | Pre-Apply mechanics intact; post-Apply drift path broken (truth #11) |
+| 6 | `parity.test.ts` byte-identical (untouched regression anchor, D-09) | ✓ VERIFIED (regression) | `git hash-object` worktree = `9ecd782e…` = `git show HEAD:` blob hash (verifier-run 2026-09-17) |
+| 7 | `tsc` clean | ✓ VERIFIED (regression) | `npx tsc --noEmit` exit 0 (verifier-run 2026-09-17) |
+| 8 | `.planning/PROJECT.md` allowlist reads seven primitives with slider appended | ✓ VERIFIED (regression) | Untouched by plan 04 (4-file diff only); prior evidence stands |
+| 9 | Selectors read pinned constants only; preview movement changes zero verdicts; pools never vote | ✓ VERIFIED (regression) | Store setters/slices unchanged in derivation semantics; store+shell 79/79 green |
+| 10 | Apply records reviewed HOLD verdict + applied-set copy and re-pins preview; constants keep markers | ✓ VERIFIED (regression) | `store.ts:1227-1251` selector reads `get().calibrationReviewApplied`, Apply flips flag + re-seeds in one `set()`; `store.test.ts` calibration-apply green |
+| 11 | Gap-closure: drift dims preview with a conspicuous BAXIŞ badge rendered outside the dim container | ✗ FAILED | Badge hoisting itself is VERIFIED (`calibration-sandbox.tsx:171-178` sibling before `div` l179; shell test asserts `closest('.opacity-45')` null). BUT `pristine` at l129-137 is `review.applied \|\|`-gated, so post-Apply drift never renders the badge or dimming at all — see Gaps Summary |
+| 12 | Gap-closure: Apply records HOLD verdict copy with TUTULDU visible inside the sandbox and re-seeds knobs to pins | ✓ VERIFIED | `calibration-sandbox.tsx:265-270` applied block renders `review.verdict` + `appliedCopy`; `store.ts:1239-1250` one-`set()` flag flip + re-seed; shell test asserts applied block contains `TUTULDU`, `KZ 120–300 dəq`, re-confirmation line, and `kzStartMin === 120` |
+| 13 | Gap-closure: each scalar knob renders exactly one thumb | ✓ VERIFIED | `slider.tsx:15-21` value-first `_values` derivation; shell test loops all 7 knob slots asserting exactly 1 `[data-slot="slider-thumb"]` each |
 
-## Requirement traceability (every POL ID from plan frontmatter)
+**Score:** 12/13 truths verified (0 present-behavior-unverified)
 
-| Requirement | Source plans | Description | Status | Evidence |
-|-------------|-------------|-------------|--------|----------|
-| POL-01 | 21-01, 21-02 | WHY NOW thresholds reviewed against firing-log (1–4/week band holds, pools context-only) | ✓ SATISFIED | `calibration.ts` + `calibration.test.ts` 11/11; `firing-log-panel.tsx` verdict + rate + proof table + thin/stale/empty states; shell pins proof verdict/rows/entries in one render + empty body guard |
-| POL-02 | 21-01, 21-02 | Ticket SL beyond extreme + ATR buffer, TP partials before extreme | ✓ SATISFIED | `ticket.ts` multiples + side-guarded resolvers; `ticket.test.ts` 10-row boundary matrix; ticket-panel verbatim buffer note; `ticketLineInputs` guard + `nq-chart.tsx` threading; mapper 5 buffered-line pins |
-| POL-03 | 21-01, 21-02 | Parity harness proves trigger/flaw/ticket identical pools on/off | ✓ SATISFIED | `pools-parity.test.ts` 6/6 (1-bar skeleton + 84-bar 20-session replay, exact triple, zero tolerance); `parity.test.ts` byte-identical anchor |
-| POL-04 | 21-03 | `slider.tsx` threshold/pool-tolerance controls render from installed primitive | ✓ SATISFIED | `components/ui/slider.tsx` (7th primitive, base-ui wrapper); `calibration-sandbox.tsx` 7 knobs only from wrapper; `calibrationPreview` session slice + Apply-record; `PROJECT.md` 6→7; store + shell sandbox pins |
+### Required Artifacts
 
-REQUIREMENTS.md traceability table still reads POL-01–04 `Pending` — eligible for flip to `Complete` on phase close (out of verifier scope; no file edit made here).
+| Artifact | Expected | Status | Details |
+|----------|----------|--------|---------|
+| `components/dashboard/calibration-sandbox.tsx` | Hoisted badge + verdict + constant-pinned pristine | ⚠️ SUBSTANTIVE BUT LOGIC-FAULTED | Exists, substantive, wired; badge hoist + verdict render + constant imports verified — but `pristine` OR-gate (l129-137) defeats the comparison post-Apply |
+| `src/lib/store.ts` | Reactive applied flag in zustand state | ✓ VERIFIED | `calibrationReviewApplied: boolean` on state (l359), seeded false (l615), read via `get()` (l1228), set with re-seed in one `set()` (l1239-1250) |
+| `components/ui/slider.tsx` | Scalar single-thumb derivation | ✓ VERIFIED | Value-first derivation (l15-21); all 7 knobs pass scalar `value={preview.*}` (sandbox l89,184-258) |
+| `src/terminal-shell.test.ts` | Isolated preview + thumb/tag/verdict assertions | ✓ VERIFIED | `beforeEach` resets preview + flag (l195-200); sandbox test asserts 1 thumb/knob, hoisted tag, in-sandbox TUTULDU (l1166-1191) |
 
-## Locked decisions honored (21-CONTEXT.md / 21-UI-SPEC.md spot-checks)
+### Key Link Verification
 
-- D-02 inline verdict, no separate summary block — verdict `<p>` sits inside the log Card beside entries ✓
-- D-09 `parity.test.ts` untouched anchor ✓ (hash-verified)
-- D-12 exact-match failure bar, buffered deltas included, no tolerance ✓
-- D-17 pools never vote — no trigger/flaw/ticket signature change, toggle confined to driver fixtures ✓
-- D-21 purity — `calibration.ts` has no clock reads / store imports; `purity.test.ts` green ✓
-- Copy contract verbatim: HOLD/BREAK/empty/thin/proof-row/buffer-note/`BAXIŞ — tətbiq edilməyib`/`Tətbiq et` all match UI-SPEC ✓
-- Banned reuse absent: no pool-gated FIRE, stop-price, heatmap, or narrative copy in phase files (grep clean) ✓
-- Backstop row (long-text wrap) — no explicit evidence; folded into human glance item 1 below, not a silent pass ✓
+| From | To | Via | Status | Details |
+|------|----|-----|--------|---------|
+| Sandbox preview tag | Dim container | Sibling-before placement, not nested | ✓ WIRED | Tag `p` (l171-178) precedes `div.opacity-45` (l179); test pins `closest('.opacity-45') === null` |
+| Sandbox applied block | `review.verdict` TUTULDU copy | Render inside `data-slot="sandbox-applied"` | ✓ WIRED | l265-270 renders verdict + appliedCopy; test asserts both |
+| Apply | zustand applied flag + preview re-seed | One `set()` call | ✓ WIRED | `store.ts:1239-1250` single `set()` with both fields |
+| Post-Apply drift | BAXIŞ badge + dimming | `!pristine` render gate | ✗ NOT_WIRED (logic-gated) | `review.applied \|\|` at l130 forces `pristine=true` forever post-Apply; gate never re-opens |
 
-## Behavioral spot-checks (verifier-run, not SUMMARY-claimed)
+### Data-Flow Trace (Level 4)
+
+| Artifact | Data Variable | Source | Produces Real Data | Status |
+|----------|---------------|--------|--------------------|--------|
+| `calibration-sandbox.tsx` preview values | `preview.*` | `useDashboard(s => s.calibrationPreview)` session slice | ✓ FLOWING | Knob drift writes slice; badge/dim gate on comparison (faulted post-Apply only) |
+| `calibration-sandbox.tsx` applied block | `review` | `selectCalibrationReview()` (reactive flag + constant copies) | ✓ FLOWING | Post-Apply render verified with TUTULDU + applied copy |
+
+### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Calibration + parity + ticket suites | `npm test -- calibration.test.ts pools-parity.test.ts ticket.test.ts` | 3 files, 38 passed | ✓ PASS |
-| Store + mapper + shell suites | `npm test -- store.test.ts chart-mapper.test.ts terminal-shell.test.ts` | 3 files, 101 passed | ✓ PASS |
-| Trigger + pools + replay + parity + purity | `npm test -- trigger.test.ts pools.test.ts replay.test.ts parity.test.ts purity.test.ts` | 5 files, 89 passed | ✓ PASS |
+| Store + shell suites (gap-closure surface) | `npx vitest run src/lib/store.test.ts src/terminal-shell.test.ts` | 2 files, 79 passed | ✓ PASS |
+| Calibration + parity + ticket suites (regression) | `npx vitest run src/lib/ict/calibration.test.ts src/lib/ict/pools-parity.test.ts src/lib/ticket.test.ts` | 3 files, 38 passed | ✓ PASS |
 | Type safety | `npx tsc --noEmit` | clean, exit 0 | ✓ PASS |
 | Regression anchor identity | `git hash-object` worktree vs HEAD blob for `parity.test.ts` | both `9ecd782e…` | ✓ PASS |
-| Full `npm test` | not run to completion | OOMs the default vitest worker pool on this machine per 21-02/21-03 reports; every plan-touched suite verified green in scoped runs above | ? SKIP (environment limit, pre-existing, documented in both SUMMARIES) |
 
-## Anti-patterns
+### Requirements Coverage
 
-| File | Pattern | Severity | Impact |
-|------|---------|----------|--------|
-| Phase files (`calibration.ts`, `calibration-sandbox.tsx`, `firing-log-panel.tsx`, `ticket.ts`, `store.ts` preview slice) | No `TODO/FIXME/XXX/TBD/placeholder` markers; no `console.log`-only handlers; no hardcoded-empty render data | — | None found (grep clean) |
-| `src/lib/ict/replay.test.ts:267` `console.log` | Pre-existing debug print outside phase scope | ℹ️ Info | Not introduced by Phase 21; not blocking |
+Plans claim: 21-01 `[POL-01, POL-02, POL-03]`, 21-02 `[POL-01, POL-02, POL-03]`, 21-03 `[POL-04]`, 21-04 `[POL-04]` — union covers all 4 phase IDs; REQUIREMENTS.md maps POL-01–04 to Phase 21. No orphaned IDs.
 
-## Human verification required
+| Requirement | Source Plans | Description | Status | Evidence |
+|-------------|-------------|-------------|--------|----------|
+| POL-01 | 21-01, 21-02 | WHY NOW thresholds reviewed against firing-log (1–4/week band holds, pools context-only) | ✓ SATISFIED | Unchanged; calibration suite + proof-table slots green |
+| POL-02 | 21-01, 21-02 | Ticket SL beyond extreme + ATR buffer, TP partials before extreme | ✓ SATISFIED | Unchanged; ticket boundary matrix green |
+| POL-03 | 21-01, 21-02 | Parity harness proves trigger/flaw/ticket identical pools on/off | ✓ SATISFIED | Unchanged; parity harness green, anchor hash-identical |
+| POL-04 | 21-03, 21-04 | `slider.tsx` threshold/pool-tolerance controls render from installed primitive | ⚠️ SATISFIED WITH GAP | All gap-closure mechanics verified EXCEPT post-Apply drift badge (truth #11) |
 
-Automated checks are green. Three visual-glance items remain — slot presence is test-pinned, but placement/tone needs a human eye on the live terminal (each flagged `human_judgment: true` in its own SUMMARY).
+REQUIREMENTS.md traceability still reads POL-01–04 `Pending` — eligible for flip to `Complete` only after the CR-01 gap closes (verifier makes no file edit here).
+
+### Anti-Patterns Found
+
+| File | Line | Pattern | Severity | Impact |
+|------|------|---------|----------|--------|
+| `components/dashboard/calibration-sandbox.tsx` | 129-137 | `review.applied \|\|` defeats constant-pinned pristine comparison (CR-01) | 🛑 Blocker | Post-Apply knob drift never re-shows BAXIŞ tag or dimming — recorded under `gaps` |
+| `components/ui/slider.tsx` | 28 | Raw scalar `value` forwarded to primitive while thumb-count uses normalized `_values` (WR-01) | ⚠️ Warning | Thumb positioning/keyboard stepping suspect if primitive expects `number[]`; `tsc` currently clean so latent, not blocking |
+| `components/ui/slider.tsx` | 44-50 | Thumbs rendered without index binding; both-undefined fallback yields two colliding thumbs (WR-02) | ⚠️ Warning | Fallback path unreachable from sandbox (all knobs pass scalar value); latent fragility only |
+| `components/dashboard/calibration-sandbox.tsx` | 271-283 | Apply/Reset lack `disabled={degraded}` while knobs disable honestly (WR-03) | ⚠️ Warning | HOLD verdict recordable over stale/thin data the panel refuses to preview; contract gap, out of 21-04 scope |
+| `src/lib/store.ts` setters | 1183-1192 | No `kzStart <= kzEnd` cross-validation (WR-04) | ⚠️ Warning | Inverted killzone window previewable and Apply-recordable; no error surface |
+| `components/dashboard/calibration-sandbox.tsx` | 117-123 | `selectTicket`/`selectCalibrationReview` subscribed by function identity (WR-05) | ⚠️ Warning | Apply re-render currently happens by coincidence (preview replaced in same `set()`); degraded-disable path can go stale on screen |
+| `src/lib/store.ts` | 572-576 | `sharedEpoch` wall-clock fallback inside selector (WR-06) | ⚠️ Warning | Pre-existing nondeterminism on empty legs; out of Phase 21 scope |
+| `src/terminal-shell.test.ts` | 169-201 | `beforeEach` never resets `firingLog`/`paperLog`/`ticketInputs` (WR-07) | ⚠️ Warning | Calibration state leaks across suites by execution order; 21-04 fixed only the calibration slice |
+| `components/dashboard/calibration-sandbox.tsx` | 7, 252 | `CALIBRATION_BEHIND_MIN` imported but knob uses literal `min={0}` (IN-01) | ℹ️ Info | Behavior-identical today; future-retune divergence hazard |
+| `src/lib/store.ts` | 110-111 | Mid-file imports (IN-02) | ℹ️ Info | Convention break only |
+| `src/lib/store.ts` | 1227-1234 | `selectCalibrationReview` fresh object identity per call (IN-03) | ℹ️ Info | Trap for future subscribers; current usage dodges via WR-05 pattern |
+
+No `TODO/FIXME/XXX/TBD/placeholder` markers or `console.log`-only handlers in phase files (grep clean).
+
+### Human Verification Required
+
+Automated checks are green except the CR-01 gap. The prior visual-glance items persist (slot presence is test-pinned; placement/tone needs a human eye). Item 3 is extended with the post-Apply drift re-check that currently FAILS in code:
 
 ### 1. Band verdict + proof table placement and tone
+
 **Test:** Open the terminal with a populated firing log (2+ FIRE entries across 2 weeks) and look at the `Atəş Jurnalı` card.
-**Expected:** HOLD line (`Atəş tempi 1–4/həftə bandında — TUTULDU`) in green terminal-up at Heading size inline next to entries (no separate summary block); rate line `N atəş / M həftə` in mono below it; `Hovuz sübutu — ON/OFF` rows in muted mono; overflow `+N köhnə qeyd` retained above entries; thin history dims the block at opacity-45 with the thin note (never hidden); empty log shows the empty heading + calibration body and NO verdict line.
-**Why human:** jsdom pins slots and classes, not visual hierarchy, color tone, or Azeri copy wrapping (covers UI-SPEC backstop long-text row).
+**Expected:** HOLD line in green terminal-up at Heading size inline next to entries; rate line in mono below; `Hovuz sübutu — ON/OFF` rows in muted mono; overflow retained above entries; thin history dims at opacity-45 (never hidden); empty log shows empty heading + body, NO verdict.
+**Why human:** jsdom pins slots and classes, not visual hierarchy, color tone, or Azeri copy wrapping.
 
 ### 2. Buffered ticket note + chart line movement
+
 **Test:** On an EXECUTE ticket with buffered context, read the ticket panel and the NQ chart.
-**Expected:** Buffer note `Stop ekstremdən 0.25×ATR kənarda; TP ekstremdən əvvəl — maqnit-xətt yoxdur` in muted mono beside the ticket reason; chart SL/TP lines sit visibly off the pool extreme (not magnet-to-the-line); R/R gate copy and position unchanged; ghost/pool-line z-order unchanged.
-**Why human:** Line displacement off the extreme and prose placement beside the reason need a live-chart glance; mapper tests pin values, not pixels.
+**Expected:** Buffer note in muted mono beside the ticket reason; chart SL/TP lines visibly off the pool extreme; R/R gate copy and position unchanged; ghost/pool-line z-order unchanged.
+**Why human:** Line displacement and prose placement need a live-chart glance; mapper tests pin values, not pixels.
 
-### 3. Sandbox placement, dimming, Apply result
-**Test:** Find the `Kalibrləmə Sandbox` card beside the log panel; drag any knob; press `Tətbiq et`; refresh.
-**Expected:** Sandbox mounts once beside `FiringLogPanel` with sections `TETİK HƏDLƏRİ` + `HOVUZ TOLERANSLIĞI` (7 knobs, mono tabular values); knob drift dims the preview at opacity-45 with the `BAXIŞ — tətbiq edilməyib` tag and changes zero live verdicts; `Tətbiq et` records the HOLD applied copy; `Yenilə`/refresh resets to pinned seeds with no persistence.
-**Why human:** Placement beside the log panel, dimming tone, and the preview-vs-applied opacity transition need a live-terminal glance; store/shell tests pin state, not rendering.
+### 3. Sandbox badge conspicuousness + post-Apply drift (INCLUDES OPEN GAP)
 
-## Gaps summary
+**Test:** Find the `Kalibrləmə Sandbox` card; drag any knob (pre-Apply); press `Tətbiq et`; then drag a knob again.
+**Expected:** Pre-Apply drift shows the amber BAXIŞ chip undimmed above a dimmed preview; `Tətbiq et` records the TUTULDU applied copy; post-Apply drift MUST re-show the badge + dimming (currently does NOT — CR-01 gap — so this step documents the failure until fixed); `Yenilə`/refresh resets to pins with no persistence.
+**Why human:** Chip contrast legibility is perceptual (21-04 SUMMARY coverage D1, `human_judgment: true`); the post-Apply half additionally needs a live re-check after the code fix.
 
-No gaps. Every roadmap success criterion maps to verified artifacts with passing behavioral evidence:
+### Gaps Summary
 
-1. Fire-rate review with pools context-only → calibration helper + inline verdict + proof table ✓
-2. Buffered SL/TP, never magnet-to-line → ticket multiples + prose note + moved chart lines, gate on TP1 ✓
-3. Parity proof → 84-bar exact-match harness, anchor untouched ✓
-4. Slider controls from installed primitive → 7th primitive + sandbox + session preview + Apply ✓
+One blocking gap — the 21-REVIEW.md critical finding verified TRUE against current code:
 
-One documented plan-wording variant (Apply records review instead of rewriting identical constants while the band holds) is intentional, tested, and functionally equivalent — not a gap. The D-03 retune path arms on BREAK.
+**CR-01 (21-REVIEW.md) confirmed:** `components/dashboard/calibration-sandbox.tsx:129-137` computes `pristine` as `review.applied || (preview matches all pinned seeds)`. The gap-closure plan moved the applied flag into reactive zustand state and re-seeds the preview on Apply (both verified working), but left the `review.applied ||` disjunct in place. Since `calibrationReviewApplied` stays `true` for the rest of the session, `pristine` is permanently `true` post-Apply: dragging a knob afterward never renders the BAXIŞ badge (l171) or the `opacity-45` dim container (l179). The operator is misled into believing a drifted what-if is still the applied set — directly against the phase goal "execution stays calibrated and uncorrupted."
+
+Everything else from gap-closure plan 21-04 holds at full 3-level verification: hoisted badge placement (test-pinned outside the dim container), in-sandbox TUTULDU verdict, reactive flag flipped in the same `set()` as the re-seed, single-thumb knobs, constant-pinned pristine literals, isolated shell-test state. The fix is a 2-line deletion plus a regression test:
+
+```tsx
+const pristine =
+  preview.kzStartMin === TRIGGER_KZ_START_MIN &&
+  preview.kzEndMin === TRIGGER_KZ_END_MIN &&
+  preview.dispMult === TRIGGER_DISP_MULT &&
+  preview.equalTolBps === EQUAL_TOL_BPS &&
+  preview.mergeAtrMult === MERGE_ATR_MULT &&
+  preview.dolBoost === DOL_BOOST &&
+  preview.behindPenalty === BEHIND_PENALTY;
+```
+
+plus a shell-test leg (Apply → drift → badge reappears outside `opacity-45`). The seven warnings and three info items from 21-REVIEW.md are recorded above as non-blocking advisories; none were in 21-04 scope and none independently fail a must-have truth.
+
+Structured gap in this report's frontmatter for `/gsd-plan-phase --gaps`.
 
 ---
-_Verified: 2026-09-17_
-_Verifier: gsd-verifier (goal-backward; SUMMARY.md claims re-checked against code)_
+
+_Verified: 2026-09-17T17:10:00Z_
+_Verifier: the agent (gsd-verifier — goal-backward; SUMMARY.md claims re-checked against code; 21-REVIEW.md CR-01 independently confirmed)_
