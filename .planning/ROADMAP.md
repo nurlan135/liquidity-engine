@@ -102,12 +102,11 @@ Plans:
   3. User can see BSL/SSL zones as dashed price-line pairs on the chart, capped to nearest-2-per-side, with rank-1 highlighted and swept pools dimmed
   4. User sees pool lines dim under stale/thin tiers and sees ghost lines clear when the ticket stands aside, with ticket entry/SL/TP lines on top
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 
-- [x] 20-04-PLAN.md
-- [ ] 20-05-PLAN.md
+- [x] 20-05-PLAN.md
 
 **Wave 1**
 
@@ -146,5 +145,5 @@ Phases execute in numeric order: 19 → 20 → 21
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 19. Pools Math | 3/3 | In Progress|  |
-| 20. §1 Live + Chart Overlay | 4/5 | In Progress|  |
+| 20. §1 Live + Chart Overlay | 5/5 | In Progress|  |
 | 21. Execution Polish | 0/0 | Not started | - |
