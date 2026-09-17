@@ -15,6 +15,7 @@ import { Module1 } from '@/components/dashboard/module-1';
 import { Module3 } from '@/components/dashboard/module-3';
 import { Module4 } from '@/components/dashboard/module-4';
 import { SmtRow } from '@/components/dashboard/smt-row';
+import { FiringLogPanel } from '@/components/dashboard/firing-log-panel';
 import { TicketPanel } from '@/components/dashboard/ticket-panel';
 import { FatalFlaw } from '@/components/dashboard/fatal-flaw';
 import { toast } from '@/components/ui/toast';
@@ -299,6 +300,7 @@ export function TerminalShell() {
           <Module3 />
           <Module4 />
           <SmtRow />
+          <FiringLogPanel />
         </div>
 
         <div className="overflow-auto">
