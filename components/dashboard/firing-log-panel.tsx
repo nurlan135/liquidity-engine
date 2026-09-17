@@ -9,7 +9,7 @@ import { useDashboard } from '@/src/lib/store';
 // Üç birbaşa abunə (düz massivdir, useShallow lazım deyil); newest-first
 // sıra render zamanı törədilir (store kronoloji append edir).
 
-const EMPTY_COPY = 'Məlumat yoxdur';
+const EMPTY_COPY = 'Hələ ARMED/FIRE qeydi yoxdur — WAIT yazılmır';
 
 function gateMark(value: boolean): string {
   return value ? '✓' : '✗';
