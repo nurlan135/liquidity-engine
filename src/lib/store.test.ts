@@ -1556,6 +1556,79 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().stopDualPoll();
   });
 
+  it('calibration-preview: seeds from pinned constants, clamps, refuses NaN, and resets with session scope', async () => {
+    const { useDashboard } = await resetDualState();
+    const {
+      TRIGGER_DISP_MULT,
+      TRIGGER_KZ_END_MIN,
+      TRIGGER_KZ_START_MIN,
+    } = await import('@/src/lib/ict/trigger');
+    const { BEHIND_PENALTY, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
+
+    // Seed values come from the pinned module constants (D-13/D-15).
+    const seeded = useDashboard.getState().calibrationPreview;
+    expect(seeded).toEqual({
+      kzStartMin: TRIGGER_KZ_START_MIN,
+      kzEndMin: TRIGGER_KZ_END_MIN,
+      dispMult: TRIGGER_DISP_MULT,
+      equalTolBps: EQUAL_TOL_BPS,
+      mergeAtrMult: MERGE_ATR_MULT,
+      dolBoost: DOL_BOOST,
+      behindPenalty: BEHIND_PENALTY,
+    });
+
+    // Clamping follows the setRiskPct precedent: integers round, out-of-band
+    // values clamp to the planner-locked UI ranges.
+    useDashboard.getState().setCalibrationKzStartMin(120.7);
+    expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(121);
+    useDashboard.getState().setCalibrationKzStartMin(999);
+    expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(600);
+    useDashboard.getState().setCalibrationKzEndMin(-5);
+    expect(useDashboard.getState().calibrationPreview.kzEndMin).toBe(0);
+    useDashboard.getState().setCalibrationDispMult(5);
+    expect(useDashboard.getState().calibrationPreview.dispMult).toBe(2.0);
+    useDashboard.getState().setCalibrationEqualTolBps(3);
+    expect(useDashboard.getState().calibrationPreview.equalTolBps).toBe(5);
+    useDashboard.getState().setCalibrationEqualTolBps(250);
+    expect(useDashboard.getState().calibrationPreview.equalTolBps).toBe(100);
+    useDashboard.getState().setCalibrationMergeAtrMult(0.01);
+    expect(useDashboard.getState().calibrationPreview.mergeAtrMult).toBe(0.05);
+    useDashboard.getState().setCalibrationDolBoost(9);
+    expect(useDashboard.getState().calibrationPreview.dolBoost).toBe(4.0);
+    useDashboard.getState().setCalibrationBehindPenalty(-1);
+    expect(useDashboard.getState().calibrationPreview.behindPenalty).toBe(0.0);
+
+    // NaN and non-finite inputs are refused: preview state untouched.
+    const before = useDashboard.getState().calibrationPreview;
+    useDashboard.getState().setCalibrationKzStartMin(NaN);
+    useDashboard.getState().setCalibrationDispMult(Number.POSITIVE_INFINITY);
+    useDashboard.getState().setCalibrationEqualTolBps(NaN);
+    useDashboard.getState().setCalibrationMergeAtrMult(Number.NEGATIVE_INFINITY);
+    useDashboard.getState().setCalibrationDolBoost(NaN);
+    useDashboard.getState().setCalibrationBehindPenalty(NaN);
+    useDashboard.getState().setCalibrationKzEndMin(NaN);
+    expect(useDashboard.getState().calibrationPreview).toEqual(before);
+
+    // Session scope (D-15, T-21-06): resetCalibrationPreview re-seeds from
+    // the pinned constants, and nothing touches localStorage — the slice is
+    // memory-only, so refresh resets by construction.
+    useDashboard.getState().setCalibrationKzStartMin(61);
+    expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(61);
+    useDashboard.getState().resetCalibrationPreview();
+    expect(useDashboard.getState().calibrationPreview).toEqual({
+      kzStartMin: TRIGGER_KZ_START_MIN,
+      kzEndMin: TRIGGER_KZ_END_MIN,
+      dispMult: TRIGGER_DISP_MULT,
+      equalTolBps: EQUAL_TOL_BPS,
+      mergeAtrMult: MERGE_ATR_MULT,
+      dolBoost: DOL_BOOST,
+      behindPenalty: BEHIND_PENALTY,
+    });
+    expect('localStorage' in globalThis ? (globalThis as Record<string, unknown>)['__calibrationPreviewPersisted'] : undefined).toBeUndefined();
+
+    useDashboard.getState().stopDualPoll();
+  });
+
   it('ticket-paperlog: appendPaperLog caps at 50 with oldest dropped and overflow counted', async () => {
     const { useDashboard } = await resetDualState();
     const note = (asOf: number) => ({

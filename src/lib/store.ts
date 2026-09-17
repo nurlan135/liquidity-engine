@@ -18,6 +18,12 @@ import { evaluatePools, type LiquidityPool } from '@/src/lib/ict/pools';
 import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransition } from '@/src/lib/ict/fvg';
 import type { FvgGap } from '@/src/lib/ict/fvg';
 import {
+  BEHIND_PENALTY,
+  DOL_BOOST,
+  EQUAL_TOL_BPS,
+  MERGE_ATR_MULT,
+} from '@/src/lib/ict/pools';
+import {
   TRIGGER_DISP_MULT,
   TRIGGER_KZ_END_MIN,
   TRIGGER_KZ_START_MIN,
@@ -53,6 +59,38 @@ export interface PoolsSelection {
   // thin:true names the nq leg so Phase 20 dims instead of printing
   // full-strength geometry.
   degraded: { stale: boolean; thin: boolean; leg: string | null };
+}
+// Phase 21 calibration-sandbox knob bounds (D-13, T-21-05): planner-locked
+// UI ranges. Seeds come from the pinned constants in trigger.ts (WHY NOW
+// gate thresholds) and pools.ts (pool tolerances); ticket buffer multiples
+// stay pinned constants with boundary tests and are previewed through the
+// same Apply path as documentation of intent — derivation still reads the
+// pinned ticket.ts constants until Apply commits them.
+export const CALIBRATION_KZ_MIN = 0;
+export const CALIBRATION_KZ_MAX = 600;
+export const CALIBRATION_DISP_MIN = 0.1;
+export const CALIBRATION_DISP_MAX = 2.0;
+export const CALIBRATION_DISP_STEP = 0.05;
+export const CALIBRATION_EQUAL_TOL_MIN_BPS = 5;
+export const CALIBRATION_EQUAL_TOL_MAX_BPS = 100;
+export const CALIBRATION_MERGE_MIN = 0.05;
+export const CALIBRATION_MERGE_MAX = 1.0;
+export const CALIBRATION_MERGE_STEP = 0.05;
+export const CALIBRATION_DOL_BOOST_MIN = 1.0;
+export const CALIBRATION_DOL_BOOST_MAX = 4.0;
+export const CALIBRATION_DOL_BOOST_STEP = 0.1;
+export const CALIBRATION_BEHIND_MIN = 0.0;
+export const CALIBRATION_BEHIND_MAX = 1.0;
+export const CALIBRATION_BEHIND_STEP = 0.05;
+/** Session-scoped what-if preview for both knob families (D-13/D-15). */
+export interface CalibrationPreview {
+  kzStartMin: number;
+  kzEndMin: number;
+  dispMult: number;
+  equalTolBps: number;
+  mergeAtrMult: number;
+  dolBoost: number;
+  behindPenalty: number;
 }
 /** Session-ephemeral paper-note entry (OQ-4 lock): appended by KAĞIZ QEYD, capped at 50. */
 export interface PaperLogEntry {
@@ -295,6 +333,20 @@ export interface DashboardState {
   // (capped at 50, firing-log idiom). Never derived, never inside ticket.ts.
   ticketInputs: { riskPct: number };
   setRiskPct: (pct: number) => void;
+  // Phase 21 calibration-sandbox preview slice (D-13/D-15, T-21-05/T-21-06):
+  // session-scoped what-if knob values for both knob families — WHY NOW gate
+  // thresholds plus pool tolerances. Preview-only: selectors read the pinned
+  // module constants until the explicit Apply path commits. No localStorage
+  // reads or writes anywhere — refresh resets to the pinned seeds.
+  calibrationPreview: CalibrationPreview;
+  setCalibrationKzStartMin: (minutes: number) => void;
+  setCalibrationKzEndMin: (minutes: number) => void;
+  setCalibrationDispMult: (mult: number) => void;
+  setCalibrationEqualTolBps: (bps: number) => void;
+  setCalibrationMergeAtrMult: (mult: number) => void;
+  setCalibrationDolBoost: (mult: number) => void;
+  setCalibrationBehindPenalty: (mult: number) => void;
+  resetCalibrationPreview: () => void;
   paperLog: PaperLogEntry[];
   paperLogOverflow: number;
   appendPaperLog: (entry: PaperLogEntry) => void;
@@ -506,6 +558,18 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   firingLog: [],
   firingLogOverflow: 0,
   ticketInputs: { riskPct: 1 },
+  // Phase 21 preview seeds (D-13/D-15): seeded from the pinned constants in
+  // trigger.ts plus pools.ts at store creation; refresh re-seeds from the
+  // same pinned sources — never from localStorage (T-21-06).
+  calibrationPreview: {
+    kzStartMin: TRIGGER_KZ_START_MIN,
+    kzEndMin: TRIGGER_KZ_END_MIN,
+    dispMult: TRIGGER_DISP_MULT,
+    equalTolBps: EQUAL_TOL_BPS,
+    mergeAtrMult: MERGE_ATR_MULT,
+    dolBoost: DOL_BOOST,
+    behindPenalty: BEHIND_PENALTY,
+  },
   paperLog: [],
   paperLogOverflow: 0,
 
@@ -1067,6 +1131,64 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     if (typeof pct !== 'number' || !Number.isFinite(pct) || pct <= 0) return;
     const clamped = Math.min(RISK_PCT_MAX, Math.max(RISK_PCT_MIN, pct));
     set({ ticketInputs: { riskPct: clamped } });
+  },
+
+  // Phase 21 calibration-preview setters (D-13/D-15, T-21-05): one clamped
+  // setter per knob family value, following the setRiskPct precedent — NaN
+  // and non-finite inputs are refused (preview untouched), integers round to
+  // the nearest whole minute/bps. Preview only: derive nothing here.
+  setCalibrationKzStartMin: (minutes) => {
+    if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return;
+    const clamped = Math.min(CALIBRATION_KZ_MAX, Math.max(CALIBRATION_KZ_MIN, Math.round(minutes)));
+    set({ calibrationPreview: { ...get().calibrationPreview, kzStartMin: clamped } });
+  },
+  setCalibrationKzEndMin: (minutes) => {
+    if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return;
+    const clamped = Math.min(CALIBRATION_KZ_MAX, Math.max(CALIBRATION_KZ_MIN, Math.round(minutes)));
+    set({ calibrationPreview: { ...get().calibrationPreview, kzEndMin: clamped } });
+  },
+  setCalibrationDispMult: (mult) => {
+    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
+    const clamped = Math.min(CALIBRATION_DISP_MAX, Math.max(CALIBRATION_DISP_MIN, mult));
+    set({ calibrationPreview: { ...get().calibrationPreview, dispMult: clamped } });
+  },
+  setCalibrationEqualTolBps: (bps) => {
+    if (typeof bps !== 'number' || !Number.isFinite(bps)) return;
+    const clamped = Math.min(
+      CALIBRATION_EQUAL_TOL_MAX_BPS,
+      Math.max(CALIBRATION_EQUAL_TOL_MIN_BPS, Math.round(bps)),
+    );
+    set({ calibrationPreview: { ...get().calibrationPreview, equalTolBps: clamped } });
+  },
+  setCalibrationMergeAtrMult: (mult) => {
+    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
+    const clamped = Math.min(CALIBRATION_MERGE_MAX, Math.max(CALIBRATION_MERGE_MIN, mult));
+    set({ calibrationPreview: { ...get().calibrationPreview, mergeAtrMult: clamped } });
+  },
+  setCalibrationDolBoost: (mult) => {
+    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
+    const clamped = Math.min(CALIBRATION_DOL_BOOST_MAX, Math.max(CALIBRATION_DOL_BOOST_MIN, mult));
+    set({ calibrationPreview: { ...get().calibrationPreview, dolBoost: clamped } });
+  },
+  setCalibrationBehindPenalty: (mult) => {
+    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
+    const clamped = Math.min(CALIBRATION_BEHIND_MAX, Math.max(CALIBRATION_BEHIND_MIN, mult));
+    set({ calibrationPreview: { ...get().calibrationPreview, behindPenalty: clamped } });
+  },
+  // Phase 21 preview reset (D-15): refresh-equivalent — re-seeds from the
+  // pinned module constants, never from localStorage (T-21-06).
+  resetCalibrationPreview: () => {
+    set({
+      calibrationPreview: {
+        kzStartMin: TRIGGER_KZ_START_MIN,
+        kzEndMin: TRIGGER_KZ_END_MIN,
+        dispMult: TRIGGER_DISP_MULT,
+        equalTolBps: EQUAL_TOL_BPS,
+        mergeAtrMult: MERGE_ATR_MULT,
+        dolBoost: DOL_BOOST,
+        behindPenalty: BEHIND_PENALTY,
+      },
+    });
   },
 
   // Phase 17 paperLog (OQ-4): session-ephemeral KAĞIZ QEYD notes, capped at

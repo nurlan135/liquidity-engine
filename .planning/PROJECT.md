@@ -70,13 +70,13 @@ Shipped v1.0 Live Terminal (2026-09-06): 5 phases, 16 plans, 152 commits, +26105
 Shipped v2.0 Modul 3 (2026-09-08): 4 phases, 14 plans, 32 tasks, 32 files +5141/−83. 283/283 tests green, tsc clean. Audit passed after remediation (ICT-11 closure + retroactive 08/09 VERIFICATIONs). Live observation period recommended before v3.0 scoping (Judas confirm rate, SMT rollover behavior, Asia live alignment, 09-07 Mandelbug recurrence watch).
 Shipped v2.1 Cleanup & Polish (2026-09-09): 4 phases, 7 plans, 12 tasks, 61 files +6984/−95, 67 commits over 2 days. 298/298 tests green, tsc clean, all UAT green (1/1 + 6/6 + 6/6 + 2/2). Audit tech_debt with zero gaps (7/7 reqs, 9/9 integration, 3/3 flows); 7 non-blocking debt items carried (dead thinHistory arg, orphaned export/type, Nyquist process notes — see v2.1-MILESTONE-AUDIT.md).
 Shipped v3.0 Execution (Modul 4) (2026-09-15): 5 phases, 17 plans, 45 tasks. 420/420 tests green. Terminal oxumaqdan icraya keçdi — WHY NOW trigger, fatal-flaw invalidation, kağız ticket, verification harness hamısı canlı. UAT 10/10, audit təmiz.
-Tech stack: Next.js 16 App Router, Zustand 5, lightweight-charts v5 (dynamic ssr:false), date-fns-tz, Tailwind v4, shadcn primitives (button, dropdown-menu, dialog, toast, calendar, card).
+Tech stack: Next.js 16 App Router, Zustand 5, lightweight-charts v5 (dynamic ssr:false), date-fns-tz, Tailwind v4, shadcn primitives (button, dropdown-menu, dialog, toast, calendar, card, slider).
 Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc LayoutProps error (app/layout.tsx), Vercel token + Deployment Protection + drill-preview branch leftovers, thinHistory display gap.
 - Brownfield origin: Next.js 16.3.4 + React 19 scaffold; home page was stock placeholder, replaced by dashboard in Phase 2.
 - `zustand` ^5.0.15, `lightweight-charts` ^5.2.1, `date-fns` + `date-fns-tz` — all wired up (store, chart, Baku time).
 - Domain spec: `reference/institutional_rules.md` (4 ICT modules + 6-section institutional report, TIME>PRICE, SMT mandatory, WHY NOW engine). Phase 1 implements Module 2 only; write minimal `ict_rules.md` for Module 2.
 - UI target: `reference/design.html` 3-panel dark terminal (#0A0A0F background, #14141E panels, #00D9FF accent).
-- Shadcn usage restricted to: button, dropdown-menu, dialog, toast, calendar, card.
+- Shadcn usage restricted to: button, dropdown-menu, dialog, toast, calendar, card, slider.
 - `src/lib/ict` migration: move from root `lib/` to `src/lib/ict` for monorepo-ready pure functions; update `@/*` alias accordingly.
 - Symbols: NQ=F daily (D1) via Yahoo; XAUUSD broker-exclusion exception noted in spec but out of Phase 1 scope.
 - User language context: institutional rules doc is in Azerbaijani; Baku timezone (Asia/Baku) is the operating timezone.
