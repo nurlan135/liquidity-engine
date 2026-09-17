@@ -86,6 +86,12 @@ None yet.
 - Provisional pool-ranking constants uncalibrated until firing-log evidence — mitigated by exported constants + boundary tests + Phase 21 review, not by tuning in Phase 19
 - Pool-gated FIRE proposals must be rejected in v3.1 planning (needs own calibration band + population test)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260917-ejc | detectRollover yalnız son pəncərəyə baxsın, bütün tarixə yox | 2026-09-17 | 3d87797 | [260917-ejc-detectrollover-yalniz-son-pencereye-baxs](./quick/260917-ejc-detectrollover-yalniz-son-pencereye-baxs/) |
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:

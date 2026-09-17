@@ -2,6 +2,7 @@ import type { Candle, RolloverFlag } from '@/src/lib/ict/types';
 import { closedOnly } from '@/src/lib/ict/types';
 
 export const ROLLOVER_ATR_MULT = 3;
+export const ROLLOVER_WINDOW = 20;
 const PROXIMITY_DAYS = 10;
 
 function thirdFriday(year: number, monthIndex: number): Date {
@@ -41,9 +42,14 @@ export function detectRollover(
   }
   const closed = closedOnly(candles);
   const tripwire = ROLLOVER_ATR_MULT * atr;
+  // Trailing-window tripwire: only the last ROLLOVER_WINDOW closes are probed.
+  // +1 candle so the gap between the window's first candle and its predecessor
+  // is still counted (avoids a sliced-edge blind spot); older history is ignored
+  // so a stale roll gap cannot stick the flag on forever.
+  const windowSlice = closed.slice(-(ROLLOVER_WINDOW + 1));
   let rolloverSuspect = false;
-  for (let i = 1; i < closed.length; i++) {
-    if (Math.abs(closed[i].close - closed[i - 1].close) > tripwire) {
+  for (let i = 1; i < windowSlice.length; i++) {
+    if (Math.abs(windowSlice[i].close - windowSlice[i - 1].close) > tripwire) {
       rolloverSuspect = true;
       break;
     }
