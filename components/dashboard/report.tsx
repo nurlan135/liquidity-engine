@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDashboard } from '@/src/lib/store';
-import { REPORT_SECTIONS, REGIME_BADGE, PRE_NEWS_BADGE, CONVICTION_LABEL } from '@/src/lib/report';
+import { REPORT_SECTIONS, REGIME_BADGE, PRE_NEWS_BADGE, CONVICTION_LABEL, describePool } from '@/src/lib/report';
 import { deriveBlockedSide } from '@/src/lib/blocked-side';
 import { isScenarioFixture, resolveScenario } from '@/src/lib/fixture-guard';
 import { isPreNews } from '@/src/lib/countdown';
@@ -36,6 +36,14 @@ function positionLabel(position: number): string {
 // null-selector and loading gaps per the UI-05 empty predicate.
 const S3_EMPTY_COPY = 'Məlumat yoxdur';
 const S3_NY_LINE = 'NY: Gözlənilir — v2.0-da ölçülmür.';
+
+// Phase 20 §1 locked copy (UI-SPEC copywriting contract, D-01 through D-08).
+// Rank-1 sentence names side + zone bounds + ATR distance + swept status with
+// the inline projection hedge; degraded states get distinct honest copy and
+// never confident prose (D-05).
+const S1_THIN_NOTE = 'İncə tarixçə — proyeksiya zəif etimadla göstərilir.';
+const S1_HEDGE = '(proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)';
+const S1_NO_POOLS_COPY = 'Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.';
 
 // SMT suppressed envelopes carry a machine reason; the owning sub-block shows
 // it verbatim plus the locked tag (D-11).
@@ -74,6 +82,12 @@ export function Report() {
   const selectSMT = useDashboard((s) => s.selectSMT);
   const selectAMD = useDashboard((s) => s.selectAMD);
   const selectConfluence = useDashboard((s) => s.selectConfluence);
+  // Phase 20 §1 selectors: same stable-function subscription with
+  // derivation during render (selectLevels precedent — avoids useShallow
+  // loops on fresh nested identities). PoolsSelection wraps LiquidityPool[],
+  // so derivation happens once during render below, never in a shallow hook.
+  const selectPools = useDashboard((s) => s.selectPools);
+  const selectLastClose = useDashboard((s) => s.selectLastClose);
   // Phase 17 §§4-6 selectors: same stable-function subscription with
   // derivation during render (selectLevels precedent — avoids useShallow
   // loops on fresh nested identities). Math-free: panels print selector
@@ -91,6 +105,8 @@ export function Report() {
   const smt = selectSMT();
   const amd = selectAMD();
   const tier = selectConfluence();
+  const poolsSelection = selectPools();
+  const poolsLastClose = selectLastClose();
   const trigger = selectTrigger();
   const flaw = selectFatalFlaw();
   const ticket = selectTicket();
@@ -120,6 +136,113 @@ export function Report() {
       </CardHeader>
       <CardContent>
         {REPORT_SECTIONS.map((section) => {
+          // Phase 20 §1 live block (D-01 through D-08): copying the §3
+          // branch shape — section title h3, lastUpdatedISO null skeleton,
+          // null-selector Məlumat yoxdur copy, data-slot report-section plus
+          // the fixed Ağrı Həddi sub-slot. Rank-1 is the first pool of the
+          // selector return in rank order regardless of status (D-18 — the
+          // array arrives rank-ordered as ranked ACTIVE then originDate-ordered
+          // SWEPT; never recompute swept-ness, consume status verbatim), so
+          // an all-swept book names its top SWEPT pool in the reachable muted
+          // tone instead of falling through. The no-pools copy renders only
+          // on an empty pools array (D-05). Null selector renders the empty
+          // copy only, never cached pools (D-08). Placed before the generic
+          // unavailable branch (D-03). No trigger, flaw, or ticket derivation
+          // touched (D-17); no new ict math (D-20). ATR distance is
+          // display-only prose derived from the shipped read-only selectors
+          // (selectRegime + selectLastClose) — throw-safe to empty copy so a
+          // selector throw blanks the sentence, never the section.
+          if (section.index === 1) {
+            const nqLeg = useDashboard.getState().nq;
+            let rank1: {
+              side: 'BSL' | 'SSL';
+              top: number;
+              bottom: number;
+              touches: number;
+              weight: number;
+              status: 'ACTIVE' | 'SWEPT' | 'CONSUMED';
+            } | null = null;
+            let rank1AtrCopy: string | null = null;
+            let rank1Reason: string | null = null;
+            try {
+              rank1 =
+                poolsSelection === null || poolsSelection.pools.length === 0
+                  ? null
+                  : (poolsSelection.pools[0] ?? null);
+              if (rank1 !== null) {
+                rank1Reason = describePool(rank1);
+              }
+              if (rank1 !== null && poolsLastClose !== null && regimeOutput !== null) {
+                const atr = regimeOutput.atr;
+                rank1AtrCopy =
+                  Number.isFinite(atr) && atr > 0
+                    ? (Math.abs((rank1.top + rank1.bottom) / 2 - poolsLastClose) / atr).toFixed(2)
+                    : '—';
+              } else if (rank1 !== null) {
+                rank1AtrCopy = '—';
+              }
+            } catch {
+              rank1 = null;
+              rank1AtrCopy = null;
+              rank1Reason = null;
+            }
+            return (
+              <section key={section.index} data-slot="report-section">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : poolsSelection === null ? (
+                  <p className="text-base font-semibold">
+                    {nqLeg.lastError ?? S3_EMPTY_COPY}
+                  </p>
+                ) : rank1 === null ? (
+                  <div
+                    data-slot="s1-pain-threshold"
+                    className={poolsSelection.degraded.thin ? 'opacity-45' : undefined}
+                  >
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      Ağrı Həddi
+                    </h4>
+                    <p className="text-base font-semibold">{S1_NO_POOLS_COPY}</p>
+                    {poolsSelection.degraded.thin ? (
+                      <p className="text-xs text-muted-foreground">{S1_THIN_NOTE}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div
+                    data-slot="s1-pain-threshold"
+                    className={poolsSelection.degraded.thin ? 'opacity-45' : undefined}
+                  >
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      Ağrı Həddi
+                    </h4>
+                    <p
+                      className={
+                        rank1.status === 'SWEPT'
+                          ? 'text-base font-semibold text-muted-foreground'
+                          : 'text-base font-semibold'
+                      }
+                    >
+                      <span className="font-mono tabular-nums">
+                        {`${rank1.side} ${rank1.bottom.toFixed(2)}–${rank1.top.toFixed(2)} · ATR ${rank1AtrCopy ?? '—'} · ${rank1.status}`}
+                      </span>
+                      {rank1Reason !== null ? ` ${rank1Reason}` : ''}
+                      {` ${S1_HEDGE}`}
+                    </p>
+                    {poolsSelection.degraded.thin ? (
+                      <p className="text-xs text-muted-foreground">{S1_THIN_NOTE}</p>
+                    ) : null}
+                  </div>
+                )}
+              </section>
+            );
+          }
           // Phase 9 §3 live block (D-01 through D-04, D-09 through D-12):
           // conviction line plus three sub-blocks in fixed stable order with
           // per-block verbatim reasons, never a §3-level banner.

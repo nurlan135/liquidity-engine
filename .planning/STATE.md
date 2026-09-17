@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v3.1
 milestone_name: Pain Threshold (§1) + Execution Polish
-current_phase: 19
-current_phase_name: Pools Math
+current_phase: 20
+current_phase_name: §1 Live + Chart Overlay
 status: executing
-stopped_at: Phase 19 context gathered
-last_updated: "2026-09-16T08:09:23.524Z"
-last_activity: 2026-09-16
-last_activity_desc: Phase 19 execution resumed (wave continue)
-state_head: 7d9091f76da4d91a0a36f776ba4ad41f7c213d47
+stopped_at: Completed 20-1-live-chart-overlay-05-PLAN.md
+last_updated: "2026-09-17T06:05:00.067Z"
+last_activity: 2026-09-17
+last_activity_desc: Phase 20 plan 05 executed (verdict gate + STAND_ASIDE proof)
+state_head: f538b304e5a9c4a3f7a2e1b9c4d5f6a7b8c9d0e1
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 8
+  completed_plans: 8
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-15 after v3.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 19 — Pools Math
+**Current focus:** Phase 20 — §1 Live + Chart Overlay
 
 ## Current Position
 
-Phase: 19 (Pools Math) — EXECUTING
+Phase: 20 (§1 Live + Chart Overlay) — EXECUTING
 Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-09-16 — Phase 19 execution resumed (wave continue)
+Last activity: 2026-09-16 — Phase 20 execution resumed (wave continue)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -57,6 +57,11 @@ Progress: [░░░░░░░░░░] 0%
 - v3.1 not started — no trend yet
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 20-1-live-chart-overlay P04 | 12 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +75,7 @@ Recent decisions affecting current work:
 - [Research 2026-09-15]: All ranking constants ship CALIBRATION-PROVISIONAL (merge-ATR multiple, EQUAL_TOL_BPS ~25bps, dolBoost/behind-penalty) + boundary-test pins; Phase 21 reviews against firing log
 - [Research 2026-09-15]: Phase 20 carries `UI hint: yes` (§1 block + chart lines); Phase 21 carries `UI hint: yes` (slider controls) — `/gsd-ui-phase` applies at plan time
 - [v3.0]: 420/420 tests green, UAT 10/10 — pools math must keep the full suite green (shared swings.ts extraction, purity guard from first commit)
+- [Phase 20]: 20-04: fix option A (wiring-layer describePool from verbatim fields) keeps D-01/D-02 locked without ict math or shape change
 
 ### Pending Todos
 
@@ -92,9 +98,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-15T14:29:29.888Z
-Stopped at: Phase 19 context gathered
-Resume file: .planning/phases/19-pools-math/19-CONTEXT.md
+Last session: 2026-09-16T14:23:49.984Z
+Stopped at: Completed 20-1-live-chart-overlay-04-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

@@ -3,6 +3,7 @@
 // copy; locked English chip UNAVAILABLE untouched.
 
 import type { RegimeState } from '@/src/lib/ict/types';
+import type { LiquidityPool } from '@/src/lib/ict/pools';
 
 export type ReportSectionState = 'live' | 'unavailable';
 
@@ -13,11 +14,12 @@ export interface ReportSection {
 }
 
 // Six institutional report sections in fixed order; section 1 (Retail
-// Exposure) stays unavailable, sections 2-6 render live. Section 5 carries
+// Exposure) renders live from the selectPools refuse-null envelope (Phase 20
+// D-22), sections 2-6 render live. Section 5 carries
 // the PAPER prefix (D-06) so the terminal can never be mistaken for real
 // brokerage.
 export const REPORT_SECTIONS: ReportSection[] = [
-  { index: 1, title: '1. RETAIL EXPOSURE & SENTIMENT ENGINEERING', state: 'unavailable' },
+  { index: 1, title: '1. RETAIL EXPOSURE & SENTIMENT ENGINEERING', state: 'live' },
   { index: 2, title: '2. MACRO DEALING RANGE & VOLATILITY REGIME (D1/4H)', state: 'live' },
   { index: 3, title: '3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)', state: 'live' },
   { index: 4, title: '4. "WHY NOW?" EXECUTION PROTOCOL (5M/1M)', state: 'live' },
@@ -32,6 +34,19 @@ export const REGIME_BADGE: Record<RegimeState, string> = {
 
 // Pre-news override: a high-impact event inside the window supersedes the ATR badge.
 export const PRE_NEWS_BADGE = 'Yüksək təsirli xəbər gözlənilir';
+
+// Phase 20 §1 rank-1 reason clause (D-01/D-04, gap-1 fix option A): pools
+// carry no detector reason field (D-18 locks the shape, D-20 forbids new ict
+// math), so the clause is composed display-only from verbatim pool field
+// values — side token, touch count, formatted weight, status token. Pure:
+// string formatting only, no numeric derivation, no detector or shape change.
+// The parameter names exactly the fields displayed so callers pass views
+// without the full pool shape.
+export function describePool(
+  pool: Pick<LiquidityPool, 'side' | 'touches' | 'weight' | 'status'>,
+): string {
+  return `${pool.side} toxunuş ${pool.touches} çəki ${pool.weight.toFixed(2)} status ${pool.status}`;
+}
 
 // §3 conviction line label prefix (ICT-15): tier display words stay sourced
 // from confluence.ts — no duplicated mapping table here.

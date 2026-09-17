@@ -25,30 +25,10 @@ function row(time: number, price: number, overrides: Partial<IntradayCandle> = {
   };
 }
 
-// Epoch seconds of a NY wall-clock hour on a given NY calendar date. Built
-// from date-fns-tz's own DST-aware zone conversion (fromZonedTime interprets
-// the wall time in NY_TZ), so fixtures stay correct across both transitions
-// without hand-rolled offsets.
-function nyHourEpoch(nyDate: string, nyHour: number): number {
-  return Math.floor(fromZonedTime(`${nyDate} ${String(nyHour).padStart(2, '0')}:00:00`, NY_TZ).getTime() / 1000);
-}
-
-// Minute-precision epoch helper mirroring the nyHourEpoch shape: epoch
-// seconds of a NY wall-clock HH:MM on a given NY calendar date, resolved
-// through the same DST-aware conversion.
+// Epoch seconds of a NY wall-clock HH:MM on a given NY calendar date, resolved
+// through the DST-aware conversion.
 function nyMinuteEpoch(nyDate: string, hhmm: string): number {
   return Math.floor(fromZonedTime(`${nyDate} ${hhmm}:00`, NY_TZ).getTime() / 1000);
-}
-
-// Eight consecutive closed 15M rows starting at a NY wall-clock hour.
-function block8(nyDate: string, startHour: number, price = BASE): IntradayCandle[] {
-  const rows: IntradayCandle[] = [];
-  let t = nyHourEpoch(nyDate, startHour);
-  for (let i = 0; i < 8; i++) {
-    rows.push(row(t, price + i * 2));
-    t += STEP;
-  }
-  return rows;
 }
 
 // Twelve consecutive closed 15M rows starting at a NY wall-clock HH:MM —

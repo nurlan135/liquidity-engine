@@ -18,9 +18,9 @@ Requirements for v3.1 milestone. Each maps to roadmap phases.
 
 ### §1 Live Report
 
-- [ ] **S1-01**: Report §1 flips from unavailable to live with verbatim Azerbaijani pool reasons
+- [x] **S1-01**: Report §1 flips from unavailable to live with verbatim Azerbaijani pool reasons
 - [ ] **S1-02**: §1 shows honest-empty states (no pools / stale leg / thin history)
-- [ ] **S1-03**: §1 prose carries proyeksiya hedge + methodology caveat, toBe-pinned
+- [x] **S1-03**: §1 prose carries proyeksiya hedge + methodology caveat, toBe-pinned
 
 ### Chart Overlay
 
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POOL-04 | Phase 19 | Complete |
 | POOL-05 | Phase 19 | Complete |
 | POOL-06 | Phase 19 | Complete |
-| S1-01 | Phase 20 | Pending |
+| S1-01 | Phase 20 | Complete |
 | S1-02 | Phase 20 | Pending |
-| S1-03 | Phase 20 | Pending |
+| S1-03 | Phase 20 | Complete |
 | CHRT-01 | Phase 20 | Pending |
 | CHRT-02 | Phase 20 | Pending |
 | CHRT-03 | Phase 20 | Pending |

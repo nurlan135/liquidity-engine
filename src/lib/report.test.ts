@@ -1,17 +1,19 @@
-// Report contract tests: six sections in fixed order, sections 2-6 live.
+// Report contract tests: six sections in fixed order, all six live
+// (Phase 20 D-22 flips section 1 from unavailable to live).
 // Section 5 carries the PAPER prefix (D-06).
 // English identifiers; locked English chip UNAVAILABLE untouched.
 
 import { describe, expect, it } from 'vitest';
-import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS } from '@/src/lib/report';
+import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS, describePool } from '@/src/lib/report';
+import type { LiquidityPool } from '@/src/lib/ict/pools';
 
 describe('report', () => {
-  it('holds exactly 6 entries with only indexes 2 through 6 live', () => {
+  it('holds exactly 6 entries with all six sections live', () => {
     expect(REPORT_SECTIONS).toHaveLength(6);
     expect(REPORT_SECTIONS.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
     const live = REPORT_SECTIONS.filter((s) => s.state === 'live');
-    expect(live).toHaveLength(5);
-    expect(live.map((s) => s.index)).toEqual([2, 3, 4, 5, 6]);
+    expect(live).toHaveLength(6);
+    expect(live.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('locks the §3 title and the conviction label prefix', () => {
@@ -36,5 +38,34 @@ describe('report', () => {
     expect(REGIME_BADGE.expansion).toBe('Genişlənmə');
     expect(REGIME_BADGE.compression).toBe('Sıxılma');
     expect(PRE_NEWS_BADGE).toBe('Yüksək təsirli xəbər gözlənilir');
+  });
+
+  // Phase 20 gap-1 fix (D-01/D-04): the descriptor helper composes the reason
+  // clause display-only from verbatim pool fields — exact-match pins for an
+  // ACTIVE pool and a SWEPT pool.
+  it('describePool pins the ACTIVE reason clause by exact match', () => {
+    const pool: LiquidityPool = {
+      side: 'BSL',
+      top: 20300,
+      bottom: 20290,
+      touches: 3,
+      weight: 5,
+      originDate: '2026-01-07',
+      status: 'ACTIVE',
+    };
+    expect(describePool(pool)).toBe('BSL toxunuş 3 çəki 5.00 status ACTIVE');
+  });
+
+  it('describePool pins the SWEPT reason clause by exact match', () => {
+    const pool: LiquidityPool = {
+      side: 'SSL',
+      top: 19994,
+      bottom: 19990,
+      touches: 1,
+      weight: 1,
+      originDate: '2026-01-09',
+      status: 'SWEPT',
+    };
+    expect(describePool(pool)).toBe('SSL toxunuş 1 çəki 1.00 status SWEPT');
   });
 });
