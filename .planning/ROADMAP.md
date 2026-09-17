@@ -134,8 +134,19 @@ Plans:
   3. Parity harness proves trigger/flaw/ticket verdicts are identical with pools on vs off
   4. User can adjust threshold/pool-tolerance controls rendered from the installed slider primitive
 
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+
+- [ ] 21-01-PLAN.md — Tracer: band-verdict helper + buffered ticket + one-bar parity + inline verdict
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 21-02-PLAN.md — Calibration proof: full 20-session parity + proof table + buffer visibility
+- [ ] 21-03-PLAN.md — Slider sandbox: 7th primitive + preview slice + Apply (blocking-human provenance gate)
 
 ## Progress
 
