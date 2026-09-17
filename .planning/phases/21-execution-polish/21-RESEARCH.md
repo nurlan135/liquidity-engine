@@ -326,11 +326,13 @@ const entries = firingLog.slice().reverse();
 1. **TP pullback multiple numeric default**
    - What we know: SL is locked at 0.25× ATR beyond extreme (D-05, mirrors merge idiom [VERIFIED: src/lib/ict/pools.ts:21-23]); TP books before extreme (D-06) with no numeric multiple in CONTEXT.
    - What's unclear: Whether TP pullback is a second ATR multiple, a fixed-bps inset, or a structural-leg step-back.
-   - Recommendation: Planner proposes one provisional default + boundary matrix; discuss-phase confirms before execution.
+    - Recommendation: Planner proposes one provisional default + boundary matrix; discuss-phase confirms before execution.
+    - **RESOLVED 2026-09-17:** Locked in 21-01-PLAN per D-06 — TP inset before the extreme at 0.10x ATR as the CALIBRATION-PROVISIONAL default with boundary-test pins.
 2. **Band verdict counting rule (overflow + ARMED inclusion)**
    - What we know: Cap is 50 with overflow counter [VERIFIED: src/lib/ict/trigger.ts:28-30]; UI-SPEC says verdict counts the full log including overflow; replay band divides by NY weeks.
    - What's unclear: Whether ARMED entries count toward fires/week or FIRE-only.
-   - Recommendation: Planner locks FIRE-only counting (replay `fires` counts FIRE bars [VERIFIED: src/lib/ict/replay.test.ts:250-252]) unless discuss-phase overrides.
+    - Recommendation: Planner locks FIRE-only counting (replay `fires` counts FIRE bars [VERIFIED: src/lib/ict/replay.test.ts:250-252]) unless discuss-phase overrides.
+    - **RESOLVED 2026-09-17:** Locked in 21-01-PLAN per D-01 — FIRE-only counting with overflow counted conservatively as additional fires.
 
 ## Environment Availability
 
