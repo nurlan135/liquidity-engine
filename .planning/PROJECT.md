@@ -49,11 +49,11 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Fatal-flaw invalidation: checkFatalFlaw on the same snapshot as trigger, HARD (rollover/stale) vs SOFT (SMT/opposite-sweep downgrade) split, falsifiable sentence + Azerbaijani challenge bank, live report §6 — v3.0
 - ✓ Paper ticket: fixed-order derivation (direction → OTE×FVG entry → SL → TP ladder → R/R ≥ 1:3 gate → EXECUTE/STAND ASIDE), risk÷distance sizing, banned-word quarantine green, §§4–6 live report blocks + three dashboard panels + persistent KAĞIZ/PAPER banner + chart T pin + entry/SL/TP lines — v3.0
 - ✓ Verification + calibration harness: 20-session replay with pinned transition table + calibration summary JSON, 5-rule AMD/SMT-vs-trigger parity harness, full stale-leg matrix drill with degraded-with-provenance — 420/420 tests, UAT 10/10 — v3.0
+- ✓ BSL/SSL pool math: ranked stop-cluster inventory as pure functions (shared k=2 swing contract, ATR-merge/cap, equality bonus, lifecycle) + guarded selectPools — Phase 19
+- ✓ §1 live + chart overlay: Pain Threshold report block (rank-1 sentence, verbatim reasons, honest empties) + nearest-2-per-side BSL/SSL price-line pairs with rank brightness, swept ghosts, verdict gate — 513/513 tests, UAT 14/14 — Phase 20
 
 ### Active
 
-- [ ] BSL/SSL map (§1) — swing-high/low stoplarının proyeksiyası + chart overlay
-- [ ] §1 live report — Pain Threshold bloğu, verbatim səbəblərlə
 - [ ] Execution polish — threshold kalibrləmə, ticket UX, firing-log təhlili
 
 ### Out of Scope
@@ -117,6 +117,8 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [13] Thin-tier truth module + persistent banner stacked thin-first; uniform 0.5 zone/level dimming, markers/Asia/candles full strength | Dead thinHistory arg in zoneBands call + orphaned thinTier export/type noted as minor debt; Asia fallback increases overlay frequency by design | ✓ Good — honest rendering holds |
 | [13] Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a) | Per-candle wall-clock session resolution; fallback makes selectAsia non-null more often, tone stays accent/stale by design | ✓ Good — en passant fix |
 | [14] Audit debt cleanup: zoneBands narrowed to high/low/eq, thin-tier surface shrunk to 4 public names, co-located ict purity guard green | Mechanical cleanup, zero behavior change; 300/300 tests, tsc clean, UAT 3/3 | ✓ Good — Phase 15 trigger code inherits a clean surface |
+| [20] Verdict-gated pool lines: STAND_ASIDE creates zero lines via shared shouldCreatePoolLines predicate (ES-stale harness proof) | Ticket-off canvas stays clean without special-casing | ✓ Good — gap 2 closed, dimming discipline unchanged |
+| [20] UAT visual backstops via agent screenshots (Playwright, localhost dev) | Live wire lacked SWEPT/ghost/ticket states — harness pins cover those paths | ✓ Good — 14/14, limits acknowledged in VERIFICATION |
 
 ## Current State: v3.0 Shipped
 

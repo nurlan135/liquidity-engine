@@ -65,7 +65,8 @@ Full detail: `.planning/milestones/v3.0-ROADMAP.md`
 **Milestone Goal:** Hesabatın boş §1-i canlanır — BSL/SSL ağrı zonaları xəritələnir, trigger/ticket incə ayarlanır. Pools are read-only projection context that never votes.
 
 - [x] **Phase 19: Pools Math** - BSL/SSL stop-cluster projection as pure functions + guarded selector (completed 2026-09-18)
-- [ ] **Phase 20: §1 Live + Chart Overlay** - Pain Threshold report block live + pool price lines on chart
+- [x] **Phase 20: §1 Live + Chart Overlay** - Pain Threshold report block live + pool price lines on chart
+ (completed 2026-09-18, UAT 14/14, 513/513 tests)
 - [x] **Phase 21: Execution Polish** - Threshold calibration, ticket buffers, parity proof, slider controls (completed 2026-09-18, 14/14 verified; UAT test 2 acknowledged blocked — live EXECUTE prerequisite)
 
 ## Phase Details
@@ -161,5 +162,5 @@ Phases execute in numeric order: 19 → 20 → 21
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 19. Pools Math | 3/3 | Complete    | 2026-09-18 |
-| 20. §1 Live + Chart Overlay | 5/5 | In Progress|  |
+| 20. §1 Live + Chart Overlay | 5/5 | Complete | 2026-09-18 |
 | 21. Execution Polish | 5/5 | Complete | 2026-09-18 |

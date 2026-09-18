@@ -2,38 +2,38 @@
 gsd_state_version: "1.0"
 milestone: v3.1
 milestone_name: Pain Threshold (§1) + Execution Polish
-current_phase: 20
-current_phase_name: §1 Live + Chart Overlay
-status: planning
-stopped_at: Phase 19 complete, ready to plan Phase 20
-last_updated: "2026-09-18T09:24:44.172Z"
+current_phase: 21
+current_phase_name: Execution Polish
+status: complete
+stopped_at: Phase 20 complete (UAT 14/14, 513/513 tests); all v3.1 phases done, ready to complete milestone
+last_updated: "2026-09-18T10:00:00Z"
 last_activity: 2026-09-18
-last_activity_desc: Phase 19 complete, transitioned to Phase 20
-state_head: d371c77d4e0e92d15b4ead538940b214627a3fab
+last_activity_desc: Phase 20 complete, verified 14/14 + suite 513/513
+state_head: 5f3053e
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 13
   completed_plans: 13
-  percent: 33
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-15 after v3.1 milestone start)
+See: .planning/PROJECT.md (updated 2026-09-18 after Phase 20)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** v3.1 milestone closeout (Phases 19–21 done, Phase 20 leftovers pending triage)
+**Current focus:** v3.1 milestone closeout — all 3 phases done (19, 20, 21), ready for /gsd:complete-milestone
 
 ## Current Position
 
 Phase: 20 — §1 Live + Chart Overlay
-Status: Ready to plan
-Last activity: 2026-09-18 — Phase 19 complete, transitioned to Phase 20
+Status: Complete (verified 2026-09-18)
+Last activity: 2026-09-18 — Phase 20 complete (UAT 14/14, suite 513/513, VERIFICATION passed)
 
-Progress: [███░░░░░░░] 33% (Phase 21)
+Progress: [██████████] 100% (all v3.1 phases complete)
 
 ## Performance Metrics
 
@@ -104,10 +104,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-17T07:48:05.571Z
-Stopped at: Phase 19 complete, ready to plan Phase 20
-Resume file: C:/Users/HP/Projects/liquidity-engine/.planning/phases/21-execution-polish/21-UI-SPEC.md
+Last session: 2026-09-18T10:00:00Z
+Stopped at: Phase 20 complete (all v3.1 phases done), ready to complete milestone
+Resume file: None
 
 ## Operator Next Steps
 
-- Plan Phase 19 with /gsd-plan-phase 19 (consider --research-phase for scorer constants + boundary-test matrix)
+- `/gsd:complete-milestone v3.1` — archive milestone (all 3 phases complete, verified)
