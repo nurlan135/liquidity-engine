@@ -1256,9 +1256,12 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   },
 
   // Phase 21 preview reset (D-15): refresh-equivalent — re-seeds from the
-  // pinned module constants, never from localStorage (T-21-06).
+  // pinned module constants, never from localStorage (T-21-06). Also clears
+  // the session applied flag so Yenilə fully restores the pristine sandbox
+  // (UAT 21 test 3: the TUTULDU applied copy must not survive a reset).
   resetCalibrationPreview: () => {
     set({
+      calibrationReviewApplied: false,
       calibrationPreview: {
         kzStartMin: TRIGGER_KZ_START_MIN,
         kzEndMin: TRIGGER_KZ_END_MIN,
