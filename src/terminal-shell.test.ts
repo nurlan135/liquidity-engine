@@ -1189,6 +1189,21 @@ describe('terminal shell renders the Phase 21 calibration view (21-02 proof tabl
     expect(applied!.textContent).toContain('KZ 120–300 dəq');
     expect(applied!.textContent).toContain('sərhəd testləri yenidən təsdiqləndi');
     expect(useDashboard.getState().calibrationPreview.kzStartMin).toBe(120);
+
+    // CR-01 (21-05): post-Apply knob drift re-shows the BAXIŞ badge outside
+    // the dim container — the drifted what-if must never masquerade as the
+    // reviewed applied set.
+    await act(async () => {
+      useDashboard.getState().setCalibrationKzStartMin(200);
+    });
+    expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')).not.toBeNull();
+    expect(sandbox.querySelector('[data-slot="sandbox-preview-tag"]')!.textContent).toContain('BAXIŞ');
+    const driftTag = sandbox.querySelector('[data-slot="sandbox-preview-tag"]')!;
+    expect(driftTag.closest('.opacity-45')).toBeNull();
+    expect(sandbox.querySelector('.opacity-45')).not.toBeNull();
+    const appliedAfterDrift = sandbox.querySelector('[data-slot="sandbox-applied"]');
+    expect(appliedAfterDrift).not.toBeNull();
+    expect(appliedAfterDrift!.textContent).toContain('TUTULDU');
   });
 
   it('proof-table-empty-log: empty firing log renders the empty copy plus calibration body with no verdict and no proof table', async () => {
