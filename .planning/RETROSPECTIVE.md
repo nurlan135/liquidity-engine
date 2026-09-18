@@ -2,6 +2,40 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.1 — Pain Threshold (§1) + Execution Polish
+
+**Shipped:** 2026-09-18
+**Phases:** 3 (19–21) | **Plans:** 13 | **Tasks:** 26 | **Timeline:** 3 days (2026-09-16 → 2026-09-18)
+
+### What Was Built
+- BSL/SSL pool math: shared k=2 swing contract, equality bonus curve, first-sweep-wins lifecycle, ATR-merge/cap, proximity × DOL scorer + guarded selectPools — 439-test phase-exit proof
+- §1 live + chart overlay: rank-1 pain-threshold sentence with verbatim reasons + honest empty matrix, nearest-2-per-side BSL/SSL pairs with rank brightness, swept ghosts, verdict gate — 513/513 tests, UAT 14/14
+- Execution polish: firing-log band verdict (1–4/week holds, pools context-only), buffered ticket derivation, 20-session parity triple-identical pools on/off, 7th slider primitive + session sandbox with Apply-record — 14/14 verified
+
+### What Worked
+- Tracer-then-expand phasing (19-01/20-01/21-01 thin slices, expansions on proven contracts) — 20-04/20-05 and 21-04/21-05 gap closures were surgical, not structural
+- Pools-never-vote lock held via parity harness: 20-session replay with exact triple match proved context-only discipline instead of asserting it
+- Verdict-gated chart lines via one shared predicate (shouldCreatePoolLines) — STAND_ASIDE clears without special-casing
+
+### What Was Inefficient
+- REQUIREMENTS.md checkboxes drifted again (S1-02, CHRT-01/02/03 unchecked though verified) — third milestone running, close-time reconciliation needed (same as v3.0 lesson 2)
+- Phase 21 roadmap checkboxes stayed `[ ]` while all 5 SUMMARies existed — orchestrator owns the flip, same drift class as requirements
+- UAT test 2 (buffered ticket glance) blocked on live EXECUTE prerequisite — harness pins covered values, pixels need opportunistic re-check
+
+### Patterns Established
+- Degraded-flag-over-null for dim signals (thin:true) vs refuse-null for unusable legs — extends the v2.0 refuse-with-reason envelope
+- Map-plane-before-view-plane ordering: lifecycle → merge → cap → rank — cap sorts by originDate before slice
+- Pristine pins to constants only: any session flag in a preview-vs-applied gate is a Spoofing hazard
+
+### Key Lessons
+1. Keep REQUIREMENTS.md + ROADMAP.md checkboxes in sync at phase completion — drift compounds at close (third occurrence).
+2. Parity harnesses (pools on/off, same-snapshot flaw-after-trigger) catch composition breaks that phase-local tests miss — budget one per cross-cutting concern.
+3. Live-state-gated UAT items (EXECUTE ticket) should be flagged at plan time with a harness fallback, not discovered at verify time.
+
+### Cost Observations
+- Sessions: ~6 across 3 days
+- Notable: gap-closure plans (20-04/20-05, 21-04/21-05) were 4/13 plans — all surgical fixes on tracer-proven surfaces
+
 ## Milestone: v3.0 — Execution (Modul 4)
 
 **Shipped:** 2026-09-15
@@ -166,6 +200,8 @@
 | v1.0 | ~3 days | 5 | Baseline: backend-first + truth-row gates + decimal insertions |
 | v2.0 | ~3 days | 4 | + integration checker catches cross-phase orphans; + fingerprint staleness; + fail-closed drills |
 | v2.1 | 2 days | 4 | + verification-at-phase-time holds (zero retroactive gates); + 3-source audit cross-ref; + shared-component phase ordering |
+| v3.0 | 6 days | 5 | + sequential layering (trigger→flaw→ticket→verify); + screenshot verify-then-fix audits; + flaw-first routing |
+| v3.1 | 3 days | 3 | + tracer-then-expand slices; + parity harness proves context-only; + verdict-gated chart lines via shared predicate |
 
 ### Cumulative Quality
 
@@ -174,6 +210,8 @@
 | v1.0 | 133/133 green, lint clean | 20/20 reqs, 5/5 flows | 0 new deps (chart-mapper helper only) |
 | v2.0 | 283/283 green, tsc clean | 15/15 reqs, 8/8 flows | 0 new deps |
 | v2.1 | 298/298 green, tsc clean | 7/7 reqs, 3/3 flows | 0 new deps |
+| v3.0 | 420/420 green, UAT 10/10 | 17 plans, 45 tasks | 0 new deps |
+| v3.1 | 513/513 green (Phase 20), UAT 14/14 | 16/16 reqs, 4/4 flows | 1 new dep (slider primitive, shadcn allowlist) |
 
 ### Top Lessons (Verified Across Milestones)
 

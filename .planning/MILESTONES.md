@@ -1,5 +1,29 @@
 # Milestones
 
+## v3.1 Pain Threshold + Execution Polish (Shipped: 2026-09-18)
+
+**Phases completed:** 3 phases, 13 plans, 26 tasks
+
+**Key accomplishments:**
+
+- Thin BSL/SSL inventory flows NQ D1 candles through one shared k=2 swing contract into ranked zones behind a guarded selectPools — smt, purity, and full suite green.
+- Equality bonus curve, first-sweep-wins lifecycle, ATR-merge plus trailing-20 cap, and proximity-x-DOL scorer fully pinned by 30 boundary tests — pools/smt/purity 49/49 green.
+- selectPools degrades honestly on stale/empty/thin legs with a sharedEpoch time truth and a thin dim-flag, shared swings carry regression pins with smt green unmodified, and the full 439-test suite stays green at phase exit.
+- Live §1 rank-1 pain-threshold sentence plus single BSL price-line pair, both wired end-to-end from the proven selectPools envelope — no math, no verdict changes
+- Full section 1 honest-empty matrix plus rank-1 sentence polish on the tracer branch — distinct copy per degraded state, unified mono numerals, throw-safe ATR, verbatim reason ahead of the inline hedge
+- Nearest-2-per-side BSL/SSL pool pairs with rank brightness, swept ghosts, ticket-on-top z-order, and uniform stale/thin dimming plus ghost clearing
+- Rank-1 any-status sentence with a deterministic verbatim-field reason clause, reachable SWEPT muted tone, and exact-match test pins for reason and hedge
+- STAND_ASIDE clears pool and ghost lines in both chart effects through one shared predicate, proven by a stub-prop harness test with pools present on the wire
+- Pure band-verdict helper plus buffered SL/TP derivation plus one-bar pools parity skeleton plus inline panel verdict, all green at 489/489.
+- Full 20-session pools-toggled parity proof with exact triple match on all 84 bars, calibration helper edge pins, inline proof table plus thin/stale/empty states, and buffered ticket visibility in prose plus chart lines.
+- Seventh shadcn slider primitive plus session-scoped calibration preview plus dimmed sandbox with explicit Apply-record, all green at 475 passed.
+- Hoisted amber BAXIŞ badge above the dim block, in-sandbox TUTULDU verdict post-Apply, reactive zustand applied flag, single-thumb knobs, constant-pinned pristine check
+- Post-Apply pristine gate pinned to imported constants only; Apply-then-drift regression proves the drifted what-if can never masquerade as the reviewed HOLD set
+
+**Closeout:** override_closeout — Known verification overrides: 2 newly acknowledged (debug `sandbox-uat-issue` [investigating], Phase 21 `21-VERIFICATION.md` [human_needed] — both trace to UAT-21 test 2 blocked on live EXECUTE prerequisite, operator-acknowledged 2026-09-18), 3 carried forward from prior closes (see STATE.md Deferred Items). Phases 19/20 VERIFICATIONs passed (6/6, full); Phase 21 14/14 truths verified with 7 warnings + 3 info carried as advisories (21-REVIEW.md WR-01..07, IN-01..03). Milestone audit v3.1-MILESTONE-AUDIT.md: 16/16 requirements, 13/14 integration (W12 WARNING: live ticket unbuffered, harness-proven only), 4/4 flows; stale REQUIREMENTS.md checkboxes (S1-02, CHRT-01/02/03) flipped to Complete with audit evidence at archive.
+
+---
+
 ## v3.0 Execution (Modul 4) (Shipped: 2026-09-15)
 
 **Phases completed:** 5 phases, 17 plans, 45 tasks

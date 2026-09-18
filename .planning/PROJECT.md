@@ -8,14 +8,14 @@ A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that r
 
 Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
 
-## Current Milestone: v3.1 Pain Threshold (§1) + Execution Polish
+## Current Milestone: v3.1 Pain Threshold (§1) + Execution Polish — SHIPPED 2026-09-18
 
-**Goal:** Hesabatın boş §1-i canlanır — BSL/SSL ağrı zonaları xəritələnir, trigger/ticket incə ayarlanır.
+**Shipped:** BSL/SSL ağrı zonaları xəritələndi — §1 Pain Threshold bloğu canlı, chart overlay canlı, execution kalibrləməsi təsdiqli. Pools are read-only projection context that never votes.
 
-**Target features:**
-- BSL/SSL map — swing-high/low stoplarının yığıldığı zonaların proyeksiyası + chart overlay
-- §1 live report — Pain Threshold bloğu, verbatim səbəblərlə
-- Execution polish — WHY NOW threshold kalibrləmə, ticket UX incə ayar, firing-log təhlili
+**Delivered:**
+- BSL/SSL pool math — shared k=2 swing contract, equality bonus, ACTIVE/SWEPT/CONSUMED lifecycle, ATR-merge/cap, proximity × DOL scorer + guarded selectPools (Phase 19, 439-test exit proof)
+- §1 live + chart overlay — rank-1 pain-threshold sentence with verbatim reasons + nearest-2-per-side BSL/SSL price-line pairs with ghosts and verdict gate (Phase 20, 513/513 tests, UAT 14/14)
+- Execution polish — 1–4/week band holds with pools context-only, buffered ticket, 20-session parity identical on/off, slider sandbox (Phase 21, 14/14 verified; UAT test 2 acknowledged blocked — live EXECUTE prerequisite)
 
 ## Requirements
 
@@ -49,12 +49,13 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Fatal-flaw invalidation: checkFatalFlaw on the same snapshot as trigger, HARD (rollover/stale) vs SOFT (SMT/opposite-sweep downgrade) split, falsifiable sentence + Azerbaijani challenge bank, live report §6 — v3.0
 - ✓ Paper ticket: fixed-order derivation (direction → OTE×FVG entry → SL → TP ladder → R/R ≥ 1:3 gate → EXECUTE/STAND ASIDE), risk÷distance sizing, banned-word quarantine green, §§4–6 live report blocks + three dashboard panels + persistent KAĞIZ/PAPER banner + chart T pin + entry/SL/TP lines — v3.0
 - ✓ Verification + calibration harness: 20-session replay with pinned transition table + calibration summary JSON, 5-rule AMD/SMT-vs-trigger parity harness, full stale-leg matrix drill with degraded-with-provenance — 420/420 tests, UAT 10/10 — v3.0
-- ✓ BSL/SSL pool math: ranked stop-cluster inventory as pure functions (shared k=2 swing contract, ATR-merge/cap, equality bonus, lifecycle) + guarded selectPools — Phase 19
-- ✓ §1 live + chart overlay: Pain Threshold report block (rank-1 sentence, verbatim reasons, honest empties) + nearest-2-per-side BSL/SSL price-line pairs with rank brightness, swept ghosts, verdict gate — 513/513 tests, UAT 14/14 — Phase 20
+- ✓ BSL/SSL pool math: ranked stop-cluster inventory as pure functions (shared k=2 swing contract, ATR-merge/cap, equality bonus, lifecycle) + guarded selectPools — v3.1 (Phase 19, 439-test exit proof)
+- ✓ §1 live + chart overlay: Pain Threshold report block (rank-1 sentence, verbatim reasons, honest empties) + nearest-2-per-side BSL/SSL price-line pairs with rank brightness, swept ghosts, verdict gate — v3.1 (Phase 20, 513/513 tests, UAT 14/14)
+- ✓ Execution polish: firing-log band review (1–4/week holds, pools context-only) + buffered ticket + 20-session parity proof + slider sandbox — v3.1 (Phase 21, 14/14 verified)
 
 ### Active
 
-- [ ] Execution polish — threshold kalibrləmə, ticket UX, firing-log təhlili
+- [ ] Next milestone goals — defined via `/gsd-new-milestone` (Pools P2 candidates: POOL2-01–05)
 
 ### Out of Scope
 
@@ -119,10 +120,16 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [14] Audit debt cleanup: zoneBands narrowed to high/low/eq, thin-tier surface shrunk to 4 public names, co-located ict purity guard green | Mechanical cleanup, zero behavior change; 300/300 tests, tsc clean, UAT 3/3 | ✓ Good — Phase 15 trigger code inherits a clean surface |
 | [20] Verdict-gated pool lines: STAND_ASIDE creates zero lines via shared shouldCreatePoolLines predicate (ES-stale harness proof) | Ticket-off canvas stays clean without special-casing | ✓ Good — gap 2 closed, dimming discipline unchanged |
 | [20] UAT visual backstops via agent screenshots (Playwright, localhost dev) | Live wire lacked SWEPT/ghost/ticket states — harness pins cover those paths | ✓ Good — 14/14, limits acknowledged in VERIFICATION |
+| [21] Pools-never-vote lock: parity harness proves trigger/flaw/ticket triple identical pools-on vs pools-off over 20-session replay | Read-only projection context discipline held through execution polish | ✓ Good — 84 bars exact match, anchor parity.test.ts untouched |
+| [21] Buffered ticket: SL 0.25×ATR beyond extreme, TP 0.10×ATR before extreme, live buffer note (W12 WARNING: live selectTicket unbuffered, harness-proven only) | Never magnet-to-the-line, R/R gate unchanged on TP1 | ⚠ Buffered path proven in harness + unit matrix; live wiring deferred |
+| [21] Calibration sandbox: 7th slider primitive + session preview + constant-pinned pristine + hoisted BAXIŞ badge + Apply-record + Yenilə reset clears applied flag | Preview-vs-applied separation holds pre- and post-Apply; CR-01 closed | ✓ Good — Apply-then-drift regression pins the Spoofing fix |
 
-## Current State: v3.0 Shipped
+## Current State: v3.1 Shipped
 
-**Shipped 2026-09-15.** Terminal oxumaqdan icraya keçdi: WHY NOW trigger (FIRE/ARMED/QUIET + firing log), fatal-flaw invalidation (HARD/SOFT + §6), kağız ticket (fixed-order derivation + §§4–6 UI + chart pins), verification harness (replay + parity + stale drill). 420/420 tests, UAT 10/10. Next: `/gsd-new-milestone` for v3.1 (Pain Threshold §1 + execution polish P2).
+**Shipped 2026-09-18.** Hesabatın boş §1-i canlandı: BSL/SSL ağrı zonaları (pure math + guarded selector), §1 Pain Threshold bloğu + chart overlay (UAT 14/14), execution kalibrləməsi (band holds, pools context-only, parity identical, slider sandbox). 16/16 requirements, 79 files +12168/−205, 3 days. Known debt: buffered ticket live wiring (W12), slider/Apply advisories (WR/IN), UAT-21 test 2 re-check on live EXECUTE. Next: `/gsd-new-milestone` (Pools P2: POOL2-01–05).
+
+<details>
+<summary>Previous milestone: v3.0 Execution (goal + targets, archived)</summary>
 
 <details>
 <summary>Previous milestone: v2.1 Cleanup & Polish (goal + targets, archived)</summary>
@@ -172,4 +179,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-15 after v3.1 milestone start*
+*Last updated: 2026-09-18 after v3.1 milestone*

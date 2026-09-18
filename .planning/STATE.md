@@ -2,38 +2,37 @@
 gsd_state_version: "1.0"
 milestone: v3.1
 milestone_name: Pain Threshold (§1) + Execution Polish
-current_phase: 21
-current_phase_name: Execution Polish
-status: complete
+status: Awaiting next milestone
 stopped_at: Phase 20 complete (UAT 14/14, 513/513 tests); all v3.1 phases done, ready to complete milestone
-last_updated: "2026-09-18T10:00:00Z"
+last_updated: "2026-09-18T12:12:55.091Z"
 last_activity: 2026-09-18
-last_activity_desc: Phase 20 complete, verified 14/14 + suite 513/513
-state_head: 5f3053e
+last_activity_desc: Milestone v3.1 completed and archived
+state_head: 5fa0460ba54d696493850638fe415186a582dc19
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 13
   completed_plans: 13
-  percent: 100
+  percent: 67
+current_phase: 21
+current_phase_name: Execution Polish
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-18 after Phase 20)
+See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** v3.1 milestone closeout — all 3 phases done (19, 20, 21), ready for /gsd:complete-milestone
+**Current focus:** Planning next milestone (v3.1 shipped 2026-09-18)
 
 ## Current Position
 
-Phase: 20 — §1 Live + Chart Overlay
-Status: Complete (verified 2026-09-18)
-Last activity: 2026-09-18 — Phase 20 complete (UAT 14/14, suite 513/513, VERIFICATION passed)
-
-Progress: [██████████] 100% (all v3.1 phases complete)
+Phase: Milestone v3.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-09-18 — Milestone v3.1 completed and archived
 
 ## Performance Metrics
 
@@ -98,16 +97,18 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
+| debug_sessions | sandbox-uat-issue | investigating (UAT-21 test 2 blocked — live EXECUTE prerequisite, re-check opportunistically) | 2026-09-18 | v3.1 |
+| verification_gaps | 21/21-VERIFICATION.md | human_needed (14/14 verified, UAT test 2 acknowledged blocked) | 2026-09-18 | v3.1 |
 | pools_p2 | POOL2-01–05 (TP2 resolver, sentiment multiplier, 15M pools, age/decay, proximity tag) | deferred to P2 | 2026-09-15 | v3.1 |
 | uat_gaps | 10/10-UAT.md | passed, 0 pending scenarios (scanner status-label artifact — reviewed clean) | 2026-09-09 | v2.1 |
 | uat_gaps | 13/13-UAT.md | passed, 0 pending scenarios (scanner status-label artifact — reviewed clean) | 2026-09-09 | v2.1 |
 
 ## Session Continuity
 
-Last session: 2026-09-18T10:00:00Z
-Stopped at: Phase 20 complete (all v3.1 phases done), ready to complete milestone
+Last session: 2026-09-18T12:00:00Z
+Stopped at: Milestone v3.1 shipped, ready for /gsd-new-milestone
 Resume file: None
 
 ## Operator Next Steps
 
-- `/gsd:complete-milestone v3.1` — archive milestone (all 3 phases complete, verified)
+- Start the next milestone with /gsd-new-milestone
