@@ -15,9 +15,14 @@ re_verification:
   gaps_remaining: []
   regressions: []
 human_verification:
+
   - test: "Buffered ticket note + chart line movement"
     expected: "Buffer note in muted mono beside the ticket reason; chart SL/TP lines visibly off the pool extreme; R/R gate copy and position unchanged; ghost/pool-line z-order unchanged"
     why_human: "Line displacement and prose placement need a live-chart glance; mapper tests pin values, not pixels. UAT 21 test 2 BLOCKED (commit b108fec): current state is STAND_ASIDE, no live EXECUTE ticket observable — prerequisite gate, not a code issue"
+audit_acknowledged:
+  milestone: v3.1
+  at: 2026-09-18
+  status: human_needed
 ---
 
 # Phase 21: Execution Polish Verification Report

@@ -3,6 +3,10 @@ status: investigating
 trigger: "UAT sandbox issue: preview tag invisible during dim; Apply path verdict/reset confusion; provenance of 'Tətbiq: KZ 120–300 ...' text"
 created: 2026-09-17T00:00:00Z
 updated: 2026-09-17T00:00:00Z
+audit_acknowledged:
+  milestone: v3.1
+  at: 2026-09-18
+  status: investigating
 ---
 
 ## Current Focus
@@ -70,11 +74,13 @@ root_cause:
   (b) No in-sandbox HOLD verdict — `review.verdict` never rendered in CalibrationSandbox (only `applied`/`appliedCopy`); verdict lives solely in FiringLogPanel behind non-empty-log gate. User saw the working appliedCopy (`calibrationAppliedCopy()`, store.ts:385-392) and judged it unrelated. Store Apply mechanics (flag flip + preview re-seed) verified working by green tests; module-level flag is a latent reactivity hazard, not the live cause.
   (c, contributing visual) Slider wrapper renders 2 thumbs per scalar knob (`[min,max]` fallback, slider.tsx:12-16,39-45). Latent: pristine literals duplicate constants (117-123); module flag + preview leak across shell tests (beforeEach 169-195).
 fix: (read-only session — direction only)
+
   1. Hoist `sandbox-preview-tag` OUT of the opacity-45 div; style as conspicuous badge (e.g. font-semibold amber/warning chip, not muted microcopy).
   2. Render `review.verdict` in the sandbox applied block (lines 248-252) so TUTULDU HOLD copy appears in-sandbox post-Apply.
   3. Move `calibrationReviewApplied` into zustand state (reactive `applied` boolean in store shape); derive review from state.
   4. Fix slider wrapper: derive thumb count from `value` (`Array.isArray(value) ? value : [value]`) so scalar knobs render one thumb.
   5. Compare pristine against imported TRIGGER_*/EQUAL_TOL_*/MERGE_*/DOL_*/BEHIND_* constants, not literals.
   6. Reset calibrationPreview + applied flag in shell-test beforeEach; add thumb-count assertion; note contrast is manual-QA-only.
+
 verification: not run (read-only brief); evidence is code-reading + existing green suites cited per line
 files_changed: []
