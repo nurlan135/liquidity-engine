@@ -1,5 +1,5 @@
 ---
-status: testing
+status: complete
 phase: 21-execution-polish
 source: [21-VERIFICATION.md]
 started: 2026-09-18
@@ -8,11 +8,7 @@ updated: 2026-09-18
 
 ## Current Test
 
-number: 3
-name: Sandbox amber BAXIŞ badge conspicuousness on the live terminal
-expected: |
-  Pre-Apply drift shows the amber BAXIŞ chip undimmed above a dimmed preview; Tətbiq et records the TUTULDU applied copy; post-Apply drift re-shows the badge + dimming beside the retained applied copy; Yenilə/refresh resets to pins with no persistence.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -28,14 +24,14 @@ reason: "Live EXECUTE ticket required — current state is STAND_ASIDE, buffer n
 
 ### 3. Sandbox amber BAXIŞ badge conspicuousness on the live terminal (INCLUDES POST-APPLY DRIFT RE-CHECK)
 expected: Pre-Apply drift shows the amber BAXIŞ chip undimmed above a dimmed preview; Tətbiq et records the TUTULDU applied copy; post-Apply drift re-shows the badge + dimming beside the retained applied copy (code + regression leg prove this — human confirms the chip reads conspicuous, not washed out); Yenilə/refresh resets to pins with no persistence
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 3
-passed: 1
+passed: 2
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 1
 
