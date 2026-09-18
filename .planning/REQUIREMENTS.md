@@ -30,10 +30,10 @@ Requirements for v3.1 milestone. Each maps to roadmap phases.
 
 ### Execution Polish
 
-- [ ] **POL-01**: WHY NOW thresholds reviewed against firing-log (1–4/week band holds, pools context-only)
-- [ ] **POL-02**: Ticket SL sits beyond extreme + ATR buffer, TP partials before extreme
-- [ ] **POL-03**: Parity harness proves trigger/flaw/ticket verdicts identical pools on/off
-- [ ] **POL-04**: slider.tsx threshold/pool-tolerance controls render from installed primitive
+- [x] **POL-01**: WHY NOW thresholds reviewed against firing-log (1–4/week band holds, pools context-only)
+- [x] **POL-02**: Ticket SL sits beyond extreme + ATR buffer, TP partials before extreme
+- [x] **POL-03**: Parity harness proves trigger/flaw/ticket verdicts identical pools on/off
+- [x] **POL-04**: slider.tsx threshold/pool-tolerance controls render from installed primitive
 
 ## v2 Requirements
 
@@ -76,10 +76,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHRT-01 | Phase 20 | Pending |
 | CHRT-02 | Phase 20 | Pending |
 | CHRT-03 | Phase 20 | Pending |
-| POL-01 | Phase 21 | Pending |
-| POL-02 | Phase 21 | Pending |
-| POL-03 | Phase 21 | Pending |
-| POL-04 | Phase 21 | Pending |
+| POL-01 | Phase 21 | Complete |
+| POL-02 | Phase 21 | Complete |
+| POL-03 | Phase 21 | Complete |
+| POL-04 | Phase 21 | Complete |
 
 **Coverage:**
 

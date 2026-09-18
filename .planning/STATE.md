@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v3.1
 milestone_name: Pain Threshold (§1) + Execution Polish
-current_phase: 20
-current_phase_name: §1 Live + Chart Overlay
-status: executing
-stopped_at: Completed 20-1-live-chart-overlay-05-PLAN.md
-last_updated: "2026-09-17T06:05:00.067Z"
-last_activity: 2026-09-17
-last_activity_desc: Phase 20 plan 05 executed (verdict gate + STAND_ASIDE proof); quick 260917-f3m firing-log panel
-state_head: f538b304e5a9c4a3f7a2e1b9c4d5f6a7b8c9d0e1
+current_phase: 21
+current_phase_name: Execution Polish
+status: verifying
+stopped_at: Phase 21 complete 2026-09-18 (UAT test 2 acknowledged blocked)
+last_updated: "2026-09-18T12:30:00.000Z"
+last_activity: 2026-09-18
+last_activity_desc: Phase 21 closed 14/14 (CR-01 + Yenilə reset fix, UAT 2 passed 1 blocked-acknowledged)
+state_head: 552de132b677a7f0ff0c7677b834bb211afc0b97
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 8
-  completed_plans: 8
-  percent: 0
+  completed_phases: 1
+  total_plans: 13
+  completed_plans: 13
+  percent: 33
 ---
 
 # Project State
@@ -25,16 +25,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-15 after v3.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 20 — §1 Live + Chart Overlay
+**Current focus:** v3.1 milestone closeout (Phases 19–21 done, Phase 20 leftovers pending triage)
 
 ## Current Position
 
-Phase: 20 (§1 Live + Chart Overlay) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-09-16 — Phase 20 execution resumed (wave continue)
+Phase: 21 (Execution Polish) — COMPLETE 2026-09-18
+Status: Phase complete; UAT test 2 acknowledged blocked (live EXECUTE prerequisite)
+Last activity: 2026-09-18 — Phase 21 closed (14/14 verified, 513/513 tests green)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100% (Phase 21)
 
 ## Performance Metrics
 
@@ -105,9 +104,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-16T14:23:49.984Z
-Stopped at: Completed 20-1-live-chart-overlay-04-PLAN.md
-Resume file: None
+Last session: 2026-09-17T07:48:05.571Z
+Stopped at: Phase 21 UI-SPEC approved
+Resume file: C:/Users/HP/Projects/liquidity-engine/.planning/phases/21-execution-polish/21-UI-SPEC.md
 
 ## Operator Next Steps
 

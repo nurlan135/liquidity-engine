@@ -66,7 +66,7 @@ Full detail: `.planning/milestones/v3.0-ROADMAP.md`
 
 - [ ] **Phase 19: Pools Math** - BSL/SSL stop-cluster projection as pure functions + guarded selector
 - [ ] **Phase 20: §1 Live + Chart Overlay** - Pain Threshold report block live + pool price lines on chart
-- [ ] **Phase 21: Execution Polish** - Threshold calibration, ticket buffers, parity proof, slider controls
+- [x] **Phase 21: Execution Polish** - Threshold calibration, ticket buffers, parity proof, slider controls (completed 2026-09-18, 14/14 verified; UAT test 2 acknowledged blocked — live EXECUTE prerequisite)
 
 ## Phase Details
 
@@ -162,4 +162,4 @@ Phases execute in numeric order: 19 → 20 → 21
 |-------|----------------|--------|-----------|
 | 19. Pools Math | 3/3 | In Progress|  |
 | 20. §1 Live + Chart Overlay | 5/5 | In Progress|  |
-| 21. Execution Polish | 0/0 | Not started | - |
+| 21. Execution Polish | 5/5 | Complete | 2026-09-18 |
