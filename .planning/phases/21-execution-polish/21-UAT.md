@@ -2,39 +2,50 @@
 status: testing
 phase: 21-execution-polish
 source: [21-VERIFICATION.md]
-started: 2026-09-17
-updated: 2026-09-17
+started: 2026-09-18
+updated: 2026-09-18
 ---
 
 ## Current Test
 
-number: 1
-name: Band verdict + proof table placement and tone
+number: 3
+name: Sandbox amber BAXIŞ badge conspicuousness on the live terminal
 expected: |
-  Open the terminal with a populated firing log (2+ FIRE entries across 2 weeks) and look at the Atəş Jurnalı card. HOLD line (Atəş tempi 1–4/həftə bandında — TUTULDU) in green terminal-up at Heading size inline next to entries (no separate summary block); rate line N atəş / M həftə in mono below it; Hovuz sübutu — ON/OFF rows in muted mono; overflow +N köhnə qeyd retained above entries; thin history dims the block at opacity-45 with the thin note (never hidden); empty log shows the empty heading + calibration body and NO verdict line.
+  Pre-Apply drift shows the amber BAXIŞ chip undimmed above a dimmed preview; Tətbiq et records the TUTULDU applied copy; post-Apply drift re-shows the badge + dimming beside the retained applied copy; Yenilə/refresh resets to pins with no persistence.
 awaiting: user response
 
 ## Tests
 
 ### 1. Band verdict + proof table placement and tone
 expected: HOLD green inline, rate line, muted ON/OFF rows, thin opacity-45 dim, nothing over empty log
-result: [pending]
+result: pass
 
 ### 2. Buffered ticket note + chart line movement
 expected: Buffer note beside ticket reason, SL/TP visibly off the extreme, gate unchanged
-result: [pending]
+result: blocked
+blocked_by: prior-phase
+reason: "Live EXECUTE ticket required — current state is STAND_ASIDE, buffer note and displaced lines not observable"
 
-### 3. Sandbox placement, dimming, Apply result
-expected: Sandbox once beside log panel, drift dims with BAXIŞ tag and changes zero verdicts, Tətbiq et records HOLD copy, refresh resets
+### 3. Sandbox amber BAXIŞ badge conspicuousness on the live terminal (INCLUDES POST-APPLY DRIFT RE-CHECK)
+expected: Pre-Apply drift shows the amber BAXIŞ chip undimmed above a dimmed preview; Tətbiq et records the TUTULDU applied copy; post-Apply drift re-shows the badge + dimming beside the retained applied copy (code + regression leg prove this — human confirms the chip reads conspicuous, not washed out); Yenilə/refresh resets to pins with no persistence
 result: [pending]
 
 ## Summary
 
 total: 3
-passed: 0
+passed: 1
 issues: 0
-pending: 3
+pending: 1
 skipped: 0
-blocked: 0
+blocked: 1
 
 ## Gaps
+
+- gap_id: G-21-3
+  truth: "Sandbox drift dims preview with visible BAXIŞ tag; Tətbiq et records the HOLD applied copy and re-seeds preview to pinned seeds"
+  status: closed
+  closed_by: 21-04 (hoisted badge, in-sandbox TUTULDU verdict, reactive applied flag, single thumbs)
+- gap_id: CR-01
+  truth: "Drift dims preview with a conspicuous BAXIŞ badge (pre- AND post-Apply)"
+  status: closed
+  closed_by: 21-05 (fix 3bc4448 constants-only pristine; regression leg b631f75; re-verified 13/13 2026-09-18)
