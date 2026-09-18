@@ -127,14 +127,13 @@ export function CalibrationSandbox() {
   // the imported pinned constants — never literals — so a constant retune
   // cannot silently break the comparison.
   const pristine =
-    review.applied ||
-    (preview.kzStartMin === TRIGGER_KZ_START_MIN &&
-      preview.kzEndMin === TRIGGER_KZ_END_MIN &&
-      preview.dispMult === TRIGGER_DISP_MULT &&
-      preview.equalTolBps === EQUAL_TOL_BPS &&
-      preview.mergeAtrMult === MERGE_ATR_MULT &&
-      preview.dolBoost === DOL_BOOST &&
-      preview.behindPenalty === BEHIND_PENALTY);
+    preview.kzStartMin === TRIGGER_KZ_START_MIN &&
+    preview.kzEndMin === TRIGGER_KZ_END_MIN &&
+    preview.dispMult === TRIGGER_DISP_MULT &&
+    preview.equalTolBps === EQUAL_TOL_BPS &&
+    preview.mergeAtrMult === MERGE_ATR_MULT &&
+    preview.dolBoost === DOL_BOOST &&
+    preview.behindPenalty === BEHIND_PENALTY;
   const degraded = ticket !== null && (ticket.degraded.stale || ticket.degraded.thin);
   const degradedTag =
     ticket !== null && ticket.degraded.stale
