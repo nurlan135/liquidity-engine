@@ -8,14 +8,17 @@ A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that r
 
 Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
 
-## Current Milestone: v3.1 Pain Threshold (§1) + Execution Polish — SHIPPED 2026-09-18
+## Current Milestone: v3.2 Pools P2
 
-**Shipped:** BSL/SSL ağrı zonaları xəritələndi — §1 Pain Threshold bloğu canlı, chart overlay canlı, execution kalibrləməsi təsdiqli. Pools are read-only projection context that never votes.
+**Goal:** BSL/SSL ağrı xəritəsini icra qərarlarına bağla — TP2 resolver, proximity tag, age/decay — pools-never-vote disiplini ilə.
 
-**Delivered:**
-- BSL/SSL pool math — shared k=2 swing contract, equality bonus, ACTIVE/SWEPT/CONSUMED lifecycle, ATR-merge/cap, proximity × DOL scorer + guarded selectPools (Phase 19, 439-test exit proof)
-- §1 live + chart overlay — rank-1 pain-threshold sentence with verbatim reasons + nearest-2-per-side BSL/SSL price-line pairs with ghosts and verdict gate (Phase 20, 513/513 tests, UAT 14/14)
-- Execution polish — 1–4/week band holds with pools context-only, buffered ticket, 20-session parity identical on/off, slider sandbox (Phase 21, 14/14 verified; UAT test 2 acknowledged blocked — live EXECUTE prerequisite)
+**Target features:**
+- POOL2-01: TP2 resolver wired to nearest ACTIVE pool on trade side
+- POOL2-05: Pain-map proximity tag on WHY NOW/ticket prose (read-only suffix)
+- POOL2-04: Pool age/decay + re-accumulation
+- POOL2-02: Sentiment multiplier on RetailExposure contract (neutral default)
+- POOL2-03: 15M intraday swing pools (after D1 ranking stable)
+- W12: buffered ticket live wiring (harness-proven → live selectTicket)
 
 ## Requirements
 
@@ -55,7 +58,12 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 
 ### Active
 
-- [ ] Next milestone goals — defined via `/gsd-new-milestone` (Pools P2 candidates: POOL2-01–05)
+- [ ] POOL2-01: TP2 resolver wired to nearest ACTIVE pool on trade side
+- [ ] POOL2-05: Pain-map proximity tag on WHY NOW/ticket prose (read-only suffix)
+- [ ] POOL2-04: Pool age/decay + re-accumulation
+- [ ] POOL2-02: Sentiment multiplier on RetailExposure contract (neutral default)
+- [ ] POOL2-03: 15M intraday swing pools (after D1 ranking stable)
+- [ ] W12: buffered ticket live wiring (harness-proven → live selectTicket)
 
 ### Out of Scope
 
@@ -179,4 +187,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-18 after v3.1 milestone*
+*Last updated: 2026-09-18 after v3.2 milestone start*

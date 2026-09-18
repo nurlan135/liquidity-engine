@@ -1,21 +1,16 @@
 ---
 gsd_state_version: "1.0"
-milestone: v3.1
-milestone_name: Pain Threshold (§1) + Execution Polish
-status: Awaiting next milestone
-stopped_at: Phase 20 complete (UAT 14/14, 513/513 tests); all v3.1 phases done, ready to complete milestone
-last_updated: "2026-09-18T12:12:55.091Z"
+milestone: v3.2
+milestone_name: Pools P2
+status: planning
+last_updated: "2026-09-18T12:40:45.736Z"
 last_activity: 2026-09-18
-last_activity_desc: Milestone v3.1 completed and archived
-state_head: 5fa0460ba54d696493850638fe415186a582dc19
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 13
-  completed_plans: 13
-  percent: 67
-current_phase: 21
-current_phase_name: Execution Polish
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -29,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
 
 ## Current Position
 
-Phase: Milestone v3.1 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-18 — Milestone v3.1 completed and archived
+Status: Defining requirements
+Last activity: 2026-09-18 — Milestone v3.2 started
 
 ## Performance Metrics
 
