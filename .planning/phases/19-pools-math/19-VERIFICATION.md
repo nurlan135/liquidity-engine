@@ -4,7 +4,7 @@ verified: 2026-09-18T13:20:00Z
 status: passed
 score: 6/6 must-haves verified
 covered_files: [.planning/phases/19-pools-math/19-01-PLAN.md, .planning/phases/19-pools-math/19-02-PLAN.md, .planning/phases/19-pools-math/19-03-PLAN.md, .planning/phases/19-pools-math/19-01-SUMMARY.md, .planning/phases/19-pools-math/19-02-SUMMARY.md, .planning/phases/19-pools-math/19-03-SUMMARY.md, .planning/REQUIREMENTS.md, src/lib/ict/pools.ts, src/lib/ict/swings.ts, src/lib/ict/pools.test.ts, src/lib/ict/swings.test.ts, src/lib/store.ts, src/lib/store.test.ts]
-covered_digest: "v1:sha256:7f3f6e01f7a8970388300da1c65023fc6d368beb73fe5c83d9f90d41a20524ac"
+covered_digest: "v1:sha256:5769f74267cf7282805a031cd9c2dd609c5ae73be75166f14f4e5fe6c903aa93"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
