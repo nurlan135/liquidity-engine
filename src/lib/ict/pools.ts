@@ -33,6 +33,12 @@ export const TOL_EPS_BPS = 1e-9;
 /** Diminishing equality-bonus steps per extra touch (D-05, T-19-03 mitigation). */
 // CALIBRATION-PROVISIONAL: seeded 2026-09-16, unobserved live. Phase 21 reviews against firing log.
 export const EQUAL_BONUS_STEPS = [3.0, 2.0, 1.0, 0.5];
+/** Scorer half-life in D1 bars (Phase 22 D-02): decay(10) = 0.5. */
+// CALIBRATION-PROVISIONAL: seeded 2026-10-26, unobserved live. Firing-log band review, never tuned to pass tests.
+export const DECAY_HALF_LIFE_BARS = 10;
+/** Score floor for ancient ACTIVE pools (Phase 22 D-03). */
+// CALIBRATION-PROVISIONAL: seeded 2026-10-26, unobserved live. Firing-log band review, never tuned to pass tests.
+export const DECAY_SCORE_FLOOR = 0.25;
 
 export type PoolSide = 'BSL' | 'SSL';
 export type PoolStatus = 'ACTIVE' | 'SWEPT' | 'CONSUMED';
@@ -60,7 +66,26 @@ export interface PoolScore {
   distAtr: number;
   dolBoost: number;
   behindPenalty: number;
+  decayFactor: number;
   score: number;
+}
+
+// Age counted in D1 bars (Phase 22 D-01): number of closed D1 candles with
+// date greater than the pool's originDate and less than or equal to asOf.
+// String comparison only — no calendar arithmetic, so weekends and holidays
+// never age a pool. Unknown origins yield 0 (neutral, decay 1.0).
+export function poolAgeBars(pool: LiquidityPool, closed: Candle[], asOf: string): number {
+  return closed.filter((c) => c.date > pool.originDate && c.date <= asOf).length;
+}
+
+// Scorer-plane time decay (Phase 22 D-02/D-03): max(1 / (1 + ageBars /
+// DECAY_HALF_LIFE_BARS), DECAY_SCORE_FLOOR). Monotone decreasing in age,
+// decay(0) = 1, decay(10) = 0.5, ancient ACTIVE pools hold the floor.
+export function poolDecay(ageBars: number): number {
+  if (!Number.isFinite(ageBars) || ageBars <= 0) {
+    return 1.0;
+  }
+  return Math.max(1 / (1 + ageBars / DECAY_HALF_LIFE_BARS), DECAY_SCORE_FLOOR);
 }
 
 /** Ranked result: originDate-ordered pools on refuse-to-rank, score-ordered otherwise. */
@@ -316,18 +341,21 @@ function dolSide(closed: Candle[], bias: 'BULLISH' | 'BEARISH' | 'COMPRESSION'):
   return Math.abs(lastClose - high) <= Math.abs(lastClose - low) ? 'BSL' : 'SSL';
 }
 
-// Full scorer (D-06/D-07/D-08/D-09, D-20, T-19-01): distAtr = |poolMid -
-// lastClose| / atr; score = weight x dolBoost x behindPenalty / (1 + distAtr)
-// with dolBoost = DOL_BOOST on the DOL side else 1.0 and behindPenalty =
-// BEHIND_PENALTY for pools behind price (BSL below lastClose, SSL above).
-// Rank-1 is the nearest ACTIVE pool on the DOL side by construction: only
-// ACTIVE pools are eligible for rank, and proximity in ATR units breaks ties.
-// Zero-or-empty ATR refuses to rank — pools return in originDate order with
-// scores of 0 and rankSkipped true, never NaN or Infinity (T-19-01).
+// Full scorer (D-06/D-07/D-08/D-09, D-20, T-19-01, Phase 22 D-04): distAtr =
+// |poolMid - lastClose| / atr; score = weight x dolBoost x behindPenalty x
+// decayFactor / (1 + distAtr) with dolBoost = DOL_BOOST on the DOL side else
+// 1.0, behindPenalty = BEHIND_PENALTY for pools behind price (BSL below
+// lastClose, SSL above), and decayFactor = poolDecay(ageBars) over the closed
+// window up to asOf. Rank-1 is the nearest ACTIVE pool on the DOL side by
+// construction: only ACTIVE pools are eligible for rank, and proximity in ATR
+// units breaks ties. Zero-or-empty ATR refuses to rank — pools return in
+// originDate order with scores of 0 and rankSkipped true, never NaN or
+// Infinity (T-19-01).
 export function scoreAndRank(
   pools: LiquidityPool[],
   closed: Candle[],
   bias: 'BULLISH' | 'BEARISH' | 'COMPRESSION',
+  asOf: string,
 ): RankedPools {
   const ordered = [...pools]
     .sort((a, b) => (a.originDate < b.originDate ? -1 : a.originDate > b.originDate ? 1 : 0));
@@ -338,6 +366,7 @@ export function scoreAndRank(
       distAtr: 0,
       dolBoost: 1.0,
       behindPenalty: 1.0,
+      decayFactor: 1.0,
       score: 0,
     }));
   if (ordered.length === 0) {
@@ -371,7 +400,14 @@ export function scoreAndRank(
     const behind =
       (pool.side === 'BSL' && mid < lastClose) || (pool.side === 'SSL' && mid > lastClose);
     const behindPenalty = behind ? BEHIND_PENALTY : 1.0;
-    const score = (pool.weight * dolBoost * behindPenalty) / (1 + distAtr);
+    // Phase 22 D-04/D-20/D-22: scorer-plane age over the injected closed
+    // window, bounded by the caller-threaded asOf — the same closed array the
+    // lifecycle ran over, so age counts the same bars the lifecycle saw.
+    // Read-only: stored weight/touches are never assigned outside seedPools
+    // and mergePools.
+    const ageBars = poolAgeBars(pool, closed, asOf);
+    const decayFactor = poolDecay(ageBars);
+    const score = (pool.weight * dolBoost * behindPenalty * decayFactor) / (1 + distAtr);
     return {
       pool,
       entry: {
@@ -380,6 +416,7 @@ export function scoreAndRank(
         distAtr,
         dolBoost,
         behindPenalty,
+        decayFactor,
         score,
       } as PoolScore,
     };
@@ -434,5 +471,5 @@ export function evaluatePools(
   // the returned array is rank-ordered. Cap BEFORE rank: the inventory bound
   // is a map-plane concern (newest wins), ranking is a view-plane concern.
   const kept = capPools(merged);
-  return scoreAndRank(kept, window, bias).pools;
+  return scoreAndRank(kept, window, bias, asOf).pools;
 }

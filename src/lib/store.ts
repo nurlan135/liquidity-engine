@@ -19,6 +19,8 @@ import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransiti
 import type { FvgGap } from '@/src/lib/ict/fvg';
 import {
   BEHIND_PENALTY,
+  DECAY_HALF_LIFE_BARS,
+  DECAY_SCORE_FLOOR,
   DOL_BOOST,
   EQUAL_TOL_BPS,
   MERGE_ATR_MULT,
@@ -82,6 +84,15 @@ export const CALIBRATION_DOL_BOOST_STEP = 0.1;
 export const CALIBRATION_BEHIND_MIN = 0.0;
 export const CALIBRATION_BEHIND_MAX = 1.0;
 export const CALIBRATION_BEHIND_STEP = 0.05;
+// Phase 22 decay preview bounds (D-16, T-22-03): planner-locked UI ranges for
+// the half-life and floor what-if knobs, following the merge/dolBoost bound
+// idiom. Derivation keeps reading the pinned decay constants in pools.ts.
+export const CALIBRATION_DECAY_HALF_LIFE_MIN = 1;
+export const CALIBRATION_DECAY_HALF_LIFE_MAX = 30;
+export const CALIBRATION_DECAY_HALF_LIFE_STEP = 1;
+export const CALIBRATION_DECAY_FLOOR_MIN = 0;
+export const CALIBRATION_DECAY_FLOOR_MAX = 0.9;
+export const CALIBRATION_DECAY_FLOOR_STEP = 0.05;
 // Phase 21 Apply-record flag (D-03/D-14, G-21-3): true once the operator
 // presses Tətbiq et in this session. Lives IN the zustand state shape as
 // calibrationReviewApplied (reactive) so review-only subscribers re-render
@@ -96,6 +107,8 @@ export interface CalibrationPreview {
   mergeAtrMult: number;
   dolBoost: number;
   behindPenalty: number;
+  decayHalfLifeBars: number;
+  decayFloor: number;
 }
 /** Session-ephemeral paper-note entry (OQ-4 lock): appended by KAĞIZ QEYD, capped at 50. */
 export interface PaperLogEntry {
@@ -351,6 +364,8 @@ export interface DashboardState {
   setCalibrationMergeAtrMult: (mult: number) => void;
   setCalibrationDolBoost: (mult: number) => void;
   setCalibrationBehindPenalty: (mult: number) => void;
+  setCalibrationDecayHalfLifeBars: (bars: number) => void;
+  setCalibrationDecayFloor: (mult: number) => void;
   resetCalibrationPreview: () => void;
   // Phase 21 Apply-record flag (D-03/D-14, G-21-3): reactive boolean in
   // zustand state, initialized false — true once the operator presses
@@ -609,6 +624,8 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     mergeAtrMult: MERGE_ATR_MULT,
     dolBoost: DOL_BOOST,
     behindPenalty: BEHIND_PENALTY,
+    decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+    decayFloor: DECAY_SCORE_FLOOR,
   },
   // Phase 21 Apply-record flag (D-03/D-14, G-21-3): session-scoped, memory
   // only — no localStorage reads or writes (T-21-06).
@@ -1218,6 +1235,23 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     const clamped = Math.min(CALIBRATION_BEHIND_MAX, Math.max(CALIBRATION_BEHIND_MIN, mult));
     set({ calibrationPreview: { ...get().calibrationPreview, behindPenalty: clamped } });
   },
+  // Phase 22 decay preview setters (D-16, T-22-03): clamped preview-only knobs
+  // over the pinned decay constants. Half-life rounds to whole bars;
+  // non-finite inputs are refused (preview untouched). Preview only: derive
+  // nothing here — scoreAndRank keeps reading the pinned pools.ts constants.
+  setCalibrationDecayHalfLifeBars: (bars) => {
+    if (typeof bars !== 'number' || !Number.isFinite(bars)) return;
+    const clamped = Math.min(
+      CALIBRATION_DECAY_HALF_LIFE_MAX,
+      Math.max(CALIBRATION_DECAY_HALF_LIFE_MIN, Math.round(bars)),
+    );
+    set({ calibrationPreview: { ...get().calibrationPreview, decayHalfLifeBars: clamped } });
+  },
+  setCalibrationDecayFloor: (mult) => {
+    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
+    const clamped = Math.min(CALIBRATION_DECAY_FLOOR_MAX, Math.max(CALIBRATION_DECAY_FLOOR_MIN, mult));
+    set({ calibrationPreview: { ...get().calibrationPreview, decayFloor: clamped } });
+  },
   // Phase 21 Apply record (D-03/D-14, T-21-06, G-21-3): records the reviewed
   // HOLD verdict plus the applied-set copy. Writes NO constants: the pinned
   // seeds continue unchanged, selectors keep reading pinned constants with
@@ -1246,6 +1280,8 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
         mergeAtrMult: MERGE_ATR_MULT,
         dolBoost: DOL_BOOST,
         behindPenalty: BEHIND_PENALTY,
+        decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+        decayFloor: DECAY_SCORE_FLOOR,
       },
     });
   },
@@ -1270,6 +1306,8 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
         mergeAtrMult: MERGE_ATR_MULT,
         dolBoost: DOL_BOOST,
         behindPenalty: BEHIND_PENALTY,
+        decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+        decayFloor: DECAY_SCORE_FLOOR,
       },
     });
   },

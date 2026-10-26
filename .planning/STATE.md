@@ -1,39 +1,43 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Pools P2
-status: planning
-last_updated: "2026-10-26T08:06:06.706Z"
+current_phase: 23
+current_phase_name: POOL2-01
+status: executing
+stopped_at: Phase 22 context gathered
+last_updated: "2026-10-26T10:44:12.991Z"
 last_activity: 2026-10-26
+last_activity_desc: Phase 22 complete, transitioned to Phase 23
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 20
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
+See: .planning/PROJECT.md (updated 2026-10-26 after Phase 22)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Planning next milestone (v3.1 shipped 2026-09-18)
+**Current focus:** Phase 23 — tp2-resolver-(pool2-01)
 
 ## Current Position
 
-Phase: Roadmap complete (v3.2, Phases 22–26)
-Plan: —
-Status: Ready for Phase 22 discussion (/gsd-discuss-phase 22)
-Last activity: 2026-10-26 — Milestone v3.2 roadmap created (Phases 22–26)
+Phase: 23 — TP2 Resolver (POOL2-01)
+Plan: Not started
+Status: Ready to plan Phase 23
+Last activity: 2026-10-26 — Phase 22 complete, transitioned to Phase 23
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3 (v3.1); 54 cumulative across v1.0/v2.0/v2.1/v3.0
+- Total plans completed: 6 (v3.1); 54 cumulative across v1.0/v2.0/v2.1/v3.0
 - Average duration: ~25 min (historical)
 - Total execution time: —
 
@@ -44,6 +48,7 @@ Last activity: 2026-10-26 — Milestone v3.2 roadmap created (Phases 22–26)
 | 19 | 3 | - | - |
 | 20 | 0 | - | - |
 | 21 | 0 | - | - |
+| 22 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -69,7 +74,9 @@ Recent decisions affecting current work:
 - [Research 2026-09-15]: All ranking constants ship CALIBRATION-PROVISIONAL (merge-ATR multiple, EQUAL_TOL_BPS ~25bps, dolBoost/behind-penalty) + boundary-test pins; Phase 21 reviews against firing log
 - [Research 2026-09-15]: Phase 20 carries `UI hint: yes` (§1 block + chart lines); Phase 21 carries `UI hint: yes` (slider controls) — `/gsd-ui-phase` applies at plan time
 - [v3.0]: 420/420 tests green, UAT 10/10 — pools math must keep the full suite green (shared swings.ts extraction, purity guard from first commit)
-- [Phase 20]: 20-04: fix option A (wiring-layer describePool from verbatim fields) keeps D-01/D-02 locked without ict math or shape change
+- [Phase 22]: Decay scorer core lands scorer-plane-only — half-life 10 + floor 0.25 provisional, pure asOf-threaded helpers, decayFactor ledger, 11-test boundary block
+- [Phase 22]: Lifecycle invariants hold by test — byte-identity, double-run determinism, ghost order, parity 84 bars exact, selector envelope byte-stable
+- [Phase 22]: Sandbox preview knobs preview-only — clamped setters, two KnobRows, pinned Apply/reset, derivation never reads preview state
 
 ### Pending Todos
 
@@ -101,10 +108,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-18T12:00:00Z
-Stopped at: Milestone v3.1 shipped, ready for /gsd-new-milestone
+Last session: 2026-10-26
+Stopped at: Phase 22 complete, ready to plan Phase 23
 Resume file: None
 
 ## Operator Next Steps
 
-- Start Phase 22 with /gsd-discuss-phase 22
+- Start Phase 23 with /gsd-discuss-phase 23
