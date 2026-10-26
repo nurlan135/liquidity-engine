@@ -18,14 +18,6 @@ import { evaluatePools, type LiquidityPool } from '@/src/lib/ict/pools';
 import { applyMitigation, describeDeliveryTransition, detectFVGs, detectTransition } from '@/src/lib/ict/fvg';
 import type { FvgGap } from '@/src/lib/ict/fvg';
 import {
-  BEHIND_PENALTY,
-  DECAY_HALF_LIFE_BARS,
-  DECAY_SCORE_FLOOR,
-  DOL_BOOST,
-  EQUAL_TOL_BPS,
-  MERGE_ATR_MULT,
-} from '@/src/lib/ict/pools';
-import {
   TRIGGER_DISP_MULT,
   TRIGGER_KZ_END_MIN,
   TRIGGER_KZ_START_MIN,
@@ -61,54 +53,6 @@ export interface PoolsSelection {
   // thin:true names the nq leg so Phase 20 dims instead of printing
   // full-strength geometry.
   degraded: { stale: boolean; thin: boolean; leg: string | null };
-}
-// Phase 21 calibration-sandbox knob bounds (D-13, T-21-05): planner-locked
-// UI ranges. Seeds come from the pinned constants in trigger.ts (WHY NOW
-// gate thresholds) and pools.ts (pool tolerances); ticket buffer multiples
-// stay pinned constants with boundary tests and are previewed through the
-// same Apply path as documentation of intent — derivation still reads the
-// pinned ticket.ts constants until Apply commits them.
-export const CALIBRATION_KZ_MIN = 0;
-export const CALIBRATION_KZ_MAX = 600;
-export const CALIBRATION_DISP_MIN = 0.1;
-export const CALIBRATION_DISP_MAX = 2.0;
-export const CALIBRATION_DISP_STEP = 0.05;
-export const CALIBRATION_EQUAL_TOL_MIN_BPS = 5;
-export const CALIBRATION_EQUAL_TOL_MAX_BPS = 100;
-export const CALIBRATION_MERGE_MIN = 0.05;
-export const CALIBRATION_MERGE_MAX = 1.0;
-export const CALIBRATION_MERGE_STEP = 0.05;
-export const CALIBRATION_DOL_BOOST_MIN = 1.0;
-export const CALIBRATION_DOL_BOOST_MAX = 4.0;
-export const CALIBRATION_DOL_BOOST_STEP = 0.1;
-export const CALIBRATION_BEHIND_MIN = 0.0;
-export const CALIBRATION_BEHIND_MAX = 1.0;
-export const CALIBRATION_BEHIND_STEP = 0.05;
-// Phase 22 decay preview bounds (D-16, T-22-03): planner-locked UI ranges for
-// the half-life and floor what-if knobs, following the merge/dolBoost bound
-// idiom. Derivation keeps reading the pinned decay constants in pools.ts.
-export const CALIBRATION_DECAY_HALF_LIFE_MIN = 1;
-export const CALIBRATION_DECAY_HALF_LIFE_MAX = 30;
-export const CALIBRATION_DECAY_HALF_LIFE_STEP = 1;
-export const CALIBRATION_DECAY_FLOOR_MIN = 0;
-export const CALIBRATION_DECAY_FLOOR_MAX = 0.9;
-export const CALIBRATION_DECAY_FLOOR_STEP = 0.05;
-// Phase 21 Apply-record flag (D-03/D-14, G-21-3): true once the operator
-// presses Tətbiq et in this session. Lives IN the zustand state shape as
-// calibrationReviewApplied (reactive) so review-only subscribers re-render
-// and test beforeEach resets clear it via setState; refresh resets the
-// preview slice to the pinned seeds.
-/** Session-scoped what-if preview for both knob families (D-13/D-15). */
-export interface CalibrationPreview {
-  kzStartMin: number;
-  kzEndMin: number;
-  dispMult: number;
-  equalTolBps: number;
-  mergeAtrMult: number;
-  dolBoost: number;
-  behindPenalty: number;
-  decayHalfLifeBars: number;
-  decayFloor: number;
 }
 /** Session-ephemeral paper-note entry (OQ-4 lock): appended by KAĞIZ QEYD, capped at 50. */
 export interface PaperLogEntry {
@@ -351,63 +295,12 @@ export interface DashboardState {
   // (capped at 50, firing-log idiom). Never derived, never inside ticket.ts.
   ticketInputs: { riskPct: number };
   setRiskPct: (pct: number) => void;
-  // Phase 21 calibration-sandbox preview slice (D-13/D-15, T-21-05/T-21-06):
-  // session-scoped what-if knob values for both knob families — WHY NOW gate
-  // thresholds plus pool tolerances. Preview-only: selectors read the pinned
-  // module constants until the explicit Apply path commits. No localStorage
-  // reads or writes anywhere — refresh resets to the pinned seeds.
-  calibrationPreview: CalibrationPreview;
-  setCalibrationKzStartMin: (minutes: number) => void;
-  setCalibrationKzEndMin: (minutes: number) => void;
-  setCalibrationDispMult: (mult: number) => void;
-  setCalibrationEqualTolBps: (bps: number) => void;
-  setCalibrationMergeAtrMult: (mult: number) => void;
-  setCalibrationDolBoost: (mult: number) => void;
-  setCalibrationBehindPenalty: (mult: number) => void;
-  setCalibrationDecayHalfLifeBars: (bars: number) => void;
-  setCalibrationDecayFloor: (mult: number) => void;
-  resetCalibrationPreview: () => void;
-  // Phase 21 Apply-record flag (D-03/D-14, G-21-3): reactive boolean in
-  // zustand state, initialized false — true once the operator presses
-  // Apply in this session. Reset paths re-seed the preview only and leave
-  // this flag untouched.
-  calibrationReviewApplied: boolean;
   paperLog: PaperLogEntry[];
   paperLogOverflow: number;
   appendPaperLog: (entry: PaperLogEntry) => void;
   selectTicket: () => TicketOutput | null;
   selectConfluence: () => ConvictionTier;
   selectLiquidityPath: () => string | null;
-  // Phase 21 calibration review (D-03/D-14, T-21-06): the sandbox records the
-  // reviewed verdict — band holds, so the pinned seeds continue unchanged —
-  // and reports the human-readable applied-set copy beside the sandbox. NO
-  // constant rewrite: selectors keep reading the pinned module constants, the
-  // boundary suites keep pinning the same seeded values, and every constant
-  // keeps its CALIBRATION-PROVISIONAL marker until live evidence accrues.
-  selectCalibrationReview: () => CalibrationReview;
-  applyCalibrationPreview: () => void;
-  resetCalibrationPreviewToPinned: () => void;
-}
-/** Phase 21 Apply-record (D-03/D-14): the reviewed set Apply pins down. */
-export interface CalibrationReview {
-  /** Verbatim reviewed verdict — band holds, constants continue. */
-  verdict: string;
-  /** Human-readable applied-set copy rendered beside the sandbox body. */
-  appliedCopy: string;
-  /** True once the operator presses Apply in this session. */
-  applied: boolean;
-}
-/** Verbatim Apply verdict (D-03, T-21-06): retune path arms only on BREAK. */
-export const CALIBRATION_REVIEW_HOLD_COPY =
-  'Atəş tempi 1–4/həftə bandında — TUTULDU — konstantlar dəyişməz qalır';
-/** Human-readable applied-set copy (D-14): names the pinned seeded values. */
-export function calibrationAppliedCopy(): string {
-  return (
-    `Tətbiq: KZ ${TRIGGER_KZ_START_MIN}–${TRIGGER_KZ_END_MIN} dəq · ` +
-    `DISP ${TRIGGER_DISP_MULT}× · TOL ${EQUAL_TOL_BPS} bps · ` +
-    `MERGE ${MERGE_ATR_MULT}× · DOL ${DOL_BOOST}× · BEHIND ${BEHIND_PENALTY} — ` +
-    `sərhəd testləri yenidən təsdiqləndi`
-  );
 }
 
 function closedCount(candles: Candle[]): number {
@@ -613,23 +506,6 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   firingLog: [],
   firingLogOverflow: 0,
   ticketInputs: { riskPct: 1 },
-  // Phase 21 preview seeds (D-13/D-15): seeded from the pinned constants in
-  // trigger.ts plus pools.ts at store creation; refresh re-seeds from the
-  // same pinned sources — never from localStorage (T-21-06).
-  calibrationPreview: {
-    kzStartMin: TRIGGER_KZ_START_MIN,
-    kzEndMin: TRIGGER_KZ_END_MIN,
-    dispMult: TRIGGER_DISP_MULT,
-    equalTolBps: EQUAL_TOL_BPS,
-    mergeAtrMult: MERGE_ATR_MULT,
-    dolBoost: DOL_BOOST,
-    behindPenalty: BEHIND_PENALTY,
-    decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
-    decayFloor: DECAY_SCORE_FLOOR,
-  },
-  // Phase 21 Apply-record flag (D-03/D-14, G-21-3): session-scoped, memory
-  // only — no localStorage reads or writes (T-21-06).
-  calibrationReviewApplied: false,
   paperLog: [],
   paperLogOverflow: 0,
 
@@ -1191,125 +1067,6 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     if (typeof pct !== 'number' || !Number.isFinite(pct) || pct <= 0) return;
     const clamped = Math.min(RISK_PCT_MAX, Math.max(RISK_PCT_MIN, pct));
     set({ ticketInputs: { riskPct: clamped } });
-  },
-
-  // Phase 21 calibration-preview setters (D-13/D-15, T-21-05): one clamped
-  // setter per knob family value, following the setRiskPct precedent — NaN
-  // and non-finite inputs are refused (preview untouched), integers round to
-  // the nearest whole minute/bps. Preview only: derive nothing here.
-  setCalibrationKzStartMin: (minutes) => {
-    if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return;
-    const clamped = Math.min(CALIBRATION_KZ_MAX, Math.max(CALIBRATION_KZ_MIN, Math.round(minutes)));
-    set({ calibrationPreview: { ...get().calibrationPreview, kzStartMin: clamped } });
-  },
-  setCalibrationKzEndMin: (minutes) => {
-    if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return;
-    const clamped = Math.min(CALIBRATION_KZ_MAX, Math.max(CALIBRATION_KZ_MIN, Math.round(minutes)));
-    set({ calibrationPreview: { ...get().calibrationPreview, kzEndMin: clamped } });
-  },
-  setCalibrationDispMult: (mult) => {
-    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
-    const clamped = Math.min(CALIBRATION_DISP_MAX, Math.max(CALIBRATION_DISP_MIN, mult));
-    set({ calibrationPreview: { ...get().calibrationPreview, dispMult: clamped } });
-  },
-  setCalibrationEqualTolBps: (bps) => {
-    if (typeof bps !== 'number' || !Number.isFinite(bps)) return;
-    const clamped = Math.min(
-      CALIBRATION_EQUAL_TOL_MAX_BPS,
-      Math.max(CALIBRATION_EQUAL_TOL_MIN_BPS, Math.round(bps)),
-    );
-    set({ calibrationPreview: { ...get().calibrationPreview, equalTolBps: clamped } });
-  },
-  setCalibrationMergeAtrMult: (mult) => {
-    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
-    const clamped = Math.min(CALIBRATION_MERGE_MAX, Math.max(CALIBRATION_MERGE_MIN, mult));
-    set({ calibrationPreview: { ...get().calibrationPreview, mergeAtrMult: clamped } });
-  },
-  setCalibrationDolBoost: (mult) => {
-    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
-    const clamped = Math.min(CALIBRATION_DOL_BOOST_MAX, Math.max(CALIBRATION_DOL_BOOST_MIN, mult));
-    set({ calibrationPreview: { ...get().calibrationPreview, dolBoost: clamped } });
-  },
-  setCalibrationBehindPenalty: (mult) => {
-    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
-    const clamped = Math.min(CALIBRATION_BEHIND_MAX, Math.max(CALIBRATION_BEHIND_MIN, mult));
-    set({ calibrationPreview: { ...get().calibrationPreview, behindPenalty: clamped } });
-  },
-  // Phase 22 decay preview setters (D-16, T-22-03): clamped preview-only knobs
-  // over the pinned decay constants. Half-life rounds to whole bars;
-  // non-finite inputs are refused (preview untouched). Preview only: derive
-  // nothing here — scoreAndRank keeps reading the pinned pools.ts constants.
-  setCalibrationDecayHalfLifeBars: (bars) => {
-    if (typeof bars !== 'number' || !Number.isFinite(bars)) return;
-    const clamped = Math.min(
-      CALIBRATION_DECAY_HALF_LIFE_MAX,
-      Math.max(CALIBRATION_DECAY_HALF_LIFE_MIN, Math.round(bars)),
-    );
-    set({ calibrationPreview: { ...get().calibrationPreview, decayHalfLifeBars: clamped } });
-  },
-  setCalibrationDecayFloor: (mult) => {
-    if (typeof mult !== 'number' || !Number.isFinite(mult)) return;
-    const clamped = Math.min(CALIBRATION_DECAY_FLOOR_MAX, Math.max(CALIBRATION_DECAY_FLOOR_MIN, mult));
-    set({ calibrationPreview: { ...get().calibrationPreview, decayFloor: clamped } });
-  },
-  // Phase 21 Apply record (D-03/D-14, T-21-06, G-21-3): records the reviewed
-  // HOLD verdict plus the applied-set copy. Writes NO constants: the pinned
-  // seeds continue unchanged, selectors keep reading pinned constants with
-  // zero live re-derivation on movement, and the boundary suites keep
-  // pinning the same seeded values with CALIBRATION-PROVISIONAL markers.
-  // Reads the reactive zustand flag so review-only subscribers re-render.
-  selectCalibrationReview: () => {
-    const applied = get().calibrationReviewApplied;
-    return {
-      verdict: CALIBRATION_REVIEW_HOLD_COPY,
-      appliedCopy: applied ? calibrationAppliedCopy() : '',
-      applied,
-    };
-  },
-  applyCalibrationPreview: () => {
-    // Reactive flag flip in the same set() as the preview re-seed: Apply
-    // re-pins the preview to the pinned constants and records the reviewed
-    // verdict — never a constant rewrite (D-03/D-14).
-    set({
-      calibrationReviewApplied: true,
-      calibrationPreview: {
-        kzStartMin: TRIGGER_KZ_START_MIN,
-        kzEndMin: TRIGGER_KZ_END_MIN,
-        dispMult: TRIGGER_DISP_MULT,
-        equalTolBps: EQUAL_TOL_BPS,
-        mergeAtrMult: MERGE_ATR_MULT,
-        dolBoost: DOL_BOOST,
-        behindPenalty: BEHIND_PENALTY,
-        decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
-        decayFloor: DECAY_SCORE_FLOOR,
-      },
-    });
-  },
-  // Phase 21 preview reset alias (D-15): the sandbox Yenilə path re-seeds
-  // from the pinned module constants through the same reset body.
-  resetCalibrationPreviewToPinned: () => {
-    get().resetCalibrationPreview();
-  },
-
-  // Phase 21 preview reset (D-15): refresh-equivalent — re-seeds from the
-  // pinned module constants, never from localStorage (T-21-06). Also clears
-  // the session applied flag so Yenilə fully restores the pristine sandbox
-  // (UAT 21 test 3: the TUTULDU applied copy must not survive a reset).
-  resetCalibrationPreview: () => {
-    set({
-      calibrationReviewApplied: false,
-      calibrationPreview: {
-        kzStartMin: TRIGGER_KZ_START_MIN,
-        kzEndMin: TRIGGER_KZ_END_MIN,
-        dispMult: TRIGGER_DISP_MULT,
-        equalTolBps: EQUAL_TOL_BPS,
-        mergeAtrMult: MERGE_ATR_MULT,
-        dolBoost: DOL_BOOST,
-        behindPenalty: BEHIND_PENALTY,
-        decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
-        decayFloor: DECAY_SCORE_FLOOR,
-      },
-    });
   },
 
   // Phase 17 paperLog (OQ-4): session-ephemeral KAĞIZ QEYD notes, capped at
