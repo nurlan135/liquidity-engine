@@ -1563,7 +1563,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       TRIGGER_KZ_END_MIN,
       TRIGGER_KZ_START_MIN,
     } = await import('@/src/lib/ict/trigger');
-    const { BEHIND_PENALTY, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
+    const { BEHIND_PENALTY, DECAY_HALF_LIFE_BARS, DECAY_SCORE_FLOOR, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
 
     // Seed values come from the pinned module constants (D-13/D-15).
     const seeded = useDashboard.getState().calibrationPreview;
@@ -1575,6 +1575,8 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       mergeAtrMult: MERGE_ATR_MULT,
       dolBoost: DOL_BOOST,
       behindPenalty: BEHIND_PENALTY,
+      decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+      decayFloor: DECAY_SCORE_FLOOR,
     });
 
     // Clamping follows the setRiskPct precedent: integers round, out-of-band
@@ -1623,6 +1625,8 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       mergeAtrMult: MERGE_ATR_MULT,
       dolBoost: DOL_BOOST,
       behindPenalty: BEHIND_PENALTY,
+      decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+      decayFloor: DECAY_SCORE_FLOOR,
     });
     expect('localStorage' in globalThis ? (globalThis as Record<string, unknown>)['__calibrationPreviewPersisted'] : undefined).toBeUndefined();
 
@@ -1636,7 +1640,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       TRIGGER_KZ_END_MIN,
       TRIGGER_KZ_START_MIN,
     } = await import('@/src/lib/ict/trigger');
-    const { BEHIND_PENALTY, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
+    const { BEHIND_PENALTY, DECAY_HALF_LIFE_BARS, DECAY_SCORE_FLOOR, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
 
     // Pre-Apply: the review reads unapplied — applied copy empty.
     const before = useDashboard.getState().selectCalibrationReview();
@@ -1659,6 +1663,8 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       mergeAtrMult: MERGE_ATR_MULT,
       dolBoost: DOL_BOOST,
       behindPenalty: BEHIND_PENALTY,
+      decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+      decayFloor: DECAY_SCORE_FLOOR,
     });
     const after = useDashboard.getState().selectCalibrationReview();
     expect(after.applied).toBe(true);
