@@ -2,9 +2,13 @@
 gsd_state_version: "1.0"
 milestone: v3.2
 milestone_name: Pools P2
+current_phase_name: v3.2, Phases 22–26
 status: planning
-last_updated: "2026-10-26T08:06:06.706Z"
+stopped_at: Phase 22 context gathered
+last_updated: "2026-10-26T08:30:37.901Z"
 last_activity: 2026-10-26
+last_activity_desc: Milestone v3.2 roadmap created (Phases 22–26)
+state_head: 861a0bdf6b01a64d06dc26419f170bf81ffcee82
 progress:
   total_phases: 5
   completed_phases: 0
@@ -101,9 +105,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-18T12:00:00Z
-Stopped at: Milestone v3.1 shipped, ready for /gsd-new-milestone
-Resume file: None
+Last session: 2026-10-26T08:30:37.865Z
+Stopped at: Phase 22 context gathered
+Resume file: .planning/phases/22-pool-lifecycle-decay-pool2-04/22-CONTEXT.md
 
 ## Operator Next Steps
 
