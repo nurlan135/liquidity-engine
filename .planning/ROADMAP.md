@@ -94,8 +94,13 @@ Full detail: `.planning/milestones/v3.1-ROADMAP.md`
 **Plans:** 3 plans
 
 Plans:
+**Wave 1**
 - [ ] 22-01-PLAN.md — Decay constants + pure helpers + scoreAndRank multiplier + decay boundary tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 22-02-PLAN.md — Immutability/determinism/ghost pins + parity re-run green + purity + selector matrix
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 22-03-PLAN.md — Sandbox half-life/floor preview sliders (preview-vs-applied, no derivation reads preview)
 
 **Success criteria:**

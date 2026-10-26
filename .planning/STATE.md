@@ -2,17 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v3.2
 milestone_name: Pools P2
-current_phase_name: v3.2, Phases 22–26
+current_phase: 22
+current_phase_name: Pool Lifecycle + Decay (POOL2-04)
 status: planning
 stopped_at: Phase 22 context gathered
-last_updated: "2026-10-26T08:30:37.901Z"
+last_updated: "2026-10-26T09:23:47.520Z"
 last_activity: 2026-10-26
 last_activity_desc: Milestone v3.2 roadmap created (Phases 22–26)
-state_head: 861a0bdf6b01a64d06dc26419f170bf81ffcee82
+state_head: 391b6c6378a346a86d876724df5233aa2da05e34
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -28,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
 
 ## Current Position
 
-Phase: Roadmap complete (v3.2, Phases 22–26)
+Phase: 22 (Pool Lifecycle + Decay (POOL2-04)) — READY TO EXECUTE
 Plan: —
 Status: Ready for Phase 22 discussion (/gsd-discuss-phase 22)
 Last activity: 2026-10-26 — Milestone v3.2 roadmap created (Phases 22–26)
