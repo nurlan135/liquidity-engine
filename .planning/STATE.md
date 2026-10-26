@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-10-26T08:06:06.706Z"
 last_activity: 2026-10-26
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Roadmap complete (v3.2, Phases 22–26)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-10-26 — Milestone v3.2 started
+Status: Ready for Phase 22 discussion (/gsd-discuss-phase 22)
+Last activity: 2026-10-26 — Milestone v3.2 roadmap created (Phases 22–26)
 
 ## Performance Metrics
 
@@ -63,7 +63,8 @@ Last activity: 2026-10-26 — Milestone v3.2 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap 2026-09-15]: v3.1 continues numbering at Phase 19 (v3.0 ended at Phase 18); 3 phases from research order: pools math → §1 live + chart overlay → execution polish
+- [Roadmap 2026-10-26]: v3.2 continues numbering at Phase 22 (v3.1 ended at Phase 21); 5 phases from research SUMMARY.md order: lifecycle/decay → TP2 resolver (+buffered-leg math) → read-only pair → 15M pools → W12 live wiring last
+- [Roadmap 2026-10-26]: Lifecycle-before-consumers, live-wiring-last — parity harness re-proved at every phase gate; buffer math ships as unit-pinned leg logic in Phase 23, selector wiring waits for Phase 26
 - [Roadmap 2026-09-15]: Pools are read-only projection context that never votes — no trigger gate, no new flaw key, no ticket derivation change in v3.1
 - [Research 2026-09-15]: All ranking constants ship CALIBRATION-PROVISIONAL (merge-ATR multiple, EQUAL_TOL_BPS ~25bps, dolBoost/behind-penalty) + boundary-test pins; Phase 21 reviews against firing log
 - [Research 2026-09-15]: Phase 20 carries `UI hint: yes` (§1 block + chart lines); Phase 21 carries `UI hint: yes` (slider controls) — `/gsd-ui-phase` applies at plan time
@@ -106,4 +107,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Start Phase 22 with /gsd-discuss-phase 22
