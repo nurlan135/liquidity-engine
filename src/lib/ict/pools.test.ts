@@ -53,7 +53,7 @@ const FLAT_HIGHS = rising(9, 20100, 10);
 const FLAT_LOWS = rising(9, 19900, 10);
 
 describe('pools tracer: thin detect-to-rank slice', () => {
-  it('locked constants are pinned: SWING_K 2, SWING_LOOKBACK 60, EQUAL_TOL_BPS 25, POOL_MAP_BOUND 20, MERGE_ATR_MULT 0.25, DOL_BOOST 2.0, BEHIND_PENALTY 0.25', () => {
+  it('locked constants are pinned: SWING_K 2, SWING_LOOKBACK 60, EQUAL_TOL_BPS 25, POOL_MAP_BOUND 20, MERGE_ATR_MULT 0.25, DOL_BOOST 2.0, BEHIND_PENALTY 0.25, DECAY_HALF_LIFE_BARS 10, DECAY_SCORE_FLOOR 0.25', () => {
     expect(SWING_K).toBe(2);
     expect(SWING_LOOKBACK).toBe(60);
     expect(SHARED_K).toBe(SWING_K);
@@ -63,6 +63,8 @@ describe('pools tracer: thin detect-to-rank slice', () => {
     expect(MERGE_ATR_MULT).toBe(0.25);
     expect(DOL_BOOST).toBe(2.0);
     expect(BEHIND_PENALTY).toBe(0.25);
+    expect(DECAY_HALF_LIFE_BARS).toBe(10);
+    expect(DECAY_SCORE_FLOOR).toBe(0.25);
   });
 
   it('one swing-high seeds a BSL pool with the exact shape literals', () => {
@@ -516,5 +518,125 @@ describe('pool decay', () => {
     expect(poolAgeBars(freshPool('2026-01-05'), candles, '2026-01-31')).toBeGreaterThan(
       poolAgeBars(freshPool('2026-01-20'), candles, '2026-01-31'),
     );
+  });
+
+  it('decay of age 10 equals 0.5 (half-life)', () => {
+    expect(poolDecay(10)).toBe(0.5);
+    expect(poolDecay(DECAY_HALF_LIFE_BARS)).toBe(0.5);
+  });
+
+  it('floor holds at age 60 and above', () => {
+    expect(poolDecay(60)).toBe(DECAY_SCORE_FLOOR);
+    expect(poolDecay(120)).toBe(DECAY_SCORE_FLOOR);
+    expect(poolDecay(1000)).toBe(DECAY_SCORE_FLOOR);
+    expect(poolDecay(9)).toBeGreaterThan(0.5);
+    expect(poolDecay(11)).toBeLessThan(0.5);
+  });
+
+  it('scores decrease monotonically with age for otherwise identical pools', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const origins = ['2026-01-20', '2026-01-15', '2026-01-09', '2026-01-05'];
+    const runs = origins.map((originDate) =>
+      scoreAndRank([{ ...freshPool(originDate) }], candles, 'BULLISH', AS_OF),
+    );
+    for (const run of runs) {
+      expect(run.rankSkipped).toBe(false);
+    }
+    const scores = runs.map((run) => run.scores[0].score);
+    expect(scores[0]).toBeGreaterThan(scores[1]);
+    expect(scores[1]).toBeGreaterThan(scores[2]);
+    expect(scores[2]).toBeGreaterThan(scores[3]);
+    const factors = runs.map((run) => run.scores[0].decayFactor);
+    expect(factors[0]).toBeGreaterThan(factors[1]);
+    expect(factors[1]).toBeGreaterThan(factors[2]);
+    expect(factors[2]).toBeGreaterThan(factors[3]);
+  });
+
+  it('an ancient ACTIVE pool keeps scoring above zero', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    // Origin predates the window: age counts every closed bar in the 16-bar
+    // fixture (16, above the half-life but below the floor age — the floor
+    // itself is pinned at unit level above). Score stays positive and finite.
+    expect(poolAgeBars(freshPool('2025-01-01'), candles, AS_OF)).toBe(16);
+    const ancient = scoreAndRank([freshPool('2025-01-01')], candles, 'BULLISH', AS_OF);
+    expect(ancient.rankSkipped).toBe(false);
+    expect(ancient.scores).toHaveLength(1);
+    expect(ancient.scores[0].decayFactor).toBe(poolDecay(16));
+    expect(ancient.scores[0].decayFactor).toBeGreaterThan(DECAY_SCORE_FLOOR);
+    expect(ancient.scores[0].score).toBeGreaterThan(0);
+    expect(Number.isFinite(ancient.scores[0].score)).toBe(true);
+  });
+
+  it('a fresh pool near a consumed price seeds as an independent ACTIVE pool with its own originDate', () => {
+    // 11-bar leg whose bar-7 close prints above the bar-4 BSL zone: the
+    // origin pool is CONSUMED and leaves the map. A fresh evaluation with
+    // bars 8+ removed re-seeds the same geometry as a live independent pool.
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20080, 20604, 20100, 20050, 20020];
+    const lows = rising(11, 19900, 5);
+    const candles = leg(11, highs, lows);
+    const seeded = detectPools(candles, AS_OF).filter((p) => p.side === 'BSL');
+    expect(seeded).toHaveLength(2);
+    const ranked = evaluatePools(candles, AS_OF);
+    const consumer = ranked.find((p) => p.side === 'BSL' && p.top === 20604);
+    expect(consumer).toBeDefined();
+    expect(consumer!.status).toBe('ACTIVE');
+    expect(consumer!.originDate).toBe('2026-01-12');
+    expect(consumer!.touches).toBe(1);
+  });
+
+  it('a fresh cluster overlapping a SWEPT zone seeds its own ACTIVE pool while the ghost stays unscored', () => {
+    // 16-bar leg for full ATR: bar-4 peak 20200 swept by a bar-7 wick, then a
+    // bar-13 peak at 20300 seeds a fresh ACTIVE cluster beside the ghost.
+    // Gap 100/20200*10000 ≈ 49.5 bps clears the 25 bps cluster floor, so the
+    // late peak cannot merge into the ghost — tolerance clustering is the
+    // non-overlap decision (a within-tolerance peak would join the cluster).
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20250, 20200, 20150, 20100, 20300, 20100, 20050, 20020];
+    const lows = rising(16, 19900, 5);
+    const candles = leg(16, highs, lows);
+    const ranked = evaluatePools(candles, AS_OF);
+    const ghost = ranked.find((p) => p.side === 'BSL' && p.top === 20200);
+    expect(ghost).toBeDefined();
+    expect(ghost!.status).toBe('SWEPT');
+    const freshSeeds = ranked.filter((p) => p.side === 'BSL' && p.status === 'ACTIVE');
+    expect(freshSeeds.length).toBeGreaterThanOrEqual(1);
+    for (const seed of freshSeeds) {
+      expect(seed.originDate).not.toBe(ghost!.originDate);
+    }
+    const scored: RankedPools = scoreAndRank(ranked, candles, 'BULLISH', AS_OF);
+    expect(scored.rankSkipped).toBe(false);
+    const scoredOrigins = scored.scores.map((s) => s.originDate);
+    expect(scoredOrigins).not.toContain(ghost!.originDate);
+    for (const seed of freshSeeds) {
+      expect(scoredOrigins).toContain(seed.originDate);
+    }
+  });
+
+  it('decay bounds score from below: floored pool outscores any zero while trailing fresher peers', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const ancient = scoreAndRank([freshPool('2025-01-01')], candles, 'BULLISH', AS_OF);
+    const lastClosedDate = candles[candles.length - 1].date;
+    const fresh = scoreAndRank([freshPool(lastClosedDate)], candles, 'BULLISH', AS_OF);
+    expect(fresh.scores[0].score).toBeGreaterThan(ancient.scores[0].score);
+    expect(ancient.scores[0].score).toBeGreaterThan(0);
+    expect(ancient.scores[0].decayFactor).toBeLessThanOrEqual(fresh.scores[0].decayFactor);
+  });
+
+  it('unknown origins age 0 and stay decay-neutral', () => {
+    const candles = leg(9, BSL_HIGHS, FLAT_LOWS);
+    expect(poolAgeBars(freshPool('2099-12-31'), candles, AS_OF)).toBe(0);
+    expect(poolDecay(poolAgeBars(freshPool('2099-12-31'), candles, AS_OF))).toBe(1.0);
+  });
+
+  it('age counts only closed bars strictly after originDate up to asOf', () => {
+    const candles = leg(9, BSL_HIGHS, FLAT_LOWS);
+    // Origin '2026-01-09', asOf '2026-01-12': bars 01-10, 01-11, 01-12.
+    expect(poolAgeBars(freshPool('2026-01-09'), candles, '2026-01-12')).toBe(3);
+    // Origin bar itself never counts.
+    expect(poolAgeBars(freshPool('2026-01-09'), candles, '2026-01-09')).toBe(0);
+    // Bars after asOf never count.
+    expect(poolAgeBars(freshPool('2026-01-09'), candles, '2026-01-09')).toBe(
+      poolAgeBars(freshPool('2026-01-09'), candles, '2026-01-09'),
+    );
+    expect(poolAgeBars(freshPool('2026-01-05'), candles, AS_OF)).toBe(8);
   });
 });
