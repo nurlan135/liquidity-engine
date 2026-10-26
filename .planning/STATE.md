@@ -21,16 +21,16 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
+See: .planning/PROJECT.md (updated 2026-10-26 after Phase 22)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 22 — pool-lifecycle-decay-pool2-04
+**Current focus:** Phase 23 — tp2-resolver-(pool2-01)
 
 ## Current Position
 
 Phase: 23 — TP2 Resolver (POOL2-01)
 Plan: Not started
-Status: Executing Phase 22
+Status: Ready to plan Phase 23
 Last activity: 2026-10-26 — Phase 22 complete, transitioned to Phase 23
 
 ## Performance Metrics
@@ -74,7 +74,9 @@ Recent decisions affecting current work:
 - [Research 2026-09-15]: All ranking constants ship CALIBRATION-PROVISIONAL (merge-ATR multiple, EQUAL_TOL_BPS ~25bps, dolBoost/behind-penalty) + boundary-test pins; Phase 21 reviews against firing log
 - [Research 2026-09-15]: Phase 20 carries `UI hint: yes` (§1 block + chart lines); Phase 21 carries `UI hint: yes` (slider controls) — `/gsd-ui-phase` applies at plan time
 - [v3.0]: 420/420 tests green, UAT 10/10 — pools math must keep the full suite green (shared swings.ts extraction, purity guard from first commit)
-- [Phase 20]: 20-04: fix option A (wiring-layer describePool from verbatim fields) keeps D-01/D-02 locked without ict math or shape change
+- [Phase 22]: Decay scorer core lands scorer-plane-only — half-life 10 + floor 0.25 provisional, pure asOf-threaded helpers, decayFactor ledger, 11-test boundary block
+- [Phase 22]: Lifecycle invariants hold by test — byte-identity, double-run determinism, ghost order, parity 84 bars exact, selector envelope byte-stable
+- [Phase 22]: Sandbox preview knobs preview-only — clamped setters, two KnobRows, pinned Apply/reset, derivation never reads preview state
 
 ### Pending Todos
 
@@ -106,10 +108,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-26T08:30:37.865Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-pool-lifecycle-decay-pool2-04/22-CONTEXT.md
+Last session: 2026-10-26
+Stopped at: Phase 22 complete, ready to plan Phase 23
+Resume file: None
 
 ## Operator Next Steps
 
-- Start Phase 22 with /gsd-discuss-phase 22
+- Start Phase 23 with /gsd-discuss-phase 23

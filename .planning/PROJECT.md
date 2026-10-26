@@ -55,12 +55,12 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ BSL/SSL pool math: ranked stop-cluster inventory as pure functions (shared k=2 swing contract, ATR-merge/cap, equality bonus, lifecycle) + guarded selectPools — v3.1 (Phase 19, 439-test exit proof)
 - ✓ §1 live + chart overlay: Pain Threshold report block (rank-1 sentence, verbatim reasons, honest empties) + nearest-2-per-side BSL/SSL price-line pairs with rank brightness, swept ghosts, verdict gate — v3.1 (Phase 20, 513/513 tests, UAT 14/14)
 - ✓ Execution polish: firing-log band review (1–4/week holds, pools context-only) + buffered ticket + 20-session parity proof + slider sandbox — v3.1 (Phase 21, 14/14 verified)
+- ✓ Pool age/decay + re-accumulation: scorer-plane 1/(1+age/halfLife) multiplier with floor 0.25 (both CALIBRATION-PROVISIONAL), pure asOf-threaded age helpers, SWEPT-ghost order, preview-only sandbox knobs — v3.2 (Phase 22, 15/15 verified, 528/528 tests)
 
 ### Active
 
 - [ ] POOL2-01: TP2 resolver wired to nearest ACTIVE pool on trade side
 - [ ] POOL2-05: Pain-map proximity tag on WHY NOW/ticket prose (read-only suffix)
-- [ ] POOL2-04: Pool age/decay + re-accumulation
 - [ ] POOL2-02: Sentiment multiplier on RetailExposure contract (neutral default)
 - [ ] POOL2-03: 15M intraday swing pools (after D1 ranking stable)
 - [ ] W12: buffered ticket live wiring (harness-proven → live selectTicket)
@@ -131,6 +131,9 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [21] Pools-never-vote lock: parity harness proves trigger/flaw/ticket triple identical pools-on vs pools-off over 20-session replay | Read-only projection context discipline held through execution polish | ✓ Good — 84 bars exact match, anchor parity.test.ts untouched |
 | [21] Buffered ticket: SL 0.25×ATR beyond extreme, TP 0.10×ATR before extreme, live buffer note (W12 WARNING: live selectTicket unbuffered, harness-proven only) | Never magnet-to-the-line, R/R gate unchanged on TP1 | ⚠ Buffered path proven in harness + unit matrix; live wiring deferred |
 | [21] Calibration sandbox: 7th slider primitive + session preview + constant-pinned pristine + hoisted BAXIŞ badge + Apply-record + Yenilə reset clears applied flag | Preview-vs-applied separation holds pre- and post-Apply; CR-01 closed | ✓ Good — Apply-then-drift regression pins the Spoofing fix |
+| [22] Decay core: half-life 10 + floor 0.25 provisional constants, poolAgeBars/poolDecay pure helpers over injected asOf string compare, decayFactor ledger, asOf threaded from evaluatePools | Scorer-plane-only, stored inventory read-only | ✓ Good — fresh=1.0, half-life=0.5, floor holds, 15/15 verified |
+| [22] Lifecycle invariants: weight/touches byte-identity, double-run determinism, SWEPT-ghost order, two-date time ordering, parity 84 bars + purity + selector matrix green | Decay never votes before any consumer reads rank | ✓ Good — zero implementation files touched in the invariant plan |
+| [22] Sandbox preview knobs: decayHalfLifeBars/decayFloor preview fields with clamped setters, two KnobRows reusing installed primitive, pristine vs pinned constants, Apply/reset re-seed | Derivation never reads preview state | ✓ Good — 528/528 suite green |
 
 ## Current State: v3.1 Shipped
 
