@@ -91,6 +91,13 @@ Full detail: `.planning/milestones/v3.1-ROADMAP.md`
 **Requirements:**
 - POOL2-04: Pool age/decay + re-accumulation — ACTIVE-only eligibility predicate + status transition table; scorer-plane decay multiplier (CALIBRATION-PROVISIONAL half-life, stored weight/touches immutable, SWEPT never re-enters rank); re-accumulation via fresh-seed; injected `asOf`, no store timer. Stale/thin matrix pinned (NQ-stale → null, ES-stale → ticket-degraded, rankSkipped → unbuffered).
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Decay constants + pure helpers + scoreAndRank multiplier + decay boundary tests
+- [ ] 22-02-PLAN.md — Immutability/determinism/ghost pins + parity re-run green + purity + selector matrix
+- [ ] 22-03-PLAN.md — Sandbox half-life/floor preview sliders (preview-vs-applied, no derivation reads preview)
+
 **Success criteria:**
 1. User sees §1 Pain Threshold naming only live, relevant pools — stale archaeology no longer ranks (SWEPT/CONSUMED excluded, decay demotes aged pools on the scorer plane with stored weight untouched)
 2. User sees honest-degrade on every stale/thin leg combination: NQ-stale yields null inventory, ES-stale yields ticket-degraded, skipped rank yields unbuffered — never a laundered rank
