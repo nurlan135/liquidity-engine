@@ -76,7 +76,7 @@ Full detail: `.planning/milestones/v3.1-ROADMAP.md`
 
 **Goal:** BSL/SSL ağrı xəritəsini icra qərarlarına bağla — pools-never-vote disiplini ilə. Hər phase parity harness-i yenidən sübut edir.
 
-- [ ] Phase 22: Pool Lifecycle + Decay (POOL2-04)
+- [x] Phase 22: Pool Lifecycle + Decay (POOL2-04) (completed 2026-10-26)
 - [ ] Phase 23: TP2 Resolver (POOL2-01)
 - [ ] Phase 24: Read-Only Context Pair (POOL2-05 + POOL2-02)
 - [ ] Phase 25: 15M Intraday Pools (POOL2-03)
@@ -86,7 +86,7 @@ Full detail: `.planning/milestones/v3.1-ROADMAP.md`
 
 **Goal:** Pool age/decay + re-accumulation — eligibility and decay semantics locked before any consumer reads rank.
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 **Requirements:**
 
@@ -105,7 +105,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 22-03-PLAN.md — Sandbox half-life/floor preview sliders (preview-vs-applied, no derivation reads preview)
+- [x] 22-03-PLAN.md — Sandbox half-life/floor preview sliders (preview-vs-applied, no derivation reads preview)
 
 **Success criteria:**
 
