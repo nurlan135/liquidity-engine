@@ -1,15 +1,14 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Pools P2
 current_phase: 22
-current_phase_name: Pool Lifecycle + Decay (POOL2-04)
-status: planning
+current_phase_name: pool-lifecycle-decay-pool2-04
+status: executing
 stopped_at: Phase 22 context gathered
-last_updated: "2026-10-26T09:23:47.520Z"
+last_updated: "2026-10-26T09:37:05.224Z"
 last_activity: 2026-10-26
-last_activity_desc: Milestone v3.2 roadmap created (Phases 22–26)
-state_head: 391b6c6378a346a86d876724df5233aa2da05e34
+last_activity_desc: Phase 22 execution started
 progress:
   total_phases: 5
   completed_phases: 0
@@ -25,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-18 after v3.1 milestone)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Planning next milestone (v3.1 shipped 2026-09-18)
+**Current focus:** Phase 22 — pool-lifecycle-decay-pool2-04
 
 ## Current Position
 
-Phase: 22 (Pool Lifecycle + Decay (POOL2-04)) — READY TO EXECUTE
-Plan: —
-Status: Ready for Phase 22 discussion (/gsd-discuss-phase 22)
-Last activity: 2026-10-26 — Milestone v3.2 roadmap created (Phases 22–26)
+Phase: 22 (pool-lifecycle-decay-pool2-04) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 22
+Last activity: 2026-10-26 — Phase 22 execution started
 
 ## Performance Metrics
 
