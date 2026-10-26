@@ -1599,6 +1599,18 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     expect(useDashboard.getState().calibrationPreview.dolBoost).toBe(4.0);
     useDashboard.getState().setCalibrationBehindPenalty(-1);
     expect(useDashboard.getState().calibrationPreview.behindPenalty).toBe(0.0);
+    // Decay knobs (Phase 22 D-16): half-life clamps to 1–30 with integer
+    // rounding, floor clamps to 0–0.9.
+    useDashboard.getState().setCalibrationDecayHalfLifeBars(0);
+    expect(useDashboard.getState().calibrationPreview.decayHalfLifeBars).toBe(1);
+    useDashboard.getState().setCalibrationDecayHalfLifeBars(99);
+    expect(useDashboard.getState().calibrationPreview.decayHalfLifeBars).toBe(30);
+    useDashboard.getState().setCalibrationDecayHalfLifeBars(7.6);
+    expect(useDashboard.getState().calibrationPreview.decayHalfLifeBars).toBe(8);
+    useDashboard.getState().setCalibrationDecayFloor(-0.5);
+    expect(useDashboard.getState().calibrationPreview.decayFloor).toBe(0);
+    useDashboard.getState().setCalibrationDecayFloor(2);
+    expect(useDashboard.getState().calibrationPreview.decayFloor).toBe(0.9);
 
     // NaN and non-finite inputs are refused: preview state untouched.
     const before = useDashboard.getState().calibrationPreview;
@@ -1609,6 +1621,10 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
     useDashboard.getState().setCalibrationDolBoost(NaN);
     useDashboard.getState().setCalibrationBehindPenalty(NaN);
     useDashboard.getState().setCalibrationKzEndMin(NaN);
+    useDashboard.getState().setCalibrationDecayHalfLifeBars(NaN);
+    useDashboard.getState().setCalibrationDecayHalfLifeBars(Number.POSITIVE_INFINITY);
+    useDashboard.getState().setCalibrationDecayFloor(NaN);
+    useDashboard.getState().setCalibrationDecayFloor(Number.NEGATIVE_INFINITY);
     expect(useDashboard.getState().calibrationPreview).toEqual(before);
 
     // Session scope (D-15, T-21-06): resetCalibrationPreview re-seeds from
@@ -1640,7 +1656,7 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       TRIGGER_KZ_END_MIN,
       TRIGGER_KZ_START_MIN,
     } = await import('@/src/lib/ict/trigger');
-    const { BEHIND_PENALTY, DECAY_HALF_LIFE_BARS, DECAY_SCORE_FLOOR, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT } = await import('@/src/lib/ict/pools');
+    const { BEHIND_PENALTY, DECAY_HALF_LIFE_BARS, DECAY_SCORE_FLOOR, DOL_BOOST, EQUAL_TOL_BPS, MERGE_ATR_MULT, evaluatePools, scoreAndRank } = await import('@/src/lib/ict/pools');
 
     // Pre-Apply: the review reads unapplied — applied copy empty.
     const before = useDashboard.getState().selectCalibrationReview();
@@ -1693,6 +1709,55 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
       expect(idx).toBeGreaterThan(-1);
       expect(triggerSrc.slice(Math.max(0, idx - 400), idx)).toContain('CALIBRATION-PROVISIONAL');
     }
+
+    // Decay what-if preview independence (Phase 22 D-16/T-22-03): moving both
+    // decay knobs flips pristine off and shows the preview tag path, while the
+    // scorer output stays byte-identical — derivation never reads preview
+    // state; scoreAndRank keeps reading the pinned decay constants.
+    useDashboard.getState().setCalibrationDecayHalfLifeBars(1);
+    useDashboard.getState().setCalibrationDecayFloor(0.9);
+    const drifted = useDashboard.getState().calibrationPreview;
+    expect(drifted.decayHalfLifeBars).toBe(1);
+    expect(drifted.decayFloor).toBe(0.9);
+    expect(
+      drifted.decayHalfLifeBars === DECAY_HALF_LIFE_BARS &&
+        drifted.decayFloor === DECAY_SCORE_FLOOR,
+    ).toBe(false);
+    const leg = fixtureCandles();
+    const window = leg.filter((c) => c.forming !== true);
+    const control = scoreAndRank(
+      [{ side: 'BSL', top: 20200, bottom: 20190, touches: 2, weight: 5, originDate: '2026-01-05', status: 'ACTIVE' }],
+      window,
+      'COMPRESSION',
+      '2026-01-21',
+    );
+    const moved = scoreAndRank(
+      [{ side: 'BSL', top: 20200, bottom: 20190, touches: 2, weight: 5, originDate: '2026-01-05', status: 'ACTIVE' }],
+      window,
+      'COMPRESSION',
+      '2026-01-21',
+    );
+    expect(JSON.stringify(moved)).toBe(JSON.stringify(control));
+    expect(evaluatePools).toBeDefined();
+
+    // Apply re-seeds both decay knobs to the pinned constants and restores
+    // pristine exactly.
+    useDashboard.getState().setCalibrationKzStartMin(200);
+    useDashboard.getState().setCalibrationDolBoost(3.5);
+    useDashboard.getState().applyCalibrationPreview();
+    expect(useDashboard.getState().calibrationPreview.decayHalfLifeBars).toBe(DECAY_HALF_LIFE_BARS);
+    expect(useDashboard.getState().calibrationPreview.decayFloor).toBe(DECAY_SCORE_FLOOR);
+    expect(useDashboard.getState().calibrationPreview).toEqual({
+      kzStartMin: TRIGGER_KZ_START_MIN,
+      kzEndMin: TRIGGER_KZ_END_MIN,
+      dispMult: TRIGGER_DISP_MULT,
+      equalTolBps: EQUAL_TOL_BPS,
+      mergeAtrMult: MERGE_ATR_MULT,
+      dolBoost: DOL_BOOST,
+      behindPenalty: BEHIND_PENALTY,
+      decayHalfLifeBars: DECAY_HALF_LIFE_BARS,
+      decayFloor: DECAY_SCORE_FLOOR,
+    });
 
     useDashboard.getState().stopDualPoll();
   });
