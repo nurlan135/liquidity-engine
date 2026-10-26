@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v3.1
 milestone_name: Pain Threshold (§1) + Execution Polish
-current_phase: 19
-current_phase_name: Pools Math
-status: executing
-stopped_at: Phase 20 context gathered
-last_updated: "2026-09-16T08:48:48.682Z"
-last_activity: 2026-09-16
-last_activity_desc: Phase 19 execution resumed (wave continue)
-state_head: 79a5a03ce7808ae9e290b0c99ae849493365a341
+current_phase: 20
+current_phase_name: §1 Live + Chart Overlay
+status: ready-to-plan
+last_updated: "2026-10-26T16:37:16.750Z"
+last_activity: 2026-10-26
+last_activity_desc: Stale-state cleanup after reset to 6013a7c (sept-16 state restored; 97 later commits kept on backup/pre-reset-6013a7c)
+state_head: 6013a7c91e1882069b3142ac2d71676fd81d6dd4
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 3
+  completed_phases: 1
+  total_plans: 6
   completed_plans: 3
-  percent: 0
+  percent: 33
+stopped_at: Phase 20 context gathered + UI contract approved
 ---
 
 # Project State
@@ -25,22 +25,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-15 after v3.1 milestone start)
 
 **Core value:** Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range math is wrong, nothing else matters.
-**Current focus:** Phase 19 — Pools Math
+**Current focus:** Phase 20 — §1 Live + Chart Overlay
 
 ## Current Position
 
-Phase: 19 (Pools Math) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-09-16 — Phase 19 execution resumed (wave continue)
+Phase: 20 (§1 Live + Chart Overlay) — READY TO EXECUTE
+Plan: 3 of 3 (20-01 tracer → 20-02 chart expansion → 20-03 §1 completion, verified PASS)
+Status: Phase 19 verified 6/6 PASS (458/458 tests, tsc clean); Phase 20 planned 2026-10-26 (research light via ego-browser, checker 12/12 dims PASS, decision coverage 22/22)
+Last activity: 2026-10-26 — Phase 20 planned, ready to execute
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0 (v3.1); 54 cumulative across v1.0/v2.0/v2.1/v3.0
+- Total plans completed: 3 (v3.1 Phase 19); 54 cumulative across v1.0/v2.0/v2.1/v3.0
 - Average duration: ~25 min (historical)
 - Total execution time: —
 
@@ -48,13 +48,13 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 19 | 0 | - | - |
-| 20 | 0 | - | - |
+| 19 | 3 | - | - |
+| 20 | 3 | - | - |
 | 21 | 0 | - | - |
 
 **Recent Trend:**
 
-- v3.1 not started — no trend yet
+- v3.1 Phase 19 verified 6/6 PASS (2026-09-16) — Phase 20 planned 2026-10-26 (3 plans, verified PASS)
 
 *Updated after each plan completion*
 
@@ -65,7 +65,9 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Plan 2026-10-26]: Phase 20 planned — 3 plans (tracer 20-01 → chart expansion 20-02 → §1 completion 20-03), light research via ego-browser (lightweight-charts v5.2 price-line API confirmed, repo pattern audit), checker VERIFICATION PASSED (12/12 dims), decision coverage 22/22, requirements coverage 6/6. `Agri Heddi` typo fixed to `Agri Həddi` in 20-01/20-03.
 - [Roadmap 2026-09-15]: v3.1 continues numbering at Phase 19 (v3.0 ended at Phase 18); 3 phases from research order: pools math → §1 live + chart overlay → execution polish
+- [Reset 2026-10-26]: main reset to 6013a7c (sept-16 state restored: Phase 19 verified PASS, Phase 20 context + UI contract approved). 97 later commits (Phases 19-21 completion, v3.2, Phase 22, HEAD 6c1226c) pushed and kept on backup/pre-reset-6013a7c (local + origin). Stale runtime leftovers (gitignored state.json with phantom v3.2/phase-22 content, milestone.lock, empty v3.2-phases dir) deleted.
 - [Roadmap 2026-09-15]: Pools are read-only projection context that never votes — no trigger gate, no new flaw key, no ticket derivation change in v3.1
 - [Research 2026-09-15]: All ranking constants ship CALIBRATION-PROVISIONAL (merge-ATR multiple, EQUAL_TOL_BPS ~25bps, dolBoost/behind-penalty) + boundary-test pins; Phase 21 reviews against firing log
 - [Research 2026-09-15]: Phase 20 carries `UI hint: yes` (§1 block + chart lines); Phase 21 carries `UI hint: yes` (slider controls) — `/gsd-ui-phase` applies at plan time
@@ -92,10 +94,11 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-16T08:48:48.564Z
-Stopped at: Phase 20 context gathered
-Resume file: C:/Users/HP/Projects/liquidity-engine/.planning/phases/20-1-live-chart-overlay/20-CONTEXT.md
+- [Reset 2026-10-26]: Phase 22 context artifacts live on backup/pre-reset-6013a7c only — the current main stopped at Phase 20 context gathered + UI contract approved; the old "Phase 22 context gathered" resume pointer referred to the pre-reset timeline.
+---
+- **Phase 20 context?** — `.planning/phases/20-1-live-chart-overlay/20-CONTEXT.md` + `20-UI-SPEC.md` (approved) — `/gsd-plan-phase 20` ilə planla
+- **Sept–Oct işi lazım olsa?** — `backup/pre-reset-6013a7c` branch-i (local + origin, HEAD `6c1226c`): v3.1 audit (19-21 shipped), v3.2 roadmap, Phase 22 complete (pool lifecycle + decay)
 
 ## Operator Next Steps
 
-- Plan Phase 19 with /gsd-plan-phase 19 (consider --research-phase for scorer constants + boundary-test matrix)
+- Execute Phase 20 with /gsd-execute-phase 20 (3 plans in 3 waves, tracer-first)

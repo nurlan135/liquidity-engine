@@ -64,7 +64,7 @@ Full detail: `.planning/milestones/v3.0-ROADMAP.md`
 
 **Milestone Goal:** Hesabatın boş §1-i canlanır — BSL/SSL ağrı zonaları xəritələnir, trigger/ticket incə ayarlanır. Pools are read-only projection context that never votes.
 
-- [ ] **Phase 19: Pools Math** - BSL/SSL stop-cluster projection as pure functions + guarded selector
+- [x] **Phase 19: Pools Math** - BSL/SSL stop-cluster projection as pure functions + guarded selector (verified 6/6 PASS, 2026-09-16, 458/458 tests, tsc clean)
 - [ ] **Phase 20: §1 Live + Chart Overlay** - Pain Threshold report block live + pool price lines on chart
 - [ ] **Phase 21: Execution Polish** - Threshold calibration, ticket buffers, parity proof, slider controls
 
@@ -102,7 +102,14 @@ Plans:
   3. User can see BSL/SSL zones as dashed price-line pairs on the chart, capped to nearest-2-per-side, with rank-1 highlighted and swept pools dimmed
   4. User sees pool lines dim under stale/thin tiers and sees ghost lines clear when the ticket stands aside, with ticket entry/SL/TP lines on top
 
-**Plans**: TBD
+**Plans**: 3/3 plans created (verified PASS 2026-10-26)
+
+Plans:
+
+- [x] 20-01-PLAN.md — Tracer: rank-1 §1 sentence + single BSL chart pair end-to-end (S1-01, CHRT-01)
+- [x] 20-02-PLAN.md — Chart expansion: capped overlay + rank colors + ghosts + dim/clear (CHRT-01, CHRT-02, CHRT-03)
+- [x] 20-03-PLAN.md — §1 completion: honest-state matrix + hedge + banned-reuse (S1-01, S1-02, S1-03)
+
 **UI hint**: yes
 
 ### Phase 21: Execution Polish
@@ -127,6 +134,6 @@ Phases execute in numeric order: 19 → 20 → 21
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 19. Pools Math | 3/3 | In Progress|  |
-| 20. §1 Live + Chart Overlay | 0/0 | Not started | - |
+| 19. Pools Math | 3/3 | Complete (verified 6/6) | 2026-09-16 |
+| 20. §1 Live + Chart Overlay | 3/3 | Planned (verified PASS) | - |
 | 21. Execution Polish | 0/0 | Not started | - |
