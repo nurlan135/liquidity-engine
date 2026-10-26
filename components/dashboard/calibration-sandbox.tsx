@@ -7,6 +7,12 @@ import {
   CALIBRATION_BEHIND_MAX,
   CALIBRATION_BEHIND_MIN,
   CALIBRATION_BEHIND_STEP,
+  CALIBRATION_DECAY_FLOOR_MAX,
+  CALIBRATION_DECAY_FLOOR_MIN,
+  CALIBRATION_DECAY_FLOOR_STEP,
+  CALIBRATION_DECAY_HALF_LIFE_MAX,
+  CALIBRATION_DECAY_HALF_LIFE_MIN,
+  CALIBRATION_DECAY_HALF_LIFE_STEP,
   CALIBRATION_DISP_MAX,
   CALIBRATION_DISP_MIN,
   CALIBRATION_DISP_STEP,
@@ -29,6 +35,8 @@ import {
 } from '@/src/lib/ict/trigger';
 import {
   BEHIND_PENALTY,
+  DECAY_HALF_LIFE_BARS,
+  DECAY_SCORE_FLOOR,
   DOL_BOOST,
   EQUAL_TOL_BPS,
   MERGE_ATR_MULT,
@@ -112,6 +120,8 @@ export function CalibrationSandbox() {
   const setMergeAtrMult = useDashboard((s) => s.setCalibrationMergeAtrMult);
   const setDolBoost = useDashboard((s) => s.setCalibrationDolBoost);
   const setBehindPenalty = useDashboard((s) => s.setCalibrationBehindPenalty);
+  const setDecayHalfLifeBars = useDashboard((s) => s.setCalibrationDecayHalfLifeBars);
+  const setDecayFloor = useDashboard((s) => s.setCalibrationDecayFloor);
   const applyCalibrationPreview = useDashboard((s) => s.applyCalibrationPreview);
   const resetCalibrationPreviewToPinned = useDashboard((s) => s.resetCalibrationPreviewToPinned);
   const selectCalibrationReview = useDashboard((s) => s.selectCalibrationReview);
@@ -133,7 +143,9 @@ export function CalibrationSandbox() {
     preview.equalTolBps === EQUAL_TOL_BPS &&
     preview.mergeAtrMult === MERGE_ATR_MULT &&
     preview.dolBoost === DOL_BOOST &&
-    preview.behindPenalty === BEHIND_PENALTY;
+    preview.behindPenalty === BEHIND_PENALTY &&
+    preview.decayHalfLifeBars === DECAY_HALF_LIFE_BARS &&
+    preview.decayFloor === DECAY_SCORE_FLOOR;
   const degraded = ticket !== null && (ticket.degraded.stale || ticket.degraded.thin);
   const degradedTag =
     ticket !== null && ticket.degraded.stale
@@ -254,6 +266,28 @@ export function CalibrationSandbox() {
                 value={preview.behindPenalty}
                 disabled={degraded}
                 onChange={(next) => setBehindPenalty(next)}
+              />
+              <KnobRow
+                label="Yarım-həyat (bar)"
+                slot="sandbox-knob-decay-half-life"
+                display={fmtInt(preview.decayHalfLifeBars)}
+                min={CALIBRATION_DECAY_HALF_LIFE_MIN}
+                max={CALIBRATION_DECAY_HALF_LIFE_MAX}
+                step={CALIBRATION_DECAY_HALF_LIFE_STEP}
+                value={preview.decayHalfLifeBars}
+                disabled={degraded}
+                onChange={(next) => setDecayHalfLifeBars(next)}
+              />
+              <KnobRow
+                label="Skor taban"
+                slot="sandbox-knob-decay-floor"
+                display={fmtMult(preview.decayFloor)}
+                min={CALIBRATION_DECAY_FLOOR_MIN}
+                max={CALIBRATION_DECAY_FLOOR_MAX}
+                step={CALIBRATION_DECAY_FLOOR_STEP}
+                value={preview.decayFloor}
+                disabled={degraded}
+                onChange={(next) => setDecayFloor(next)}
               />
             </div>
             {staleLegError !== null ? (
