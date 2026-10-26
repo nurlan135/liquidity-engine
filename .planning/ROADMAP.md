@@ -86,7 +86,7 @@ Full detail: `.planning/milestones/v3.1-ROADMAP.md`
 
 **Goal:** Pool age/decay + re-accumulation — eligibility and decay semantics locked before any consumer reads rank.
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 **Requirements:**
 
@@ -101,7 +101,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 22-02-PLAN.md — Immutability/determinism/ghost pins + parity re-run green + purity + selector matrix
+- [x] 22-02-PLAN.md — Immutability/determinism/ghost pins + parity re-run green + purity + selector matrix
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
