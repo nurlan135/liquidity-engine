@@ -1,131 +1,126 @@
-# Feature Research: BSL/SSL Pain Threshold Map (§1)
+# Feature Research: Pools P2 Execution Links (TP2, Proximity, Age/Decay, Sentiment, 15M, Buffered Wiring)
 
-**Domain:** ICT buy-side/sell-side liquidity (stop-cluster projection) map + §1 live report block for an NQ execution terminal
-**Researched:** 2026-09-15
-**Confidence:** HIGH (structure anchored in project domain authority `reference/institutional_rules.md` Modul 1.2 + §1/§2/§5 lines; mechanics verified against `src/lib/ict` sources — smt/judas/fvg/asia/dol/levels/bias/trigger/invalidation/report)
+**Domain:** ICT buy-side/sell-side liquidity pool execution links (TP2-from-pool resolver, read-only proximity annotation, pool age/decay + re-accumulation, sentiment multiplier, multi-timeframe D1+15M pool inventory, buffered ticket live wiring) for an NQ execution terminal
+**Researched:** 2026-10-26
+**Confidence:** HIGH on codebase mechanics (verified against `src/lib/ict/pools.ts`, `src/lib/ticket.ts`, `src/lib/store.ts`, `src/lib/ict/trigger.ts`, `src/lib/ict/pools-parity.test.ts`); MEDIUM on external tooling norms (web search returned no usable sources — expectations below are anchored in ICT methodology per `reference/institutional_rules.md` Modul 1.2 + §§1/2/5 and standard ICT-tooling behavior, all ranking constants ship `CALIBRATION-PROVISIONAL` by house convention)
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-A Pain Threshold section that cannot name *which* stop pool, *where* on the chart, *whether it is already swept*, and *how close price is* is not a §1 — it is the old UNAVAILABLE card with new paint. Missing any row below = v3.1 goal unmet.
+A Pools P2 that ships none of the rows below leaves the §5 ticket promise ("TP2: External BSL/SSL") resolved by a stand-in, prose with no urgency context, a map that never ages, and harness-proven buffers that never reach live. Missing any row = milestone goal unmet.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| D1 swing-point pool detection (fractal highs/lows → BSL/SSL levels) | ICT definition of liquidity: stops rest beyond swing highs (BSL) and swing lows (SSL). No swings = no map. Spec §1 line demands "[Qrafikdəki spesifik BSL/SSL] zonası" — a named price, not prose. | LOW | **Reuse, do not rebuild.** Import `isSwingHigh` / `isSwingLow` + `SWING_K = 2` from `smt.ts` (strict fractal, equality = no swing, already pinned by `smt.test.ts`). Run over D1 closed rows (`closedOnly`, trailing `SWING_LOOKBACK = 60` precedent) inside the dealing-range anchor context (`ANCHOR_WINDOW = 20`). Opinionated: extract the two predicates into a shared `swings.ts` in the same phase so `smt.ts` and the new `liquidity.ts` share one owner — importing swing logic *from* SMT couples a cross-market module to a single-market map. Pure function `detectPools(candles)` → `LiquidityPool[]`. |
-| Equal-high / equal-low weighting (obvious-stop boost) | Equal highs/lows are where retail puts stops at the same tick — the densest, most engineered pools. An ICT map that weights a lone wick equal to triple equal-highs misreads the methodology. | LOW | New `EQUAL_TOL_BPS` constant (25 bps default, mirrors `SMT_TOL_BPS = 25` idiom). Cluster same-side swings whose relative gap ≤ tolerance into one pool; pool `weight = swingCount` with an equality bonus (`weight += EQUAL_BONUS`, e.g. +1 per equal touch). Boundary-equality semantics copied from `fvg.ts` (touch ≠ gap) and `judas.ts` `TOL_EPS` float discipline. Test-pin: two highs 3 bps apart cluster, two highs 200 bps apart do not. |
-| Pool projection as zones, not single lines | Stops cluster over a *band* (several swing extremes + equal touches), and the §1 sentence says "zona". Single-line pools flicker on every new wick and cannot render honestly on the chart. | MEDIUM | `LiquidityPool = { side: 'BSL' \| 'SSL', top, bottom, touches: number, equalCount: number, weight: number, originDate, status }`. Zone = [min extreme, max extreme] of the cluster. Cap inventory (trailing-N bound, `FVG_MAP_BOUND = 20` precedent — recommend `POOL_MAP_BOUND = 20`). Sort by originDate, slice trailing, same WR-07 discipline as `applyMitigation`. |
-| Sweep-status tracking per pool (ACTIVE / SWEPT / CONSUMED) | A map that still glows a pool price already raided is worse than no map — it invites chasing consumed liquidity. Spec Modul 3/4 language (süpürmə vs tələ) and the existing `JudasOutput` candidate/confirmed split plus `FvgGap` close-through mitigation already teach the three states. | MEDIUM | **Share sweep semantics, do not invent new ones.** `ACTIVE` (unswept) → `SWEPT` (wick pierced the zone edge, same strict `>` / `<` pierce rule as `judasSwing` gate 2) → `CONSUMED` (close-through beyond the zone + displacement, same close-through rule as `applyMitigation` / `detectTransition` sweep-then-reject). Swept-but-rejected pools (wick pierce, close back inside) stay SWEPT with reduced weight — they remain magnetic for a retest. Single chronological evaluation over closed candles only; first pierce wins, deterministic. Consumed pools dim (thin-tier 0.5 dimming precedent) and drop out of TP2 candidacy. |
-| Proximity + DOL-side scoring (which pool hurts first) | Five ACTIVE pools are noise without ranking. Proximity (distance from last close) × weight × DOL-side alignment is the standard ICT ranking: the nearest unswept pool on the DOL side is the pain threshold. | LOW | Pure `scorePools(pools, lastClose, atr, dol)` → ranked list. `distAtr = \|poolMid − lastClose\| / atr` (`computeATR` from `regime.ts` already exists). `score = weight × dolBoost / (1 + distAtr)`, `dolBoost = 2.0` when pool side matches `DOLTarget` direction (BSL when DOL = range high, SSL when DOL = range low), else `1.0`. Pools behind price (BSL below lastClose, SSL above) get `behindPenalty = 0.25`. All multipliers exported + test-pinned (`CALIBRATION-PROVISIONAL` convention from `trigger.ts`). No new data leg. |
-| §1 live report block with verbatim reasons | The milestone goal is literally "§1 canlanır — verbatim səbəblərlə". Spec §1 fixes the sentence shape: retail side → stop zone → Smart Money intent (süpürmə / tələyə salma). | LOW | Pure `describePainThreshold(ranked, bias, dol)` → deterministic Azerbaijani sentence(s), one base sentence + at most one tag (house pattern: `amdPhase` reasons, `REASON_BY_KEY` in `trigger.ts`, `describeDeliveryTransition`). Null-pools and all-consumed states each get an honest sentence ("Aktiv BSL/SSL hovuzu yoxdur — …"), never an empty block. Flip `REPORT_SECTIONS[0]` to `live` only when this renderer ships with its tests. |
-| Chart overlay for pools (zones + swept state + nearest-pool highlight) | A map with no chart projection is a table, not a map. Users expect to *see* BSL above and SSL below with swept pools visibly dead. | MEDIUM | Props-only extension of `nq-chart.tsx` via existing `createPriceLine` / marker handles (v3.0 trigger-pin precedent): one price line per ACTIVE pool edge (zone band), dimmed lines for SWEPT, hidden for CONSUMED; nearest-pool (rank #1) gets the accent tag. No new chart library, no canvas fork. Bar-date mapping at the caller (same rule as trigger pins). |
+| TP2 = nearest ACTIVE pool on trade side (POOL2-01) | Spec §5 already promises `TP2 (Main Objective): [External BSL/SSL]` — v3.0 shipped TP2 from Asia extremes as an honest stand-in. A paper ticket whose main objective ignores the live ranked pool map is an unkept promise the terminal itself makes. Standard ICT-tooling behavior: final target = opposing liquidity pool, stops rest beyond swing extremes so targets book *before* them. | MEDIUM | New pure `resolveTP2(direction, rankedPools, entry)` → mid of nearest ACTIVE pool on the trade side (LONG → BSL strictly above entry, SHORT → SSL strictly below). Runs inside `resolveTP` between structure-level resolution and the R/R gate: TP2 leg resolves from pool, TP1/TP3 keep current structure-first sources. Null + honest fallback (current Asia-extreme leg) when no ACTIVE pool exists on the trade side — never stretch a zone or pick a farther pool to pass R/R. Ticket + parity test updates required (R/R gate stays TP1-only). |
+| Buffered ticket live wiring (W12) | Phase 21 proved buffered SL/TP in harness + unit matrix but left live `selectTicket` unbuffered (`W12 WARNING`). Magnet-to-the-line stops/targets are the known-bad behavior the buffer exists to kill: SL 0.25×ATR beyond the extreme, TP 0.10×ATR before it. Users expect the live ticket to price what the harness proved. | LOW | `selectTicket` builds `TicketBufferInput { atr, poolExtreme }` from the ranked pools (nearest ACTIVE extreme on the correct side of entry — SL-side extreme for the stop, TP-side extreme for targets; wrong-side extreme degrades that leg to unbuffered per the existing `resolveSL`/`resolveTP` guards) and passes it into `computeTicket`. Null degrades to unbuffered structure levels — never a throw. `computeTicket` signature already accepts `buffer`; no ict/ change, no gate-order change. |
+| Read-only proximity tag on WHY NOW/ticket prose (POOL2-05) | WHY NOW already prints an SMT agree-tag; traders expect the same urgency context for liquidity ("is the pool near or far?"). Standard annotation behavior in ICT tooling: distance-to-draw readouts that inform urgency but never trigger entries. | LOW | Append-only suffix composed display-only from ranked-pool fields (same `smtSuffix` pattern in `trigger.ts`: unsuppressed/agreeing SMT yields text, else empty string, never blocks FIRE). E.g. rank-1 pool on the trade side within `NEAR_ATR_MULT` (1.0 ATR provisional) → `" BSL yaxındır."`; far/off-side → alternate or empty string. Parity tests pin the tag separately from the (trigger, flaw, ticket) triple — pools never vote. `describePool` in `src/lib/report.ts` is the precedent for display-only pool prose. |
+| Sentiment multiplier on RetailExposure contract, neutral default (POOL2-02) | Spec Modul 1.2 ties pain to retail positioning (60%+ one side → stops cluster on the other side). The §1 sentence is structurally incomplete without the positioning side, and every ICT pain-map tool weights the crowd side. Fixture-fed today, so the multiplier must default neutral. | LOW | Define `RetailExposure { buyPct, sellPct, genuine }` input contract (60%-majority rule from Modul 1.2; `trueAvg` in `src/lib/sentiment.ts` already computes crowd side + `CROWDED_THRESHOLD = 60`). `painSide = majority BUY ? SSL : BSL`; pools on the pain side get `sentimentBoost = 1.5`, else `1.0` — wired into `scoreAndRank` as one more multiplier beside `dolBoost`/`behindPenalty`, exported + test-pinned. While sentiment is fixtures: `genuine: false` forces `1.0` neutral + "Ssenari sentiment" provenance; boost applies only when `genuine: true`. Never flips rankings silently under fixtures. |
+| Pool age/decay + re-accumulation (POOL2-04) | Swept pools refill — new swings form beyond the old raid and the zone becomes dangerous again. Static maps go stale within days; standard tooling behavior is time- or touch-decay on old levels plus re-seeding of fresh extremes. Without this §1 slowly names archaeology. | MEDIUM | `ageBars = asOfDate − originDate` in D1 bars; `decay = 1 / (1 + ageBars / DECAY_HALF_LIFE)` (half-life ~10 bars, provisional) applied as a **score multiplier only** — lifecycle never edits weight per pools.ts D-04, decay rides the scorer beside `behindPenalty`. Re-accumulation falls out of `detectPools` naturally: new swings past a CONSUMED zone seed a fresh ACTIVE pool (non-overlap dedupe). Ship behind the scorer with exported constants; calibrate half-life against the firing log (Phase 21 review discipline). |
+| 15M intraday swing pools merged into inventory (POOL2-03) | D1-only pools miss the intraday obvious stops (Asia high/low, session extremes are the most-swept levels on this terminal — Judas proves it on the 15M leg). Standard multi-timeframe liquidity tools maintain HTF + intraday inventories side by side. Explicitly sequenced after D1 ranking proves stable. | MEDIUM | Run the **shared** `isSwingHigh`/`isSwingLow` + `SWING_K` predicates from `src/lib/ict/swings.ts` over `closedOnlyIntraday(nq15m.candles)` highs/lows (never D1 `Candle` rows — pools.ts D-10 contract; the two candle shapes stay un-unified per types.ts D-16). Tag `source: '15m'`, merge/dedupe with the D1 inventory by non-overlap, rank jointly. Depends on the already-polled `nq15m` leg in `store.ts`; stale-15M refuses per the existing selector guard idiom. Smaller lookback than `SWING_LOOKBACK = 60` — intraday window constant provisional. |
 
 ### Differentiators (Competitive Advantage)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Stop-density score with equal-touch bonus | Generic TradingView liquidity scripts plot every swing high/low as equal lines. A density score (touch count + equality bonus + recency) surfaces *the* pain threshold instead of twenty lines. Rare in retail ICT packs, cheap here because swing + tolerance machinery already exists. | LOW | `weight = touches + EQUAL_BONUS × equalCount`, recency tiebreak by `originDate`. Render weight as line width/opacity tier (2–3 tiers max, not a continuous heatmap — see anti-features). Feeds the §1 "böyük ehtimalla [zona]" wording honestly: the top-ranked pool is the named zone. |
-| Multi-source pool seeding (D1 swings + Asia extremes + PDH/PDL equivalents) | D1-only pools miss the intraday obvious stops (Asia high/low are the most-swept levels on the terminal — Judas proves it). Seeding pools from Asia extremes + dealing-range high/low + D1 swings gives full-spectrum coverage with zero new detectors. | MEDIUM | Seed list: D1 swing clusters (primary) + `AsiaRange.high/low` as pre-weighted pools (weight 2, tagged `source: 'asia'`) + `DealingRange.high/low` as HTF magnets (tagged `source: 'range'`). Dedupe seeds falling inside an existing zone (merge, do not double-count). Depends on `asia.ts` + `range.ts` outputs already in the store. 15M intraday swing pools are P2 (see MVP). |
-| TP2 resolver wired to the live pool map | Spec §5 already promises `TP2 (Main Objective): [External BSL/SSL]` — v3.0 shipped TP2 from Asia extremes as a stand-in. Wiring TP2 to the ranked ACTIVE pool on the trade side closes a promise the ticket already makes. | MEDIUM | `resolveTP2(direction, rankedPools)` → nearest ACTIVE pool mid on the trade side (LONG → BSL above, SHORT → SSL below), null + honest fallback when none exists (keep current Asia-extreme fallback, never stretch a zone to pass R/R). Must run *after* pool ranking, *before* the R/R gate — same derivation order as invalidation → targets → R/R. Small, high-trust change; needs ticket + parity test updates. |
-| Sentiment-side pain multiplier (fixture-honest) | Spec Modul 1.2 ties pain to retail positioning (60%+ one side → stops on the other side). Even fixture-fed, a named multiplier keeps the §1 sentence structurally complete and makes the real-feed swap a one-line change later. | LOW | `painSide = retailMajoritySide === 'BUY' ? 'SSL' : 'BSL'` (stops of the crowd); pools on the pain side get `sentimentBoost = 1.5`, else `1.0`. While sentiment is fixtures: default multiplier `1.0` neutral + provenance tag "Ssenari sentiment" (existing fixture-honesty pattern). Never let fixtures flip rankings silently — boost applies only when fixture flag `genuine: true`. |
-| Pool age + re-accumulation (pools rebuild after the sweep) | Swept pools refill — new swings form beyond the old raid and the zone becomes dangerous again. Static maps go stale within days; age/decay + re-seeding keeps §1 alive across the 2–4 week observation window. | MEDIUM | `ageBars = asOfDate − originDate` in D1 bars; `decay = 1 / (1 + ageBars / DECAY_HALF_LIFE)` (exported, e.g. half-life 10 bars, provisional). Re-accumulation falls out naturally: new swings detected past a CONSUMED zone seed a fresh ACTIVE pool (dedupe by non-overlap). P2 — ship static-status map first, add decay once firing-log data shows staleness. |
-| Pain-map confidence tag on the WHY NOW ticket (read-only) | WHY NOW already prints an SMT agree-tag; a "BSL yaxındır / uzaqdır" proximity tag on §§4–5 gives the trader urgency context without touching gate logic. High perceived value, near-zero risk because it never votes. | LOW | Read-only suffix in trigger/ticket prose (same `smtSuffix` pattern): append `" BSL yaxındır."` when rank-1 pool is on the trade side within `NEAR_ATR_MULT` (e.g. 1.0 ATR). Never a gate, never blocks FIRE — parity tests pin the tag separately from verdicts. |
+| DOL-side-aware TP2 selection (not naive nearest) | Generic liquidity scripts target the nearest line in either direction. Selecting the nearest ACTIVE pool **on the trade side** (DOL-aligned) keeps TP2 consistent with the bias/DOL read the rest of the terminal already makes — the edge is coherence, not cleverness. | LOW (inside POOL2-01) | Trade side derives from ticket direction (FIRE verdict), DOL side from existing `DOLTarget`; when they disagree the trade side wins for TP2 (the ticket prices the trade taken, not the map's favorite pool) with the disagreement visible in §1 prose. |
+| Pools-never-vote parity discipline as a trust story | No retail ICT pack proves its context layer cannot move entries. The 20-session parity harness (trigger/flaw/ticket triple identical pools-on vs pools-off) already exists — every P2 feature extends it rather than reasoning about coupling from scratch. | LOW | Each P2 plan adds its feature to both parity arms (buffer build shared, tag compared separately, scorer multipliers in both arms) and the triple still matches exactly. `pools-parity.test.ts` + `parity.test.ts` stay byte-identical anchors; new files extend, never edit. |
+| Calibration sandbox extended to pool knobs | Phase 21 shipped a 7-slider sandbox (WHY NOW thresholds + pool tolerances) with preview-vs-applied discipline. Adding decay half-life / `NEAR_ATR_MULT` / sentiment boost as preview knobs gives the operator the same safe what-if surface for P2 constants. | LOW | Same Apply-record / Yenilə-reset path; derivation keeps reading pinned module constants until Apply commits. No new UI primitive — one slider row per knob inside the existing sandbox panel. |
+| Falsifiable §6 sentences naming the pool raid | `invalidation.ts` already ships BSL/SSL falsification sentences (`SENTENCE_LONG_LOW` / `SENTENCE_SHORT_HIGH`). Naming the *TP2 pool* in the confirm/deny path ("BSL reydi bu ssenarini təsdiqləyir") closes the loop between §1 pain, §5 target, and §6 invalidation in the trader's language. | LOW | Read-only sentence selection, no gate change. Extends the existing 4-cell lookup, display-only. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Exact stop-price prediction ("stops at 24,318.50") | Feels precise and premium. | False precision — stops are a distribution over a zone, and Yahoo D1 granularity cannot resolve tick-level clusters. A wrong exact number destroys trust in every other derived number (ticket entry/SL/TPs). | Zones with top/bottom + touch count; §1 names the zone bounds, never a single tick. |
-| Auto-FIRE / alert when price touches a pool | "Ping me at liquidity" feels pro. | Violates the trigger contract: pool touch without killzone timing + purge + displacement is inducement-chasing (spec rule #1 TIME>PRICE, v3.0 spam pitfall). Touch ≠ sweep, sweep ≠ entry. | Pool touch renders proximity emphasis on the chart only; FIRE still requires the three-gate `evaluateTrigger` path untouched. |
-| 5M/1M microstructure pools | Spec §§4–6 are written for 5M/1M; finer pools sound more accurate. | Terminal ingests D1 + 1H/15M only (Yahoo allowlist + zero-budget polling). A 5M leg doubles poll surface for unproven value — the exact P3 call v3.0 deferred. | D1 pools first (P1), 15M intraday pools P2, 5M only if 15M proves too coarse after calibration. |
-| Real retail-sentiment API integration | Modul 1.2 reads like it needs live positioning. | Zero budget, no API keys (PROJECT.md out-of-scope: fixtures only). A half-wired "live" badge on scraped data is dishonest and breaks determinism. | Keep fixture shape + `genuine` flag + neutral-multiplier default; define the input contract (`RetailExposure { buyPct, sellPct, genuine }`) so the feed swap is mechanical later. |
-| Continuous heatmap / volume-profile rendering | Looks institutional and impressive. | Canvas heat gradients fork the `nq-chart.tsx` overlay discipline (price-line/marker handles only), cost HiDPI/resize regressions (v2.1 polish was hard-won), and imply density data we do not have. | 2–3 tier line opacity/width by weight + dimming for SWEPT (existing 0.5-dimming idiom). Discrete, testable, resize-safe. |
-| LLM-generated pain narrative | "AI explains where stops are" sounds premium. | Breaks determinism (PROJECT.md: rule-based only); non-reproducible §1 cannot be backtested, replayed, or parity-checked against the ticket. | Deterministic sentence selection (one base + suffix tags), verbatim + unit-pinned like every other report block. |
-| Letting the pain map gate or veto WHY NOW FIRE | "Don't fire into the wrong pool" sounds safe. | Couples a new uncalibrated module into the calibrated trigger path → flicker, permanent-ARMED, and invalidation-race regressions (v3.0 pitfalls 2/3/6). Direction of dependence must be trigger → pools, never pools → trigger. | Pools are read-only context for §1 prose + TP2 + proximity tag. Any future gating needs its own calibration band + population test — explicitly P3, not v3.1. |
+| Magnet-to-the-line TP2/SL (target exactly at the pool extreme) | Feels maximally precise — book exactly where the stops are. | Guarantees the worst fill: stops cluster *at* the extreme, so a target exactly on it competes with the raid instead of front-running it. This is the exact behavior the Phase 21 buffer (0.25×ATR beyond / 0.10×ATR before) was built to reject. | Buffered offsets stay mandatory on pool-derived legs; the extreme itself is never a target or a stop (already pinned in `resolveSL`/`resolveTP` docs). |
+| Stretching TP2 to pass the R/R gate (picking a farther pool so 1:3 holds) | Fewer STAND ASIDE tickets, feels more productive. | Fabricates expectancy: the gate exists to refuse bad geometry, and TP2-shopping turns a risk control into a fitting exercise. R/R is gated on TP1 only by OQ-3 lock. | Honest STAND ASIDE with the computed ratio in the reason (sole sanctioned interpolation); TP2 resolves independently of the gate outcome. |
+| Letting pools gate or veto WHY NOW FIRE | "Don't fire into the wrong pool" sounds safe. | Couples a newly-touched module into the calibrated trigger path → flicker, permanent-ARMED, invalidation races (v3.0 pitfalls 2/3/6). Dependence must stay trigger → pools, never pools → trigger. | Pools are read-only context for §1 prose + TP2 + proximity tag. Any future gating needs its own calibration band + population test — explicitly P3, not P2. |
+| Auto-FIRE / alert when price touches a pool | "Ping me at liquidity" feels pro. | Pool touch without killzone timing + purge + displacement is inducement-chasing (spec rule #1 TIME>PRICE, v3.0 spam pitfall). Touch ≠ sweep, sweep ≠ entry. | Pool touch renders proximity emphasis on the chart only; FIRE still requires the three-gate `evaluateTrigger` path untouched. |
+| 5M microstructure pools | Finer pools sound more accurate for §§4–6. | Terminal ingests D1 + 1H/15M only; a 5M leg doubles poll surface for unproven value — the exact call v3.0 deferred, still valid under zero-budget polling. | D1 pools proven (v3.1), 15M pools P2; 5M only if 15M proves too coarse after calibration. |
+| Real retail-sentiment feed | Modul 1.2 reads like it needs live positioning. | Zero budget, no API keys (PROJECT.md out-of-scope: fixtures only). A half-wired "live" badge on scraped data is dishonest and breaks determinism. | `RetailExposure` contract-first + `genuine` flag + neutral-multiplier default; feed swap stays mechanical. |
+| Continuous heatmap / volume-profile rendering | Looks institutional and impressive. | Forks the `nq-chart.tsx` price-line/marker overlay discipline, risks HiDPI/resize regressions (v2.1 polish was hard-won), implies density data Yahoo D1 cannot supply. | 2–3 tier line opacity/width by weight + 0.5 dimming for SWEPT (existing idiom). Discrete, testable, resize-safe. |
+| LLM-generated pain narrative | "AI explains where stops are" sounds premium. | Breaks determinism (rule-based only); non-reproducible §1 cannot be backtested, replayed, or parity-checked. | Deterministic sentence selection (one base + suffix tags), verbatim + unit-pinned like every other report block. |
 
 ## Feature Dependencies
 
 ```
-§1 Pain Threshold block (live)
-    ├──requires──> Pool detector (D1 swings → clusters → zones)
-    │                  ├──requires──> isSwingHigh/isSwingLow + SWING_K (SHARED with smt.ts → extract to swings.ts)
-    │                  ├──requires──> EQUAL_TOL_BPS clusterer (new const, SMT_TOL_BPS idiom)
-    │                  └──requires──> closedOnly D1 rows + SWING_LOOKBACK window (existing types.ts)
-    ├──requires──> Sweep-status tracker (ACTIVE/SWEPT/CONSUMED)
-    │                  ├──requires──> Judas pierce idiom (strict >/< Asia-extreme rule, first-sweep-wins)
-    │                  └──requires──> FVG mitigation idiom (close-through fill, sweep-then-reject)
-    ├──requires──> Proximity/DOL scorer
-    │                  ├──requires──> computeATR (existing regime.ts) + lastClose
-    │                  ├──requires──> DOLTarget + bias (existing dol.ts / bias.ts)
-    │                  └──requires──> AsiaRange + DealingRange seeds (existing asia.ts / range.ts)
-    ├──requires──> §1 prose renderer (describePainThreshold, verbatim AZ sentences)
-    └──requires──> Pool chart overlay (price-line/marker handles in nq-chart.tsx)
+TP2-from-pools resolver (POOL2-01)
+    └──requires──> Ranked pool inventory (evaluatePools + scoreAndRank, ACTIVE-only rank eligibility)
+    │                  └──requires──> shared swings.ts predicates + EQUAL_TOL_BPS clusterer (shipped v3.1)
+    ├──requires──> Paper-ticket fixed derivation order (direction → entry → SL → TP ladder → R/R on TP1)
+    │                  └──requires──> checkFatalFlaw precedence (flaw → STAND ASIDE before TP resolution)
+    └──requires──> Buffered offsets (W12 TicketBufferInput contract — poolExtreme + ATR)
 
-TP2-from-pools resolver ──enhances──> paper ticket (reads ranked pools, null-safe fallback to Asia extreme)
-Proximity tag ──enhances──> WHY NOW / ticket prose (read-only suffix, never a gate)
-Sentiment multiplier ──enhances──> scorer (neutral 1.0 default while fixtures feed)
+Proximity tag (POOL2-05) ──enhances──> WHY NOW reason + §§4–5 prose (read-only suffix, smtSuffix pattern)
+    └──requires──> scoreAndRank rank-1 + distAtr in ATR units
 
-Pain map ──conflicts──> trigger gating (pools must NEVER vote in evaluateTrigger; one-way read-only dependence)
-5M pools ──conflicts──> zero-budget poll surface (deferred P3)
+Sentiment multiplier (POOL2-02) ──enhances──> scoreAndRank (third multiplier beside dolBoost/behindPenalty)
+    └──requires──> RetailExposure contract { buyPct, sellPct, genuine } + trueAvg crowd side (60% rule)
+
+Pool age/decay (POOL2-04) ──enhances──> scoreAndRank (decay multiplier, weight untouched per D-04)
+    └──requires──> originDate + injected asOf (purity: no clock reads)
+
+15M pools (POOL2-03) ──enhances──> pool inventory (second seeding source, joint ranking)
+    ├──requires──> nq15m intraday leg (already polled, closedOnlyIntraday, stale-refuses)
+    ├──requires──> shared swings.ts predicates (D1 Candle and IntradayCandle shapes stay separate)
+    └──requires──> D1 ranking stable first (explicit milestone sequencing)
+
+W12 buffered live wiring ──enhances──> selectTicket (builds TicketBufferInput from ranked pools)
+    └──requires──> selectPools inside selectTicket's single-snapshot chain (same epoch, no second slice)
+
+Pool inventory + ALL P2 features ──conflicts──> trigger gating (pools never vote in evaluateTrigger/checkFatalFlaw)
 ```
 
 ### Dependency Notes
 
-- **Pool detector shares swing code with SMT:** `isSwingHigh` / `isSwingLow` + `SWING_K` are proven (strict fractal, boundary-pinned). Extract to `src/lib/ict/swings.ts` with zero behavior change first, then both `smt.ts` and `liquidity.ts` import from it — the same mechanical-cleanup-first pattern as v3.0 Phase 1. Never copy-paste the predicates.
-- **Sweep tracker shares Judas + FVG idioms:** wick-pierce = sweep (judas gate 2 strict inequality), close-through = consumed (FVG `applyMitigation`), pierce-plus-close-back = sweep-then-reject (`detectTransition`). One shared vocabulary across three modules; review must check the new tracker consumes the idioms, not re-derives them.
-- **Scorer reads DOL/bias/ATR, never writes:** `computePrimaryDOL` direction decides the boosted side; `computeBias` position decides premium/discount context for the §1 sentence; `computeATR` supplies the distance denominator. All are selector-level reads — no signature changes to existing modules.
-- **Ticket/trigger consume pools one-way:** TP2 resolver + proximity tag read `rankedPools`; neither `evaluateTrigger` gates nor `checkFatalFlaw` inputs change shape. This ordering is what keeps v3.0's 420 tests green while §1 goes live.
-- **Asia + range seeds are free coverage:** `AsiaRange` extremes and `DealingRange` high/low already flow through the store — seeding pools from them is a mapping function, not a detector. NY-session unavailability honesty (`REASON_NY_UNAVAILABLE` precedent) applies: pools seeded from unavailable sessions tag provenance instead of guessing.
-- **Sentiment input is a contract, not a feed:** define `RetailExposure` fixture shape now (buyPct/sellPct/genuine flag, 60%-majority rule from Modul 1.2); multiplier defaults neutral until a real source exists. Zero-budget constraint holds.
+- **TP2 resolver reads ranked pools, never re-ranks:** `evaluatePools` → `scoreAndRank` is the single rank owner; `resolveTP2` filters ACTIVE + trade-side + entry-side and picks nearest mid. No scorer duplication, no second ATR read.
+- **W12 is the mechanical prerequisite for pool-derived TP2/SL honesty:** the `TicketBufferInput { atr, poolExtreme }` contract already exists in `src/lib/ticket.ts` with per-leg wrong-side degradation; `selectTicket` just never builds it. Wire W12 first so POOL2-01's pool legs inherit buffering instead of bolting it on afterward.
+- **Proximity tag is fully independent:** needs only rank-1 + `distAtr` from the existing `PoolScore` ledger — no ticket, scorer, or inventory change. Shippable in any order; natural pair with POOL2-01 prose review.
+- **Sentiment and decay are scorer-only changes:** both add one multiplier to `scoreAndRank`'s `score = weight × dolBoost × behindPenalty × sentimentBoost × decay / (1 + distAtr)` with exported provisional constants. Neither touches detector, lifecycle, ticket, or trigger — parity harness covers both arms identically.
+- **15M pools go last by explicit milestone order:** new seeding source + merge/dedupe + joint ranking is the largest inventory change; D1 ranking must be calibration-stable first or two moving parts confound the firing-log review.
+- **One-way dependence is theP2 invariant:** trigger → pools → ticket-prose/T P2. `e:\valuateTrigger` and `checkFatalFlaw` take no pools input anywhere (parity harness pins this); every P2 plan extends the pools-on/pools-off triple-match proof.
 
 ## MVP Definition
 
-### Launch With (v3.1)
+### Launch With (Pools P2)
 
-Minimum viable Pain Threshold — map, rank, sweep-state, §1 live, overlay. All paper, all deterministic, all pure.
+Execution-linked pools with pools-never-vote discipline intact. Suggested execution order inside the milestone (dependencies, not priority — all six ship):
 
-- [ ] Shared swing extraction (`swings.ts`, zero behavior change, `smt.test.ts` green as gate) — why essential: every pool depends on it, and forked swing logic is the #1 future-bug source
-- [ ] `liquidity.ts` pool detector (D1 swing clusters + `EQUAL_TOL_BPS` + zone projection + `POOL_MAP_BOUND`) — why essential: the map itself
-- [ ] Sweep-status tracker (ACTIVE/SWEPT/CONSUMED over closed candles, Judas/FVG idioms) — why essential: without it the map advertises dead pools
-- [ ] Proximity/DOL scorer (ATR distance + DOL boost + behind-penalty, exported provisional constants) — why essential: ranking is what makes §1 name *the* zone
-- [ ] `describePainThreshold` + `REPORT_SECTIONS[0]` flipped live — why essential: the visible milestone promise (§1 canlanır)
-- [ ] Pool chart overlay (ACTIVE bands + SWEPT dim + rank-1 highlight via existing handles) — why essential: a map must project onto price
-- [ ] Asia + range seed pools (weight-tagged, deduped) — why essential: intraday obvious stops the D1 scan misses, zero new detectors
+- [ ] W12 buffered ticket live wiring — why first: harness-proven, smallest blast radius (`selectTicket` builds the existing `TicketBufferInput`), and POOL2-01's pool legs need buffering on day one
+- [ ] POOL2-01 TP2 resolver — why essential: closes the §5 "TP2: External BSL/SSL" promise the ticket already makes; runs between TP resolution and the TP1-only R/R gate with honest null fallback
+- [ ] POOL2-05 proximity tag — why essential: urgency context on WHY NOW/ticket prose at near-zero risk (read-only suffix, `smtSuffix` precedent); independent, pairable with POOL2-01 review
+- [ ] POOL2-02 sentiment multiplier — why essential: completes the Modul 1.2 §1 structure (crowd side → pain side) while fixtures stay honest via neutral-default + `genuine` flag
+- [ ] POOL2-04 age/decay + re-accumulation — why essential: keeps §1 alive across the observation window; scorer-multiplier only, half-life calibrated against the firing log
+- [ ] POOL2-03 15M intraday pools — why last: explicit milestone sequencing (after D1 ranking stable); shared `swings.ts` predicates on `closedOnlyIntraday(nq15m)`, source-tagged, deduped, jointly ranked
 
-### Add After Validation (v3.1.x)
+### Add After Validation (v3.2.x)
 
-- [ ] TP2-from-pools resolver wired into the ticket — trigger: ranked pools stable on live replay + parity tests updated (ticket currently falls back to Asia extremes honestly)
-- [ ] Sentiment multiplier activated on the `RetailExposure` contract — trigger: fixture `genuine` path proven; still neutral-default until a real feed decision
-- [ ] 15M intraday swing pools merged into the inventory — trigger: D1 pools prove ranking-stable; 15M uses the same `swings.ts` predicates on `IntradayCandle` highs/lows
-- [ ] Pool age/decay + re-accumulation pools — trigger: firing-log / observation notes show staleness (old CONSUMED zones cluttering or fresh raids unranked)
-- [ ] Proximity tag on WHY NOW/ticket prose ("BSL yaxındır") — trigger: scorer constants survive first calibration review
+- [ ] Calibration-sandbox knobs for decay half-life / `NEAR_ATR_MULT` / sentiment boost — trigger: P2 constants survive first firing-log calibration review
+- [ ] TP2-pool naming in §6 falsification sentences — trigger: TP2 resolver stable on live replay
+- [ ] Asia + range seed pools re-weighted against 15M inventory — trigger: 15M pools show overlap/duplication patterns worth folding into seed weights (v3.1 seeded Asia/range as pre-weighted pools; 15M may subsume some)
 
 ### Future Consideration (v4+)
 
-- [ ] 5M microstructure pools — why defer: needs a new Yahoo poll leg (free-tier risk); only if 15M proves too coarse after calibration
+- [ ] 5M microstructure pools — why defer: new Yahoo poll leg on free-tier budget; only if 15M proves too coarse after calibration
 - [ ] Real retail-sentiment feed replacing fixtures — why defer: budget + determinism posture; contract-first keeps the swap mechanical
-- [ ] Pool-gated trigger logic (if ever) — why defer: requires its own calibration band + population test + flicker analysis; explicitly not v3.1
-- [ ] Cross-symbol pools (ES confirmation leg pools) — why defer: ES is the SMT confirmation leg, not the traded instrument (v3.0 multi-symbol anti-feature transfers)
+- [ ] Pool-gated trigger logic (if ever) — why defer: requires its own calibration band + population test + flicker analysis; explicitly rejected for P2
+- [ ] Cross-symbol pools (ES confirmation-leg pools) — why defer: ES is the SMT confirmation leg, not the traded instrument
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| D1 swing-pool detector (shared swings.ts) | HIGH | LOW | P1 |
-| Equal-high/low weighting + zone projection | HIGH | LOW | P1 |
-| Sweep-status tracker (ACTIVE/SWEPT/CONSUMED) | HIGH | MEDIUM | P1 |
-| Proximity/DOL scorer | HIGH | LOW | P1 |
-| §1 prose renderer + section flip live | HIGH | LOW | P1 |
-| Pool chart overlay (existing handles) | HIGH | MEDIUM | P1 |
-| Asia + range seed pools | HIGH | LOW | P1 |
-| TP2-from-pools resolver | MEDIUM | MEDIUM | P2 |
-| Sentiment multiplier (fixture-honest) | MEDIUM | LOW | P2 |
-| 15M intraday pools | MEDIUM | MEDIUM | P2 |
-| Age/decay + re-accumulation | MEDIUM | MEDIUM | P2 |
-| Proximity tag on trigger/ticket prose | LOW | LOW | P2 |
-| 5M pools | LOW (until proven needed) | MEDIUM | P3 |
-| Real sentiment feed | LOW (paper terminal) | HIGH | P3 — anti-feature for v3.1 |
-| Pool-gated trigger | LOW (risk > value now) | HIGH | P3 — explicitly rejected for v3.1 |
+| TP2-from-pools resolver (POOL2-01) | HIGH (closes printed §5 promise) | MEDIUM | P1 |
+| Buffered ticket live wiring (W12) | HIGH (harness-proven → live correctness) | LOW | P1 |
+| Proximity tag on prose (POOL2-05) | MEDIUM (urgency context, zero risk) | LOW | P1 |
+| Sentiment multiplier, neutral default (POOL2-02) | MEDIUM (structural completeness, honest fixtures) | LOW | P1 |
+| Age/decay + re-accumulation (POOL2-04) | MEDIUM (map stays alive across weeks) | MEDIUM | P1 |
+| 15M intraday pools (POOL2-03) | MEDIUM (intraday obvious stops) | MEDIUM | P1 (sequenced last) |
+| Sandbox knobs for P2 constants | LOW (operator tuning) | LOW | P2 |
+| TP2-pool naming in §6 sentences | LOW (narrative closure) | LOW | P2 |
+| Magnet-to-the-line TP/SL | NONE (actively harmful) | — | ANTI |
+| R/R-shopping across pools | NONE (fabricates expectancy) | — | ANTI |
+| Pool-gated FIRE | LOW (risk > value now) | HIGH | P3 — explicitly rejected for P2 |
 
 **Priority key:**
 - P1: Must have for launch
@@ -136,24 +131,27 @@ Minimum viable Pain Threshold — map, rank, sweep-state, §1 live, overlay. All
 
 | Feature | Generic ICT liquidity scripts (TradingView BSL/SSL, LuxAlgo-style packs) | Retail signal-bot channels | Our Approach |
 |---------|--------------------------------------------------------------------------|----------------------------|--------------|
-| Swing-pool detection | Plots every fractal high/low as equal lines; no clustering, no zones | No map — "liquidity above" hand-waving | Shared proven fractal predicates + tolerance clustering into weighted zones, capped inventory |
-| Equal-high/low emphasis | Sometimes marked, never scored | Ignored | First-class weight bonus with exported tolerance constant, test-pinned |
-| Sweep-status | Rarely tracked; raided lines stay plotted | Never published; losers deleted | ACTIVE/SWEPT/CONSUMED lifecycle reusing Judas pierce + FVG close-through idioms; consumed pools dim out |
-| Proximity ranking | Trader eyeballs distance | None | ATR-normalized score × DOL-side boost × behind-penalty; rank-1 pool is the named §1 zone |
-| §1 pain narrative | None — indicators plot, trader narrates | Opaque "stops above" call | Deterministic §1 sentence (retail side → zone → Smart Money intent) rendered verbatim, honest-empty states |
-| Ticket integration | None — trader places TPs by hand | Entry/SL/TP text with no provenance | TP2 resolves from the live ranked pool with honest fallback; proximity tag is read-only context |
+| TP-from-liquidity | Nearest line in either direction, often exactly on the level (magnet-to-the-line) | Entry/SL/TP text with no provenance | Nearest ACTIVE pool on trade side, buffered before the extreme, honest null fallback, R/R gated on TP1 only |
+| Proximity context | Trader eyeballs distance to plotted lines | "Liquidity above" hand-waving | ATR-normalized read-only tag on WHY NOW/ticket prose, never a gate, parity-pinned |
+| Pool aging | Rarely tracked; raided lines stay plotted indefinitely | Never published; losers deleted | Age-in-bars decay as scorer multiplier (weight untouched), re-accumulation via fresh-swing seeding, half-life calibrated on the firing log |
+| Sentiment weighting | Sometimes plotted, never scored | Ignored or cherry-picked screenshots | `RetailExposure` contract with 60%-majority rule, neutral 1.0 default under fixtures, provenance-tagged |
+| Multi-timeframe pools | Single-timeframe lines; MTF packs duplicate detectors per TF | None | Shared `swings.ts` predicates across D1 + 15M shapes, source-tagged single inventory, joint ranking, D1-stable-first sequencing |
+| Buffer discipline | None — stops/targets on the line | None | SL 0.25×ATR beyond / TP 0.10×ATR before, harness-proven then live-wired, wrong-side degradation per leg |
 
 ## Sources
 
-- `reference/institutional_rules.md` — Modul 1.2 (retail 60%+ majority → Pain Threshold stop zones → Smart Money süpürmə/tələ engineering) + §1 report line (Həqiqi Ortalama / Pain Threshold / Alqoritmik Hədəf) + §2 DOL (BSL/SSL as HTF magnets) + §5 TP2 (External BSL/SSL) — HIGH, project domain authority
-- `src/lib/ict/smt.ts` — `isSwingHigh`/`isSwingLow` strict fractal + `SWING_K`/`SMT_TOL_BPS`/`SWING_LOOKBACK` + time-anchored `matchSwings` (swing reuse source) — HIGH, verified source
-- `src/lib/ict/judas.ts` — strict wick-pierce sweep + killzone discipline + `DISP_MULT`/`CONFIRM_WINDOW`/`TOL_EPS` + candidate/confirmed/preRun lifecycle (sweep-status idiom source) — HIGH, verified source
-- `src/lib/ict/fvg.ts` — `FvgGap` inventory + close-through `applyMitigation` + sweep-then-reject `detectTransition` + `FVG_MAP_BOUND` cap (pool lifecycle + inventory-cap precedent) — HIGH, verified source
-- `src/lib/ict/asia.ts` + `range.ts` + `levels.ts` + `bias.ts` + `dol.ts` + `regime.ts` — Asia extremes, dealing-range anchor, OTE pockets, bias buffer, DOL targets, ATR (seed + scoring inputs) — HIGH, verified sources
-- `src/lib/ict/trigger.ts` + `invalidation.ts` — three-gate fusion, read-only SMT tag pattern, HARD/SOFT flaw split, `CALIBRATION-PROVISIONAL` convention, BSL/SSL falsification sentences (consumer + convention precedent) — HIGH, verified source
-- `src/lib/report.ts` — `REPORT_SECTIONS[0]` unavailable, the exact surface v3.1 flips live — HIGH, verified source
-- ICT education literature (equal-high/low stop raids, BSL/SSL draw, sweep-then-displacement) — MEDIUM, semantics only, never threshold authority; all ranking constants ship provisional pending live observation
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/ict/pools.ts` — detector (equality clustering, ATR-merge/cap), lifecycle (ACTIVE/SWEPT/CONSUMED), `scoreAndRank` (weight × DOL_BOOST × BEHIND_PENALTY / (1+distAtr)), rank-eligibility + refuse-to-rank rules — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/ticket.ts` — fixed derivation order, `TicketBufferInput` contract, `TICKET_SL_BUFFER_ATR_MULT`/`TICKET_TP_PULLBACK_ATR_MULT`, R/R-on-TP1 gate, verbatim gate-fail reasons — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/store.ts` — `selectPools` (NQ-D1-only, ES-stale-immune, thin-degraded envelope), `selectTicket` single-snapshot chain (trigger → flaw → ticket, no buffer built = W12 gap), `nq15m` poll leg + `closedOnlyIntraday` — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/ict/trigger.ts` — `smtSuffix` read-only agree-tag precedent (appended, never gates FIRE) — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/ict/pools-parity.test.ts` — pools-on/pools-off triple-match harness (buffered build shared, pools toggle in driver fixtures only) — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/report.ts` — `describePool` display-only pool prose precedent — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/sentiment.ts` — `trueAvg` crowd-side + `CROWDED_THRESHOLD = 60` (RetailExposure input side) — HIGH, verified source
+- `C:/Users/HP/Projects/liquidity-engine/src/lib/ict/swings.ts` + `src/lib/ict/types.ts` — shared k=2 fractal predicates; D1 `Candle` vs `IntradayCandle` contracts never unified — HIGH, verified source
+- `reference/institutional_rules.md` — Modul 1.2 (retail 60%+ → Pain Threshold stop zones → süpürmə/tələ) + §1/§2-DOL/§5-TP2 lines — HIGH, project domain authority
+- `C:/Users/HP/Projects/liquidity-engine/.planning/research/FEATURES.md` (v3.1, 2026-09-15) — superseded by this P2 edition; its P2-deferred rows (TP2, sentiment, 15M, decay, proximity tag) are the input backlog — HIGH, project history
+- ICT education literature (equal-high/low stop raids, BSL/SSL draw-on-liquidity, sweep-then-displacement, HTF→intraday liquidity hierarchy) — MEDIUM, semantics only, never threshold authority; all P2 ranking constants ship provisional pending live observation
 
 ---
-*Feature research for: BSL/SSL Pain Threshold map (§1)*
-*Researched: 2026-09-15*
+*Feature research for: Pools P2 execution links (POOL2-01–05 + W12)*
+*Researched: 2026-10-26*

@@ -1,8 +1,12 @@
-# Stack Research
+# Stack Research — Pools P2 (v3.2)
 
-**Domain:** BSL/SSL Pain Threshold map (§1 live report + chart overlay) + execution polish on existing NQ execution terminal — subsequent milestone, brownfield only
-**Researched:** 2026-09-15
+**Domain:** ICT liquidity-engine execution-link features (pool-aware ticket, intraday pools, sentiment multiplier)
+**Researched:** 2026-10-26
 **Confidence:** HIGH
+
+## Verdict Up Front
+
+**Zero new dependencies.** All six Pools P2 features (POOL2-01 TP2 resolver, POOL2-04 age/decay, POOL2-03 15M pools, POOL2-02 sentiment multiplier, POOL2-05 proximity tag, W12 buffered-ticket live wiring) are pure-function + Zustand-selector work on the existing stack. The codebase already contains every integration point: the harness-proven buffer path in `src/lib/ticket.ts`, the ACTIVE/SWEPT/CONSUMED lifecycle in `src/lib/ict/pools.ts`, the `nq15m` intraday leg in `src/lib/store.ts`, the `trueAvg` sentiment helper in `src/lib/sentiment.ts`, and the display-only `describePool` precedent in `src/lib/report.ts`.
 
 ## Recommended Stack
 
@@ -10,102 +14,132 @@
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `src/lib/ict` pure functions (extended: `pools.ts` new) | no version (own code) | BSL/SSL stop-cluster projection: swing-high/low liquidity pools from closed D1 candles | Purity constraint (no I/O, inject time) is what keeps 420 tests green; pool detection is deterministic candle arithmetic over data the store already holds. Reuse the proven `isSwingHigh`/`isSwingLow` fractal detector + `SWING_K = 2` from `smt.ts` (already pinned by test), then cluster co-located extremes into pool bands with an ATR-tolerance merge — same shape as `fvg.ts` detect+mitigate (scan, then bound to trailing-N). Pools are a clustering of existing swing outputs, not a new detector, so pool prose and ticket/DOL levels can never disagree |
-| Zustand derived selectors (`selectPools`, pool-aware ticket/DOL reads) | 5.0.15 (installed, verified in node_modules) | Pool evaluation as derived selectors over the existing NQ D1 leg | v2.0/v3.0 proved the pattern: `selectAMD`/`selectTrigger`/`selectTicket` derive from legs without storing derived state, so pools can never desync from swings. Pool inputs (swing-k, ATR-merge tolerance, trailing-pool cap) live as plain store fields with clamped setters — not derived — so calibration sliders write them and selectors read them in the same render pass |
-| `REPORT_SECTIONS` §1 flip + locked-copy §1 block in `report.tsx` | own code (no version) | §1 live Pain Threshold block with verbatim pool reasons | §1 already exists as an `unavailable` shell entry (`src/lib/report.ts` line 20); flipping it to `live` plus a pools sub-block follows the exact §3 precedent (D-01/D-03/D-04 locked copy: detector reasons verbatim, `S3_EMPTY_COPY`-style fallback). Sweeper/pool detail lives in §1 prose, never on canvas (D-07 precedent) |
-| lightweight-charts v5 `createPriceLine` pair per pool band | 5.2.1 (installed, verified) | BSL zone top/bottom + SSL zone top/bottom horizontal lines on the existing chart | `nq-chart.tsx` already owns the `createPriceLine`/`removePriceLine` remove-then-create ref cycle driving EQ/DOL/Asia/Q1/Q3/OTE lines; pool bands are two more dashed lines per pool (top/bottom) with `title: 'BSL'`/`'SSL'`, capped to the trailing-N pools so the axis never stripes. `createPriceLine({ price, color, lineWidth, lineStyle, axisLabelVisible, title })` on the existing series handle — confirmed against the official price-line tutorial. No chart-lib change, no new overlay primitive |
-| `components/ui/slider.tsx` (new file) from installed `@base-ui/react/slider` | `@base-ui/react` 1.8.0 (installed; `slider/` + `number-field/` dirs verified present; `slider.tsx` wrapper currently absent) | WHY NOW threshold recalibration + pool-tolerance controls for execution polish | Zero new installs: `@base-ui/react` already ships `slider` and `number-field`. Add one wrapper following the existing `button.tsx`/`dialog.tsx` pattern (primitive re-export with `data-slot` + Tailwind classes). v3.0 research already decided this exact file; it still does not exist, so v3.1 is where it lands. Thresholds stay numeric in the store with clamped setters; the slider is a thin view over them |
-| Manual `localStorage` helpers (extend existing firing-log JSON export) | no version (own code) | Firing-log analysis persistence + threshold calibration survival across reloads | `firingLogToJson` already exists in `store.ts` (entries + thresholds + exportedAt); firing-log *analysis* (hit-rate per gate, sweep-side split, session split) is pure aggregation over that same array — a 30-line stats helper in own code, rendered as DOM tables via existing `card` primitives. Same reason as v3.0: avoids the zustand `persist` SSR rehydration trap; log/analysis state is client-ephemeral |
+| Next.js App Router | 16.3.4 (installed) | App shell, `/api/yahoo` proxy, report panels | Already serves NQ/ES daily + 1H/15M with per-leg stale envelopes; no routing/data change needed for P2 |
+| React | 19.2.8 (installed) | UI rendering | Stable selector-function subscription pattern proven (no `useShallow` loops); new features add no new component-state patterns |
+| Zustand | 5.0.15 (installed) | Dashboard state + all selectors (`selectPools`, `selectTicket`, `selectTrigger`, `selectLevels`) | Every P2 feature lands as selector derivation or selector input — no new store slice needed except optional calibration-style preview state |
+| lightweight-charts | 5.2.1 (installed) | Candlestick chart + pool price-line pairs | Nearest-2-per-side BSL/SSL lines with rank brightness already shipped (Phase 20); 15M pools reuse the same `chart-mapper.ts` price-line path, no new overlay primitive |
+| date-fns-tz | 3.2.0 (installed) | Baku/NY timezone handling, pool age date math | Pool age/decay needs session-date arithmetic only — `formatInTimeZone` + plain date-string diff covers it; no duration library needed |
+| TypeScript strict | ^5 (installed) | Purity + contract enforcement | The `src/lib/ict` purity guard (`purity.test.ts`, co-located) is the enforcement mechanism for all new pool math |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| (none) | — | — | **No new dependencies.** Every v3.1 capability maps onto an installed package or pure own-code — same headline finding as v2.0 and v3.0. The only new *file* (not package) is `components/ui/slider.tsx` composed from the already-installed `@base-ui/react/slider` |
+| date-fns | ^4.4.0 (installed) | Date-string diff for pool age (POOL2-04) | Only if age math outgrows manual epoch subtraction; prefer plain `Date` arithmetic on injected `asOf` strings to keep `ict/` dependency-light |
+| vitest | ^5.0.0 (installed) | Unit + harness + parity tests | Every P2 feature extends an existing suite (`pools.test.ts`, `pools-parity.test.ts`, ticket buffer matrix) — no new runner |
+| Tailwind v4 + shadcn primitives | installed (button, dropdown-menu, dialog, toast, calendar, card, slider) | Proximity-tag display, §1/§5 prose suffix | POOL2-05 is a string suffix; no new component needed |
+| lucide-react | ^1.41.0 (installed) | Icons | Only if a new panel badge is designed; not required by any P2 requirement |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| vitest | ^5.0.0 (installed) | Pin pool truth-table (isolated swing → no pool; co-located highs within ATR tolerance → one BSL band; tolerance boundary is strict-greater-than with epsilon like `TOL_EPS_BPS`; trailing-cap keeps newest N; forming/non-finite rows drop at the boundary), §1 selector refuse-null envelope, firing-log stats edge cases (empty log → zeros, never NaN) — same pure-function style as `smt.test.ts`/`fvg.test.ts` |
-| Existing store test harness | own code (`store.test.ts`) | Add selector tests: pools derive from the NQ D1 leg (never stored), tolerance setter clamps, stale NQ leg → `selectPools` refuses null with owning-leg `lastError` verbatim (same refuse-with-reason envelope as Phase 9 §3 + Phase 15 trigger selectors) |
+| `tsc --noEmit` | Type gate | Must stay green; new pool-age fields touch `LiquidityPool` shape — update all consumers in one pass |
+| `purity.test.ts` (co-located ict guard) | Purity enforcement | New `ict/` math (age/decay, 15M adapter, TP2 resolver if placed in `ict/`) must inject time — no `Date.now`, no store imports |
+| 20-session parity harness (`pools-parity.test.ts`) | Pools-never-vote discipline | POOL2-04 decay and POOL2-02 multiplier must NOT change trigger/flaw/ticket verdicts — extend the triple-match harness, don't bypass it |
 
 ## Installation
 
 ```bash
-# No installs required — all capabilities are covered by installed packages:
-# next 16.3.4, react 19.2.8, zustand 5.0.15, lightweight-charts 5.2.1,
-# date-fns ^4.4.0, date-fns-tz ^3.2.0, @base-ui/react 1.8.0
-# (slider + number-field primitives verified present in node_modules/@base-ui/react)
+# Nothing to install. All six features build on installed packages:
+npm ci
 ```
+
+No `package.json` change is part of Pools P2 scope.
+
+## Integration Points (per feature)
+
+**POOL2-01 — TP2 resolver wired to nearest ACTIVE pool.**
+Pure resolver (suggested home: `src/lib/ticket.ts` beside `resolveTP`, or a small `ict/` helper if methodology-owned) that takes trade direction + ranked ACTIVE pools from `selectPools` and overrides the TP2 leg (currently the DOL price) with the nearest ACTIVE pool extreme on the trade side, booked before the extreme by the existing `TICKET_TP_PULLBACK_ATR_MULT`. Consumed in `store.ts` `selectTicket` where `computeTicket` is called (~line 1351). R/R gate stays on TP1 — unchanged.
+
+**POOL2-04 — Pool age/decay + re-accumulation.**
+Extend `LiquidityPool` in `src/lib/ict/pools.ts` (or a parallel age map if the D-18 shape lock forbids field growth — check the lock before choosing) with age derived from `originDate` vs injected `asOf`, a decay factor applied in `scoreAndRank`, and re-accumulation (touch-count refresh on retest without lifecycle re-promotion — SWEPT stays SWEPT). Time must be injected; the decay constants follow the existing `CALIBRATION-PROVISIONAL` marker convention. Parity harness must prove pools-never-vote still holds.
+
+**POOL2-03 — 15M intraday swing pools.**
+`pools.ts` `windowCandles` is D1-`Candle[]`-only per D-10 (never `IntradayCandle`). Recommended: a thin adapter that projects `IntradayCandle` rows (already flowing via the `nq15m` leg + `refreshNQ15M`) into the seed pipeline, reusing the shared `SWING_K=2` contract from `swings.ts`, with its own trailing window + cap constants (15M bars are ~26× denser than D1 — do NOT reuse `SWING_LOOKBACK=60` / `POOL_MAP_BOUND=20` blindly; seed provisional values under `CALIBRATION-PROVISIONAL`). Chart overlay reuses `chart-mapper.ts` price-line pairs. Rank-after-D1-stable ordering per the milestone goal: gate 15M display on D1 rank health, don't fuse the two maps.
+
+**POOL2-02 — Sentiment multiplier on RetailExposure.**
+Pure function (suggested home: `src/lib/sentiment.ts` beside `trueAvg`, consumed selector-side like `confluence.ts` to protect `ict/` purity) mapping `TrueAvgOutput.crowded` → multiplier with neutral default `1.0` (balanced → no-op). Applies to pool weight/score at the `selectPools` scoring plane or the §1 RetailExposure prose plane — decide once, document where, and keep it out of trigger/flaw/ticket voting (parity harness covers). Fixtures (`crowded-long/short/balanced.json`) already pin all three branches.
+
+**POOL2-05 — Proximity tag suffix.**
+Pure string formatter following the `describePool` precedent in `src/lib/report.ts` (display-only, verbatim pool fields, no numeric derivation beyond formatting ATR distance). Appended read-only to WHY NOW + ticket prose. Zero voter risk by construction — suffix, never input.
+
+**W12 — Buffered ticket live wiring.**
+`computeTicket` already accepts `TicketBufferInput` (`atr` + `poolExtreme`, harness-proven with `TICKET_SL_BUFFER_ATR_MULT=0.25` / `TICKET_TP_PULLBACK_ATR_MULT=0.1`); live `selectTicket` currently passes no buffer. Wiring = derive `atr` from the existing regime read + `poolExtreme` from `selectPools` nearest-on-trade-side inside `selectTicket`, pass through. Null-degrades to unbuffered structure levels per the T-21-01 contract — the fallback path is already tested.
 
 ## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| Pools as clustering over `smt.ts` swing outputs (`matchSwings`-style reuse of `isSwingHigh`/`isSwingLow` + `SWING_K`) | New independent swing detector re-reading candles with its own k | Never for v3.1 — two swing detectors with different k will disagree on which highs are "real", and §1 pool prose would contradict Judas/SMT pins on the same bar. One fractal definition shared by import, not by copy-paste |
-| Pool merge tolerance expressed in ATR multiples (via existing `computeATR`) | Fixed-point or percentage tolerance | Only if ATR is unavailable (thin history → `computeATR` empty → fall back to refuse-null, never to a magic constant). ATR-multiple keeps the merge width regime-aware (expansion vs compression), matching how `judas.ts` already scales displacement by range height |
-| Pool overlay as `createPriceLine` top/bottom pairs | Extending `ZoneFillPrimitive` with BSL/SSL fills | Only if pools graduate from lines to shaded zones after live observation proves the bands are stable. The primitive is premium/discount-specific (two fills, one getter); pool bands are N bands with a cap, which maps naturally onto price-line refs today. Revisit after one observation cycle, not before |
-| Firing-log analysis as pure stats helpers + DOM tables | `recharts` / `d3` / chart-lib histogram for log analytics | Never under zero-budget scope — a log table (gate × hit-rate, side split, session split) answers the calibration question with zero new deps and zero canvas surface. A histogram buys pixels, not decisions |
-| `toast.add()` if a pool-sweep alert is wanted | Browser Notification API / push service | Only if background alerts become a requirement — same verdict as v3.0, out of zero-budget scope |
+| No new chart code (reuse price-line pairs) | Series markers / custom canvas overlay for pools | Only if UAT proves price lines unreadable at 15M density — not before; lines are proven at D1 |
+| Plain date arithmetic for pool age | `date-fns` `differenceInDays` / interval helpers | Only if age semantics grow branches (sessions vs calendar days, rollover-aware aging) — start manual, adopt on evidence |
+| Selector-side sentiment multiplier (`src/lib/`) | `ict/`-resident multiplier | Only if sentiment becomes methodology (time-anchored, replayable in the 20-session harness) — today it is fixture-driven display context, keep it out of `ict/` |
+| Provisional 15M window/cap constants | Shared D1 constants (`SWING_LOOKBACK`, `POOL_MAP_BOUND`) | Never without recalibration evidence — bar density differs by an order of magnitude |
+| Extend `selectTicket` buffer derivation inline | New `selectTicketBuffer` selector | Only if two+ consumers need the buffer (e.g. report §5 shows buffered vs unbuffered) — YAGNI until then |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Any clustering/ML library (`ml-kmeans`, `density-clustering`, etc.) | Pool formation must be deterministic, pinned by tests, and explainable verbatim in §1 ("3 swing high 0.5×ATR içində → BSL bandı"). A library clusterer adds a dependency plus nondeterminism/labeling the roadmap cannot audit | Own-code tolerance-banding over sorted swing extremes (sort → greedy merge within tolerance → cap to trailing-N), same WR-07 sort-then-slice precedent as `applyMitigation` |
-| `recharts`, `d3`, `visx`, any chart/analytics library | Firing-log analysis is a table, not a visualization milestone; a second chart engine fights the lightweight-charts canvas the terminal already owns | Pure stats helper + existing `card`/`button` DOM rendering |
-| `react-hook-form`, `zod`, any form/validation lib | Calibration controls are sliders + clamped numeric fields, not a schema-validated form — same verdict as v3.0 | Controlled inputs + pure clamp helpers, `slider.tsx` wrapper |
-| zustand `persist` middleware for thresholds/log | Buys SSR rehydration complexity for client-ephemeral state — same verdict as v3.0 | Guarded manual `localStorage` helpers + existing `firingLogToJson` export |
-| New charting library or drawing plugin | v5 price lines already drive every horizontal overlay; pool bands are new lines, not a new rendering capability | Existing `nq-chart.tsx` price-line refs |
-| WebSocket / streaming feed for "live" pools | Pools evolve on closed-candle structure (D1 leg already polls at 60s), not tick data | Existing staggered poll; `selectPools` re-derives on each store update for free |
-| LLM calls for §1 narration | Determinism is a project constraint; Pain Threshold prose is a verbatim-reason render of which pools exist and their size/state | Pure `pools.ts` returning `{ pools[], reasons[] }` rendered verbatim, same locked-copy contract as §3 |
+| Any new npm dependency (chart, date, state, math) | Zero-budget Hobby constraint + every P2 need is already covered; each new dep is audit surface with no requirement behind it | Installed stack above |
+| `moment` / `dayjs` | Redundant with `date-fns-tz`; extra bundle weight on Hobby | `date-fns-tz` + injected date strings |
+| `d3` / `recharts` for pool visualization | Chart primitive already proven (`lightweight-charts` price lines, UAT 14/14) | `chart-mapper.ts` price-line path |
+| Redux / Context for new pool state | Zustand-only constraint; selector-function pattern already solves the subscription-shape problem | Zustand selectors |
+| LLM calls for TP2 / proximity prose | Determinism is a core principle; all six features are codifiable rules | Pure functions + verbatim Azerbaijani reason constants |
+| Real sentiment/calendar APIs | Out of scope (fixtures, zero budget, no keys) | `src/lib/fixtures/*.json` + `fixture-guard.ts` |
+| Server-side cron / DB / KV for age tracking | Pool age derives from `originDate` vs injected `asOf` — stateless; persistence adds cost and staleness bugs | Stateless derivation per evaluation |
+| New test runner / e2e framework | 513/513 green on vitest + node-env harness + human UAT glance; canvas pixels already covered by acknowledged UAT | vitest, extend `pools*.test.ts` + parity harness |
 
 ## Stack Patterns by Variant
 
-**If pool bands multiply on live data (every swing becomes its own pool):**
-- Tighten via the calibratable merge tolerance (default toward ~0.5×ATR, require ≥2 swings per pool) rather than adding minimum-strength machinery
-- Because the calibration goal exists precisely for this; code the gate as a threshold, not as fixed logic
+**If the TP2 resolver needs DOL interplay (pool beyond DOL vs before DOL):**
+- Resolve TP2 as min-structure(pool extreme w/ pullback, existing DOL leg) on the trade side — never beyond the pool extreme (magnet-to-the-line rejected per D-06 precedent).
+- Because the R/R gate reads TP1 only, TP2 changes are verdict-safe — but still extend the parity harness.
 
-**If BSL/SSL lines stripe the chart (too many horizontal lines):**
-- Cap the overlay to the trailing-2 unmitigated pools per side and collapse each band to a single mid-line when the band width is below axis-legibility — same D-03 OTE-pocket-mid precedent as `levelLineInputs`
-- Because 2 BSL + 2 SSL lines plus the existing EQ/DOL/Asia/Q1/Q3/OTE set is the legibility ceiling the 03.2 research already flagged
+**If 15M pools disagree with D1 pools:**
+- Display both maps independently (D1 rank-1 sentence stays authoritative in §1); never average or fuse cross-timeframe geometry without a methodology decision.
 
-**If a pool band and the ticket entry/SL/TP lines collide on the same price:**
-- Ticket lines win visual priority; pool lines render thinner/dimmer at colliding prices (tone rule, not removal — same `overlayStale` muted-gray precedent)
-- Because hiding a pool that the ticket depends on would break the §1→§5 story the milestone exists to tell
+**If sentiment multiplier ever leaves neutral:**
+- It scales RetailExposure display/score only; any proposal to let it vote on trigger/flaw/ticket is a scope change requiring parity-harness re-proof.
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `@base-ui/react` 1.8.0 `slider` / `number-field` | Existing `components/ui/*` wrapper pattern (`button.tsx`, `dialog.tsx` import from `@base-ui/react/*`) | New `slider.tsx` follows the identical re-export + `data-slot` + Tailwind recipe; no version bump, no new package |
-| zustand 5.0.15 + React 19.2.8 | New `selectPools` + pool-tolerance fields on `useDashboard` | Same `create<DashboardState>()` store; stable selector-function subscription (per 03.2 lesson — no `useShallow` over fresh-object selectors) |
-| lightweight-charts 5.2.1 | Pool band price lines on existing series handle | Price-line refs already exist in `nq-chart.tsx`; additive only, existing overlays untouched |
-| Next 16.3.4 App Router | §1 block + slider are client components (`'use client'`, like `report.tsx`) | No route changes; no API changes — Yahoo proxy legs are untouched by v3.1 |
+| Package | Installed | Notes |
+|---------|-----------|-------|
+| next@16.3.4 (latest 16.4.3 per npm registry, browser-verified 2026-10-26) + react@19.2.8 | ✅ in `node_modules` | Shipped green through v3.1 (513/513 tests, prod build); one minor behind latest — no upgrade in P2 scope |
+| zustand@5.0.15 (latest 5.0.16 per npm registry, browser-verified 2026-10-26) | ✅ in `node_modules` | Selector-function subscription pattern stable; patch delta irrelevant, no middleware needed |
+| lightweight-charts@5.2.1 (latest, browser-verified 2026-10-26) | ✅ in `node_modules` | Price-line pairs + HiDPI autosize shipped (v2.1 UAT 6/6); installed == latest |
+| date-fns@^4.4.0 + date-fns-tz@3.2.0 (latest, browser-verified 2026-10-26) | ✅ declared | Baku/NY handling proven incl. March + November DST; installed == latest |
+| vitest@^5.0.0 | ✅ declared | Harness + parity + boundary suites all run here |
 
-## Integration Points with Existing Code
+Upstream currency check performed via ego-browser TaskSpace against the live npm registry (2026-10-26, `https://registry.npmjs.org/<pkg>/latest`): zustand latest = 5.0.16 (installed 5.0.15, patch delta only), lightweight-charts latest = 5.2.1 (installed == latest), date-fns-tz latest = 3.2.0 (installed == latest), next latest = 16.4.3 (installed 16.3.4, one minor behind). No upgrades are recommended as part of Pools P2; upgrade proposals belong to a hygiene milestone with their own regression proof.
 
-| Existing piece | v3.1 touchpoint | Change shape |
-|---------------|-----------------|--------------|
-| `src/lib/ict/smt.ts` (`isSwingHigh`/`isSwingLow`, `SWING_K`) | `src/lib/ict/pools.ts` (new) | Import the fractal detector, do not redefine it: `detectPoolSwings(nqD1)` reuses k=2, then `clusterPools(swings, atrTol)` merges co-located extremes into `{ side: 'BSL' \| 'SSL', top, bottom, swingCount, originDates[] }` + `describePools()` Azerbaijani verbatim reasons |
-| `src/lib/ict/regime.ts` (`computeATR`) | Pool merge tolerance | Tolerance = `POOLS_ATR_MULT × ATR`; empty ATR series (thin history) → refuse-null, never a magic constant |
-| `src/lib/ict/dol.ts` (`computePrimaryDOL`) | Pool-aware DOL read | DOL target prefers the nearest unmitigated pool on the bias side when one exists, else existing range-high/low logic — additive branch, existing behavior is the fallback |
-| `src/lib/ict/ticket.ts` (`computeTicket`) | Execution polish: pool-aware SL sanity | SL placement checks distance to the opposing pool (stop inside own-side pool → warn verbatim); pure additive check, refuse-with-reason envelope unchanged |
-| `src/lib/report.ts` (`REPORT_SECTIONS` index 1) | §1 live flip | `state: 'unavailable'` → `'live'` + `selectPools` prose block in `report.tsx` beside the §3 precedent; pool reasons verbatim, empty-pool fallback copy |
-| `src/lib/store.ts` (`useDashboard`) | `selectPools`, pool-tolerance fields + setters | Derived selector with the Phase 9/15 refuse-null envelope (stale/empty NQ D1 leg → null, reason in owning-leg `lastError`); tolerance as plain state with clamped setter feeding the calibration slider |
-| `src/lib/chart-mapper.ts` | `poolLineInputs()` helper | Same pass-through + finite-guard + throw-naming pattern as `asiaLineInputs`/`levelLineInputs`; `nq-chart.tsx` wraps in try-catch so a throw renders no pool lines and never blocks the chart |
-| `components/charts/nq-chart.tsx` | Pool band price lines | New optional props (`pools` truth) reusing the remove-then-create `createPriceLine` ref cycle; capped to trailing-N per side |
-| `components/ui/slider.tsx` (new file) | Threshold + pool-tolerance + risk-amount calibration | Compose installed `@base-ui/react/slider`; ticket UX polish reuses existing `dialog`/`card`/`button` |
-| `firingLogToJson` + firing log | Firing-log analysis | Pure stats helper over the existing log array (gate hit-rate, side/session splits, pool-presence split) rendered in existing panels; export rides the existing calibration-JSON path |
+## Browser-Verified Domain Norms (2026-10-26)
+
+Ego-browser TaskSpace research against live ICT/tooling sources confirmed the P2 design choices already encoded in the codebase. Norm → feature mapping:
+
+- **ERL = full institutional target, IRL = partials.** ERL (external range liquidity beyond the range) is where delivery completes and the remainder of the position is held; IRL (FVGs/order blocks/swings inside the range) are stepped partial-profit levels. Confirms POOL2-01: TP2 = nearest ACTIVE pool on the trade side (the ERL objective), TP1/TP3 keep structure-first legs as partials.
+- **Exits set just in front of the pool** so the target does not depend on the level breaking. Confirms the Phase 21 buffer discipline (`TICKET_TP_PULLBACK_ATR_MULT` books before the extreme; the extreme itself is never a target) — W12 wiring carries this into live `selectTicket`.
+- **Stacked pools / sweep extensions.** Pools layer (obvious EQH/EQL plus a denser layer beyond); the guidance is to mark both and wait for the displacement candle before entering. Supports POOL2-04 re-accumulation framing (fresh extremes beyond swept zones seed new ACTIVE pools) and cautions TP2 placement against the first-obvious-layer-only shortcut.
+- **Untouched vs spent pools.** A level already traded through has largely surrendered its stops; untapped pools are the live candidates (the draw on liquidity). Confirms ACTIVE/SWEPT/CONSUMED lifecycle plus TP2 ACTIVE-only eligibility.
+- **Pool ranking: equal/multi-touch outranks single swings; HTF extremes outrank intraday; round-number confluence adds weight.** Confirms the shipped scorer (equality bonus + DOL-side boost) and the P2 sequencing (D1-authoritative §1, 15M as second inventory, joint ranking only after D1 stable).
+- **The sweep is the setup, never the entry; killzone timing gates probability.** Confirms pools-never-vote: proximity tag (POOL2-05) stays read-only context, FIRE still requires the three-gate path.
+- **MTF pool tooling is an established category.** TradingView ORIGIN MTF Liquidity Pools (1D/1W/1M/3M/1Y, lines extend until swept then stop — the lifecycle idiom), cTrader Liquidity Heatmap (10 timeframes incl. 15min, overlapping zones intensify — density-by-overlap), LuxAlgo's 13 pool implementations incl. a Historical Liquidity Proximity Heatmap (proximity annotation is a known tool feature — supports POOL2-05 as expected, not exotic). Common display pattern: lower-TF levels hidden on higher-TF views — precedent for D1-authoritative display with 15M secondary.
+- **Pools are inference, not observation.** Stop orders are invisible on chart; every pool is deduced from structure. Confirms zone (not single-tick) projection and honest-empty states over false precision.
 
 ## Sources
 
-- Codebase (HIGH confidence) — `package.json` deps; `node_modules` verified: zustand 5.0.15, lightweight-charts 5.2.1, `@base-ui/react` 1.8.0 with `slider/` + `number-field/` present and `components/ui/slider.tsx` absent; `src/lib/ict/smt.ts` fractal detector + `SWING_K`; `src/lib/ict/fvg.ts` detect+mitigate+cap precedent; `src/lib/chart-mapper.ts` pass-through helper pattern; `components/charts/nq-chart.tsx` price-line refs + `buildOverlayMarkers` ordering; `src/lib/report.ts` §1 shell entry; `src/lib/store.ts` firing-log + `firingLogToJson`
-- Official lightweight-charts price-line tutorial (MEDIUM confidence) — `series.createPriceLine({ price, color, lineWidth, lineStyle, axisLabelVisible, title })` on `ISeriesApi`
-- `.planning/research/STACK.md` v3.0 (HIGH confidence for "no new deps" precedent) — same headline finding transfers for the third consecutive milestone
-- PROJECT.md v3.1 scope (HIGH) — BSL/SSL map + §1 live + execution polish, zero budget, no LLM, paper-only
+- `package.json` + installed `node_modules/{next,zustand,lightweight-charts}/package.json` — versions verified
+- `.planning/PROJECT.md` — milestone context, validated capabilities, constraints (zero budget, Zustand-only, `ict/` purity, no LLM)
+- `src/lib/ict/pools.ts` — pool math, lifecycle, scorer, D-10/D-18 shape notes
+- `src/lib/ticket.ts` — `TicketBufferInput`, buffer constants, `computeTicket` contract
+- `src/lib/store.ts` — `selectPools` / `selectTicket` / intraday legs / calibration precedent
+- `src/lib/sentiment.ts` + `src/lib/confluence.ts` + `src/lib/report.ts` — multiplier home candidates + display-only precedent
+- `src/lib/ict/swings.ts` + `src/lib/ict/types.ts` — shared k=2 contract, `Candle` vs `IntradayCandle` split
+- Browser-verified 2026-10-26 via ego-browser TaskSpace (space "pools-p2-feature-research-20261026"):
+  - `https://www.ictkillzone.com/ict-liquidity` — ERL/IRL target roles, AMD sequence, stacked-pool sweep extensions, killzone gating, EQH/EQL + PDH/PDL + Asian-high/low pool locations, NQ applicability
+  - `https://www.luxalgo.com/library/concept/liquidity-pool/` — pool-as-inference definition, untouched-vs-spent ranking, exits-in-front-of-pool, proximity-heatmap implementations, cross-TF pool ranking (equal/multi-touch > single swing, HTF > intraday)
 
 ---
-*Stack research for: v3.1 Pain Threshold (§1) + Execution Polish — BSL/SSL stop-cluster projection + chart overlay + §1 live report*
-*Researched: 2026-09-15*
+*Stack research for: Pools P2 (POOL2-01 through POOL2-05 + W12)*
+*Researched: 2026-10-26*
