@@ -639,4 +639,72 @@ describe('pool decay', () => {
     );
     expect(poolAgeBars(freshPool('2026-01-05'), candles, AS_OF)).toBe(8);
   });
+
+  it('scoring never mutates stored weight or touches across young and ancient pools', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    // Pipeline pools plus one ancient synthetic pool: the scorer must leave
+    // every stored inventory entry byte-identical.
+    const pools = [...evaluatePools(candles, AS_OF), freshPool('2025-01-01')];
+    expect(pools.length).toBeGreaterThan(0);
+    const before = pools.map((p) => ({ weight: p.weight, touches: p.touches }));
+    const scored: RankedPools = scoreAndRank(pools, candles, 'BULLISH', AS_OF);
+    expect(scored.rankSkipped).toBe(false);
+    expect(scored.scores.length).toBeGreaterThan(0);
+    for (let i = 0; i < pools.length; i++) {
+      expect(pools[i].weight).toBe(before[i].weight);
+      expect(pools[i].touches).toBe(before[i].touches);
+    }
+    expect(pools.map((p) => ({ weight: p.weight, touches: p.touches }))).toEqual(before);
+  });
+
+  it('double-run scoring is byte-identical with no shared mutable state', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const pools = evaluatePools(candles, AS_OF);
+    const first: RankedPools = scoreAndRank(pools, candles, 'BULLISH', AS_OF);
+    const second: RankedPools = scoreAndRank(pools, candles, 'BULLISH', AS_OF);
+    expect(first.rankSkipped).toBe(false);
+    expect(second.rankSkipped).toBe(false);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  });
+
+  it('SWEPT pools never re-enter rank and inactive rows stay originDate-sorted', () => {
+    // Same wick-pierce geometry as the ghost seed pin above: bar-4 peak 20200
+    // swept by a later wick, with a fresh ACTIVE cluster beside it.
+    const highs = [20000, 20010, 20050, 20100, 20200, 20100, 20050, 20300, 20250, 20200, 20150, 20100, 20300, 20100, 20050, 20020];
+    const lows = rising(16, 19900, 5);
+    const candles = leg(16, highs, lows);
+    const ranked = evaluatePools(candles, AS_OF);
+    const ghost = ranked.find((p) => p.side === 'BSL' && p.top === 20200);
+    expect(ghost).toBeDefined();
+    expect(ghost!.status).toBe('SWEPT');
+    const scored: RankedPools = scoreAndRank(ranked, candles, 'BULLISH', AS_OF);
+    expect(scored.rankSkipped).toBe(false);
+    // ACTIVE pools fill scores; the SWEPT ghost carries no score entry.
+    const active = ranked.filter((p) => p.status === 'ACTIVE');
+    expect(active.length).toBeGreaterThan(0);
+    expect(scored.scores).toHaveLength(active.length);
+    const scoredOrigins = scored.scores.map((s) => s.originDate);
+    expect(scoredOrigins).not.toContain(ghost!.originDate);
+    // Inactive rows ride along behind every ACTIVE pool in earliest-date order.
+    const firstInactive = scored.pools.findIndex((p) => p.status !== 'ACTIVE');
+    expect(firstInactive).toBeGreaterThanOrEqual(0);
+    expect(scored.pools.slice(0, firstInactive).every((p) => p.status === 'ACTIVE')).toBe(true);
+    const tailDates = scored.pools.slice(firstInactive).map((p) => p.originDate);
+    expect(tailDates.length).toBeGreaterThan(0);
+    expect([...tailDates].sort()).toEqual(tailDates);
+  });
+
+  it('an earlier asOf outscores a later asOf for the same pool', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    // Same leg, same pool, two injected dates — no clock reads. The earlier
+    // date sees a younger pool, so decay and score both read higher.
+    const early: RankedPools = scoreAndRank([freshPool('2026-01-09')], candles, 'BULLISH', '2026-01-12');
+    const late: RankedPools = scoreAndRank([freshPool('2026-01-09')], candles, 'BULLISH', AS_OF);
+    expect(early.rankSkipped).toBe(false);
+    expect(late.rankSkipped).toBe(false);
+    expect(early.scores).toHaveLength(1);
+    expect(late.scores).toHaveLength(1);
+    expect(early.scores[0].decayFactor).toBeGreaterThan(late.scores[0].decayFactor);
+    expect(early.scores[0].score).toBeGreaterThan(late.scores[0].score);
+  });
 });
