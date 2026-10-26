@@ -355,6 +355,7 @@ export function scoreAndRank(
   pools: LiquidityPool[],
   closed: Candle[],
   bias: 'BULLISH' | 'BEARISH' | 'COMPRESSION',
+  asOf: string,
 ): RankedPools {
   const ordered = [...pools]
     .sort((a, b) => (a.originDate < b.originDate ? -1 : a.originDate > b.originDate ? 1 : 0));
@@ -399,11 +400,12 @@ export function scoreAndRank(
     const behind =
       (pool.side === 'BSL' && mid < lastClose) || (pool.side === 'SSL' && mid > lastClose);
     const behindPenalty = behind ? BEHIND_PENALTY : 1.0;
-    // Phase 22 D-04/D-22: scorer-plane age over the closed window. The window
-    // passed to scoreAndRank is already closed-only, so the upper bound is the
-    // last closed date in scope — pools never rewrite stored weight/touches.
-    const lastClosedDate = closed[closed.length - 1].date;
-    const ageBars = poolAgeBars(pool, closed, lastClosedDate);
+    // Phase 22 D-04/D-20/D-22: scorer-plane age over the injected closed
+    // window, bounded by the caller-threaded asOf — the same closed array the
+    // lifecycle ran over, so age counts the same bars the lifecycle saw.
+    // Read-only: stored weight/touches are never assigned outside seedPools
+    // and mergePools.
+    const ageBars = poolAgeBars(pool, closed, asOf);
     const decayFactor = poolDecay(ageBars);
     const score = (pool.weight * dolBoost * behindPenalty * decayFactor) / (1 + distAtr);
     return {
@@ -469,5 +471,5 @@ export function evaluatePools(
   // the returned array is rank-ordered. Cap BEFORE rank: the inventory bound
   // is a map-plane concern (newest wins), ranking is a view-plane concern.
   const kept = capPools(merged);
-  return scoreAndRank(kept, window, bias).pools;
+  return scoreAndRank(kept, window, bias, asOf).pools;
 }

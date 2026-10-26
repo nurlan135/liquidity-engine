@@ -433,7 +433,7 @@ describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
   it('DOL-side score doubles versus the identical off-side pool', () => {
     expect(DOL_BOOST).toBe(2.0);
     const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
-    const bullish: RankedPools = scoreAndRank(evaluatePools(candles, AS_OF), candles, 'BULLISH');
+    const bullish: RankedPools = scoreAndRank(evaluatePools(candles, AS_OF), candles, 'BULLISH', AS_OF);
     expect(bullish.rankSkipped).toBe(false);
     const bsl = bullish.scores.find((s) => s.side === 'BSL');
     const ssl = bullish.scores.find((s) => s.side === 'SSL');
@@ -446,7 +446,7 @@ describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
   it('behind-price pools score at quarter strength via BEHIND_PENALTY', () => {
     expect(BEHIND_PENALTY).toBe(0.25);
     const candles = leg(9, BSL_HIGHS, SSL_LOWS);
-    const ranked: RankedPools = scoreAndRank(evaluatePools(candles, AS_OF), candles, 'BULLISH');
+    const ranked: RankedPools = scoreAndRank(evaluatePools(candles, AS_OF), candles, 'BULLISH', AS_OF);
     for (const entry of ranked.scores) {
       expect([0.25, 1.0]).toContain(entry.behindPenalty);
     }
@@ -462,7 +462,7 @@ describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
 
   it('zero ATR refuses to rank: originDate order, finite zero scores, rankSkipped', () => {
     const flat = leg(9, rising(9, 20000, 0), rising(9, 19900, 0));
-    const ranked: RankedPools = scoreAndRank(evaluatePools(flat, AS_OF), flat, 'BULLISH');
+    const ranked: RankedPools = scoreAndRank(evaluatePools(flat, AS_OF), flat, 'BULLISH', AS_OF);
     expect(ranked.rankSkipped).toBe(true);
     for (const entry of ranked.scores) {
       expect(entry.score).toBe(0);
@@ -494,7 +494,7 @@ describe('pool decay', () => {
     const lastClosedDate = candles[candles.length - 1].date;
     expect(poolAgeBars(freshPool(lastClosedDate), candles, lastClosedDate)).toBe(0);
     expect(poolDecay(0)).toBe(1.0);
-    const scored: RankedPools = scoreAndRank([freshPool(lastClosedDate)], candles, 'BULLISH');
+    const scored: RankedPools = scoreAndRank([freshPool(lastClosedDate)], candles, 'BULLISH', AS_OF);
     expect(scored.rankSkipped).toBe(false);
     expect(scored.scores).toHaveLength(1);
     expect(scored.scores[0].decayFactor).toBe(1.0);
@@ -504,9 +504,9 @@ describe('pool decay', () => {
   it('a fresh pool outscores its aged self', () => {
     const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
     const pools = evaluatePools(candles, AS_OF);
-    const fresh = scoreAndRank(pools, candles, 'BULLISH');
+    const fresh = scoreAndRank(pools, candles, 'BULLISH', AS_OF);
     const agedPools = pools.map((p) => ({ ...p, originDate: '2026-01-05' }));
-    const aged = scoreAndRank(agedPools, candles, 'BULLISH');
+    const aged = scoreAndRank(agedPools, candles, 'BULLISH', AS_OF);
     expect(fresh.rankSkipped).toBe(false);
     expect(aged.rankSkipped).toBe(false);
     const freshBsl = fresh.scores.find((s) => s.side === 'BSL')!;
