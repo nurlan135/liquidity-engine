@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import type { Candle } from '@/src/lib/ict/types';
 import {
   BEHIND_PENALTY,
+  DECAY_HALF_LIFE_BARS,
+  DECAY_SCORE_FLOOR,
   detectPools,
   DOL_BOOST,
   EQUAL_BONUS_STEPS,
   EQUAL_TOL_BPS,
   equalityBonus,
   evaluatePools,
+  type LiquidityPool,
   MERGE_ATR_MULT,
+  poolAgeBars,
   POOL_MAP_BOUND,
+  poolDecay,
   poolWeight,
   type RankedPools,
   scoreAndRank,
@@ -465,5 +470,51 @@ describe('pools merge plus cap plus scorer: POOL-03/POOL-05 matrix', () => {
     }
     const dates = ranked.pools.map((p) => p.originDate);
     expect([...dates].sort()).toEqual(dates);
+  });
+});
+
+describe('pool decay', () => {
+  function freshPool(originDate: string): LiquidityPool {
+    return {
+      side: 'BSL',
+      top: 20200,
+      bottom: 20200,
+      touches: 1,
+      weight: 1.0,
+      originDate,
+      status: 'ACTIVE',
+    };
+  }
+
+  it('a fresh pool scores at full strength with decayFactor 1.0', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    // A pool seeded on the last closed date has age 0: real swing origins can
+    // never sit there (k=2 needs right-side neighbors), so pin the age-0
+    // ledger entry with a synthetic pool rather than pipeline output.
+    const lastClosedDate = candles[candles.length - 1].date;
+    expect(poolAgeBars(freshPool(lastClosedDate), candles, lastClosedDate)).toBe(0);
+    expect(poolDecay(0)).toBe(1.0);
+    const scored: RankedPools = scoreAndRank([freshPool(lastClosedDate)], candles, 'BULLISH');
+    expect(scored.rankSkipped).toBe(false);
+    expect(scored.scores).toHaveLength(1);
+    expect(scored.scores[0].decayFactor).toBe(1.0);
+    expect(scored.scores[0].score).toBeGreaterThan(0);
+  });
+
+  it('a fresh pool outscores its aged self', () => {
+    const candles = leg(16, BSL_HIGHS.concat([20020, 20030, 20040, 20030, 20020, 20010, 20000]), FLAT_LOWS.concat([19960, 19970, 19980, 19990, 20000, 20010, 20020]));
+    const pools = evaluatePools(candles, AS_OF);
+    const fresh = scoreAndRank(pools, candles, 'BULLISH');
+    const agedPools = pools.map((p) => ({ ...p, originDate: '2026-01-05' }));
+    const aged = scoreAndRank(agedPools, candles, 'BULLISH');
+    expect(fresh.rankSkipped).toBe(false);
+    expect(aged.rankSkipped).toBe(false);
+    const freshBsl = fresh.scores.find((s) => s.side === 'BSL')!;
+    const agedBsl = aged.scores.find((s) => s.side === 'BSL')!;
+    expect(agedBsl.decayFactor).toBeLessThan(freshBsl.decayFactor);
+    expect(freshBsl.score).toBeGreaterThan(agedBsl.score);
+    expect(poolAgeBars(freshPool('2026-01-05'), candles, '2026-01-31')).toBeGreaterThan(
+      poolAgeBars(freshPool('2026-01-20'), candles, '2026-01-31'),
+    );
   });
 });
