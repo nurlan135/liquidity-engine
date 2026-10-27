@@ -7,7 +7,7 @@ import type { SmtOutput } from '@/src/lib/ict/smt';
 import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
 import type { ThinTier } from '@/src/lib/thin-tier';
 import type { LiquidityPool } from '@/src/lib/ict/pools';
-import { poolPriceLines } from '@/src/lib/pool-overlay';
+import { isGhost, poolPriceLines, withoutGhosts } from '@/src/lib/pool-overlay';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
 
@@ -171,10 +171,10 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const tp1LineRef = useRef<unknown>(null);
   const tp2LineRef = useRef<unknown>(null);
   const tp3LineRef = useRef<unknown>(null);
-  // Phase 20 pool line pair refs (D-09): single-BSL thin pair in the tracer;
-  // remove-then-create alongside the Asia refs so null pools clear cleanly.
-  const poolTopLineRef = useRef<unknown>(null);
-  const poolBottomLineRef = useRef<unknown>(null);
+  // Phase 20 pool line registry (D-09, D-14): one ref per emitted pool
+  // line — remove-then-create alongside the Asia refs so null pools clear
+  // cleanly with no stale leftovers.
+  const poolLineRefs = useRef<unknown[]>([]);
   // Phase 9 series-markers plugin handle (v5 createSeriesMarkers form only).
   const markersPluginRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
@@ -280,36 +280,39 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
-      // Phase 20 pool pair (D-09, D-11): thin single-BSL pair via the
-      // finite-guarded poolPriceLines — before the ticket EXECUTE block so
-      // ticket stays on top. A guard throw or null pools leaves both refs
-      // null so no lines render and the chart never blocks. BSL resolves the
-      // terminal-up token (full #00FF88 fallback); pool lines never use the
-      // accent color (D-09). Thin envelopes dim to MUTED_GRAY (D-13).
-      if (props.pools !== null && props.pools !== undefined) {
+      // Phase 20 full pool registry (D-09 through D-16): capped ACTIVE
+      // pairs plus SWEPT ghosts via the finite-guarded poolPriceLines —
+      // before the ticket EXECUTE block so ticket stays on top. Per-leg
+      // try-catch nulls only that ref; a guard throw or null pools leaves
+      // zero lines and the chart never blocks (D-14). Dimmed envelopes
+      // (stale, thin, or thin-tier) force MUTED_GRAY (D-13). STAND_ASIDE
+      // skips ghost creation while ACTIVE pairs remain (D-15).
+      {
+        const poolDimmed =
+          props.overlayStale === true || props.poolsThin === true || props.thinTier !== 'full';
+        const poolSource = props.pools ?? [];
+        const poolVisible =
+          props.ticketVerdict === 'STAND_ASIDE' ? withoutGhosts(poolSource) : poolSource;
+        let poolInputs: { price: number; color: string; title: string }[] = [];
         try {
-          const up = readVar(VAR_UP, '#00FF88');
-          const poolTone = props.overlayStale || props.poolsThin ? MUTED_GRAY : up;
-          const poolInputs = poolPriceLines(props.pools, () => poolTone);
-          if (poolInputs.length === 2) {
-            poolTopLineRef.current = typed.createPriceLine({
-              price: poolInputs[0].price,
-              color: poolInputs[0].color,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              title: poolInputs[0].title,
-            });
-            poolBottomLineRef.current = typed.createPriceLine({
-              price: poolInputs[1].price,
-              color: poolInputs[1].color,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              title: poolInputs[1].title,
-            });
-          }
+          poolInputs = poolPriceLines(poolVisible, { dimmed: poolDimmed });
         } catch {
-          poolTopLineRef.current = null;
-          poolBottomLineRef.current = null;
+          poolInputs = [];
+        }
+        poolLineRefs.current = [];
+        for (const input of poolInputs) {
+          try {
+            const line = typed.createPriceLine({
+              price: input.price,
+              color: input.color,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: input.title,
+            });
+            poolLineRefs.current.push(line);
+          } catch {
+            poolLineRefs.current.push(null);
+          }
         }
       }
       // Overlay markers via the v5 plugin form (D-06/D-07 plus Phase 17 T
@@ -477,8 +480,9 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       if (asiaLowLineRef.current !== null) live.removePriceLine(asiaLowLineRef.current);
       // Phase 20 pool lines remove unconditionally first (D-14): null pools
       // clear all pool lines so no stale leftovers survive on canvas.
-      if (poolTopLineRef.current !== null) live.removePriceLine(poolTopLineRef.current);
-      if (poolBottomLineRef.current !== null) live.removePriceLine(poolBottomLineRef.current);
+      for (const ref of poolLineRefs.current) {
+        if (ref !== null) live.removePriceLine(ref);
+      }
       // Ticket lines remove unconditionally first (D-10): skipping creation
       // alone leaves ghost what-if levels after a verdict flip to STAND ASIDE.
       if (entryLineRef.current !== null) live.removePriceLine(entryLineRef.current);
@@ -492,8 +496,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       oteBearLineRef.current = null;
       asiaHighLineRef.current = null;
       asiaLowLineRef.current = null;
-      poolTopLineRef.current = null;
-      poolBottomLineRef.current = null;
+      poolLineRefs.current = [];
       entryLineRef.current = null;
       slLineRef.current = null;
       tp1LineRef.current = null;
@@ -587,35 +590,35 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
-      // Phase 20 pool pair (D-09, D-11, D-14): same remove-then-create cycle —
-      // before the ticket EXECUTE block so ticket stays on top. Guard-throw
-      // or null pools render no lines and never block the chart. Never
-      // accent: BSL resolves terminal-up (full #00FF88 fallback). Thin
-      // envelopes dim to MUTED_GRAY (D-13).
-      if (pools !== null && pools !== undefined) {
+      // Phase 20 full pool registry (D-09, D-11, D-13, D-14, D-15): same
+      // remove-then-create cycle — before the ticket EXECUTE block so ticket
+      // stays on top. Guard-throw or null pools render no lines and never
+      // block the chart. STAND_ASIDE skips ghost creation; ACTIVE pairs
+      // remain (removal above already cleared prior ghosts).
+      {
+        const poolDimmed = overlayStale || poolsThin || thinTier !== 'full';
+        const poolSource = pools ?? [];
+        const poolVisible = ticketVerdict === 'STAND_ASIDE' ? withoutGhosts(poolSource) : poolSource;
+        let poolInputs: { price: number; color: string; title: string }[] = [];
         try {
-          const up = readVar(VAR_UP, '#00FF88');
-          const poolTone = overlayStale || poolsThin ? MUTED_GRAY : up;
-          const poolInputs = poolPriceLines(pools, () => poolTone);
-          if (poolInputs.length === 2) {
-            poolTopLineRef.current = live.createPriceLine({
-              price: poolInputs[0].price,
-              color: poolInputs[0].color,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              title: poolInputs[0].title,
-            });
-            poolBottomLineRef.current = live.createPriceLine({
-              price: poolInputs[1].price,
-              color: poolInputs[1].color,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dashed,
-              title: poolInputs[1].title,
-            });
-          }
+          poolInputs = poolPriceLines(poolVisible, { dimmed: poolDimmed });
         } catch {
-          poolTopLineRef.current = null;
-          poolBottomLineRef.current = null;
+          poolInputs = [];
+        }
+        poolLineRefs.current = [];
+        for (const input of poolInputs) {
+          try {
+            const line = live.createPriceLine({
+              price: input.price,
+              color: input.color,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: input.title,
+            });
+            poolLineRefs.current.push(line);
+          } catch {
+            poolLineRefs.current.push(null);
+          }
         }
       }
       // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): remove-then-create like the
@@ -699,21 +702,27 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
     (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') &&
     (ticketDirection === 'LONG' || ticketDirection === 'SHORT') &&
     fireBarDate !== null && fireBarDate !== undefined;
-  // Phase 20: hidden presence flag for the thin pool pair (D-09) — mirrors
-  // the asia-lines span idiom. True only when the mapper would emit a pair.
-  const hasPoolLines = (() => {
-    if (pools === null || pools === undefined) return false;
+  // Phase 20: hidden presence flags for the full pool registry (D-09) —
+  // mirrors the asia-lines span idiom. pool-lines covers ACTIVE pairs,
+  // pool-ghosts covers SWEPT ghosts. Render-pure: constant resolvers, no
+  // DOM reads. STAND_ASIDE suppresses ghosts in the flags as on canvas.
+  const poolFlagInputs = (() => {
+    if (pools === null || pools === undefined) return [];
+    const visible = ticketVerdict === 'STAND_ASIDE' ? withoutGhosts(pools) : pools;
     try {
-      return poolPriceLines(pools, () => '#00FF88').length === 2;
+      return poolPriceLines(visible, { dimmed: false });
     } catch {
-      return false;
+      return [];
     }
   })();
+  const hasPoolLines = poolFlagInputs.some((l) => !l.title.includes('-ghost-'));
+  const hasPoolGhosts = poolFlagInputs.some((l) => l.title.includes('-ghost-'));
 
   return (
     <div data-slot="chart-block" data-overlay={status} className="relative min-h-[400px] w-full">
       {hasAsiaLines ? <span data-slot="asia-lines" aria-hidden="true" className="hidden" /> : null}
       {hasPoolLines ? <span data-slot="pool-lines" aria-hidden="true" className="hidden" /> : null}
+      {hasPoolGhosts ? <span data-slot="pool-ghosts" aria-hidden="true" className="hidden" /> : null}
       {hasJudasMarkers ? <span data-slot="judas-markers" aria-hidden="true" className="hidden" /> : null}
       {hasSmtMarker ? <span data-slot="smt-marker" aria-hidden="true" className="hidden" /> : null}
       {hasTicketPin ? <span data-slot="ticket-pin" aria-hidden="true" className="hidden" /> : null}
