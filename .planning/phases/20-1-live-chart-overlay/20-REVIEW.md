@@ -3,10 +3,11 @@ phase: 20-1-live-chart-overlay
 plan: review
 status: clean
 files_reviewed: 9
-critical: 0
-warning: 0
-info: 2
-total: 2
+findings:
+  critical: 0
+  warning: 0
+  info: 2
+  total: 2
 depth: standard
 reviewed_at: "2026-10-27"
 reviewer: inline-orchestrator (Agent-spawn unavailable in this session; standard-depth pass per code-review.md)
