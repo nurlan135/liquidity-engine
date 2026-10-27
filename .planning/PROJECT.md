@@ -49,11 +49,11 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Fatal-flaw invalidation: checkFatalFlaw on the same snapshot as trigger, HARD (rollover/stale) vs SOFT (SMT/opposite-sweep downgrade) split, falsifiable sentence + Azerbaijani challenge bank, live report §6 — v3.0
 - ✓ Paper ticket: fixed-order derivation (direction → OTE×FVG entry → SL → TP ladder → R/R ≥ 1:3 gate → EXECUTE/STAND ASIDE), risk÷distance sizing, banned-word quarantine green, §§4–6 live report blocks + three dashboard panels + persistent KAĞIZ/PAPER banner + chart T pin + entry/SL/TP lines — v3.0
 - ✓ Verification + calibration harness: 20-session replay with pinned transition table + calibration summary JSON, 5-rule AMD/SMT-vs-trigger parity harness, full stale-leg matrix drill with degraded-with-provenance — 420/420 tests, UAT 10/10 — v3.0
+- ✓ Live §1 Pain Threshold report: rank-1 sentence (side + zone bounds + ATR distance + swept status + verbatim reason + inline hedge), full honest-state matrix (skeleton / stale-verbatim / null-empty / no-pools / thin-dimmed+note), SWEPT muted tone, no footer — v3.1 Phase 20
+- ✓ BSL/SSL chart overlay: capped ACTIVE pair registry (nearest-2-per-side, max 8 lines), rank-1 full brightness vs rank-2 50% alpha, SWEPT ghosts dimmed, uniform stale/thin MUTED dim, null-clears-all, STAND_ASIDE clears ghosts, ticket lines on top — v3.1 Phase 20
 
 ### Active
 
-- [ ] BSL/SSL map (§1) — swing-high/low stoplarının proyeksiyası + chart overlay
-- [ ] §1 live report — Pain Threshold bloğu, verbatim səbəblərlə
 - [ ] Execution polish — threshold kalibrləmə, ticket UX, firing-log təhlili
 
 ### Out of Scope
@@ -117,6 +117,9 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [13] Thin-tier truth module + persistent banner stacked thin-first; uniform 0.5 zone/level dimming, markers/Asia/candles full strength | Dead thinHistory arg in zoneBands call + orphaned thinTier export/type noted as minor debt; Asia fallback increases overlay frequency by design | ✓ Good — honest rendering holds |
 | [13] Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a) | Per-candle wall-clock session resolution; fallback makes selectAsia non-null more often, tone stays accent/stale by design | ✓ Good — en passant fix |
 | [14] Audit debt cleanup: zoneBands narrowed to high/low/eq, thin-tier surface shrunk to 4 public names, co-located ict purity guard green | Mechanical cleanup, zero behavior change; 300/300 tests, tsc clean, UAT 3/3 | ✓ Good — Phase 15 trigger code inherits a clean surface |
+| [19] Pools math: equality-bonus scoring + rank + lifecycle + refuse-null selectPools envelope with sharedEpoch | Scorer internals stay in ict; selector returns ranked pools read-only; Phase 20 consumes without signature change | ✓ 458/458, selector contract holds |
+| [20] ATR for prose from shared nq candles via computeATR import (wiring, not new math) | selectRegime uses a different candle set; scorer-consistent distance needs the scorer's own source | ✓ rankDistAtr pinned, scorer untouched |
+| [20] Ghost titles SIDE-ghost-top/bottom (rank null outside cap) | Plan specified SIDE-rank titles which cannot name rankless ghosts | ✓ Unique traceable titles, cap tests green |
 
 ## Current State: v3.0 Shipped
 
@@ -170,4 +173,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-15 after v3.1 milestone start*
+*Last updated: 2026-10-27 after Phase 20*
