@@ -6,15 +6,18 @@ import { describe, expect, it } from 'vitest';
 import { CONVICTION_LABEL, PRE_NEWS_BADGE, REGIME_BADGE, REPORT_SECTIONS } from '@/src/lib/report';
 
 describe('report', () => {
-  it('holds exactly 6 entries with only indexes 2 through 6 live', () => {
+  it('holds exactly 6 entries with indexes 1 through 6 live', () => {
     expect(REPORT_SECTIONS).toHaveLength(6);
     expect(REPORT_SECTIONS.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
     const live = REPORT_SECTIONS.filter((s) => s.state === 'live');
-    expect(live).toHaveLength(5);
-    expect(live.map((s) => s.index)).toEqual([2, 3, 4, 5, 6]);
+    expect(live).toHaveLength(6);
+    expect(live.map((s) => s.index)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
-  it('locks the §3 title and the conviction label prefix', () => {
+  it('locks the §1 title alongside the §3 title and the conviction label prefix', () => {
+    const s1 = REPORT_SECTIONS.find((s) => s.index === 1);
+    expect(s1).toBeDefined();
+    expect(s1!.title).toBe('1. RETAIL EXPOSURE & SENTIMENT ENGINEERING');
     const s3 = REPORT_SECTIONS.find((s) => s.index === 3);
     expect(s3).toBeDefined();
     expect(s3!.title).toBe('3. LIQUIDITY SEQUENCING & CROSS-MARKET SMT (1H/15M)');

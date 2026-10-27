@@ -11,6 +11,14 @@ import crowdedLong from '@/src/lib/fixtures/crowded-long.json';
 import crowdedShort from '@/src/lib/fixtures/crowded-short.json';
 import balanced from '@/src/lib/fixtures/balanced.json';
 import { cn } from 'cn';
+import {
+  EMPTY_POOLS_BODY,
+  NO_POOLS_COPY as S1_EMPTY_COPY,
+  PAIN_THRESHOLD_LABEL,
+  formatRank1Sentence,
+  rank1Of,
+  rankDistAtr,
+} from '@/src/lib/pool-prose';
 
 const SNAPSHOTS = {
   'crowded-long': crowdedLong,
@@ -81,6 +89,11 @@ export function Report() {
   const selectTrigger = useDashboard((s) => s.selectTrigger);
   const selectFatalFlaw = useDashboard((s) => s.selectFatalFlaw);
   const selectTicket = useDashboard((s) => s.selectTicket);
+  // Phase 20 §1 selector: stable selector-function subscription with
+  // derivation during render (selectLevels/selectLiquidityPath precedent —
+  // avoids useShallow loops on fresh nested identities). Read-only: no
+  // signature change, no swept-ness recomputation (D-18, D-19, D-21).
+  const selectPools = useDashboard((s) => s.selectPools);
 
   const position = selectPosition();
   const range4H = selectRange4H();
@@ -94,6 +107,12 @@ export function Report() {
   const trigger = selectTrigger();
   const flaw = selectFatalFlaw();
   const ticket = selectTicket();
+  // Phase 20 §1 derivation during render beside the existing selector
+  // pattern: poolsSel is null on stale/empty/thin-refused envelopes (never
+  // cached pools, D-08). NQ-leg lastError feeds the stale chain only.
+  const poolsSel = selectPools();
+  const poolsNqCandles = useDashboard((s) => s.nq.candles);
+  const poolsNqLastError = useDashboard.getState().nq.lastError;
 
   const preNews = useMemo(() => {
     const snapshot = snapshotFor(scenario);
@@ -120,6 +139,52 @@ export function Report() {
       </CardHeader>
       <CardContent>
         {REPORT_SECTIONS.map((section) => {
+          // Phase 20 §1 live block (D-01 through D-04, D-08, D-17 through
+          // D-22): rank-1 sentence with inline hedge, honest-state matrix in
+          // tracer form (live sentence only — empty-state expansion lands in
+          // plan 20-03). Placed before the generic unavailable branch, which
+          // no longer applies to §1 (D-22).
+          if (section.index === 1) {
+            const rank1 = poolsSel === null ? null : rank1Of(poolsSel.pools);
+            const rank1Dist = rank1 === null ? null : rankDistAtr(rank1, poolsNqCandles);
+            const rank1Sentence = rank1 === null ? null : formatRank1Sentence(rank1, rank1Dist);
+            const isSwept = rank1 !== null && rank1.status === 'SWEPT';
+            return (
+              <section key={section.index} data-slot="report-section">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : poolsSel === null ? (
+                  <p className="text-base font-semibold">{poolsNqLastError ?? S1_EMPTY_COPY}</p>
+                ) : rank1Sentence === null ? (
+                  <p className="text-base font-semibold">{EMPTY_POOLS_BODY}</p>
+                ) : (
+                  <div data-slot="s1-pain-threshold">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      {PAIN_THRESHOLD_LABEL}
+                    </h4>
+                    <p className={`text-base font-semibold ${isSwept ? 'text-muted-foreground' : ''}`}>
+                      {rank1Sentence.split(/(\d+\.\d+)/g).map((part, i) =>
+                        /^\d+\.\d+$/.test(part) ? (
+                          <span key={i} className="font-mono tabular-nums">
+                            {part}
+                          </span>
+                        ) : (
+                          <span key={i}>{part}</span>
+                        ),
+                      )}
+                    </p>
+                  </div>
+                )}
+              </section>
+            );
+          }
           // Phase 9 §3 live block (D-01 through D-04, D-09 through D-12):
           // conviction line plus three sub-blocks in fixed stable order with
           // per-block verbatim reasons, never a §3-level banner.
