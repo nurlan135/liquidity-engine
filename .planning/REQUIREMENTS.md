@@ -18,15 +18,15 @@ Requirements for v3.1 milestone. Each maps to roadmap phases.
 
 ### §1 Live Report
 
-- [ ] **S1-01**: Report §1 flips from unavailable to live with verbatim Azerbaijani pool reasons
-- [ ] **S1-02**: §1 shows honest-empty states (no pools / stale leg / thin history)
-- [ ] **S1-03**: §1 prose carries proyeksiya hedge + methodology caveat, toBe-pinned
+- [x] **S1-01**: Report §1 flips from unavailable to live with verbatim Azerbaijani pool reasons
+- [x] **S1-02**: §1 shows honest-empty states (no pools / stale leg / thin history)
+- [x] **S1-03**: §1 prose carries proyeksiya hedge + methodology caveat, toBe-pinned
 
 ### Chart Overlay
 
-- [ ] **CHRT-01**: BSL/SSL zones render as price-line pairs on chart (nearest-2-per-side cap)
-- [ ] **CHRT-02**: Swept pools dim, rank-1 highlighted, ticket lines stay on top (z-order)
-- [ ] **CHRT-03**: Stale/thin dimming applies to pool lines, ghost lines clear on STAND ASIDE
+- [x] **CHRT-01**: BSL/SSL zones render as price-line pairs on chart (nearest-2-per-side cap)
+- [x] **CHRT-02**: Swept pools dim, rank-1 highlighted, ticket lines stay on top (z-order)
+- [x] **CHRT-03**: Stale/thin dimming applies to pool lines, ghost lines clear on STAND ASIDE
 
 ### Execution Polish
 
@@ -70,12 +70,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POOL-04 | Phase 19 | Complete |
 | POOL-05 | Phase 19 | Complete |
 | POOL-06 | Phase 19 | Complete |
-| S1-01 | Phase 20 | Pending |
-| S1-02 | Phase 20 | Pending |
-| S1-03 | Phase 20 | Pending |
-| CHRT-01 | Phase 20 | Pending |
-| CHRT-02 | Phase 20 | Pending |
-| CHRT-03 | Phase 20 | Pending |
+| S1-01 | Phase 20 | Complete |
+| S1-02 | Phase 20 | Complete |
+| S1-03 | Phase 20 | Complete |
+| CHRT-01 | Phase 20 | Complete |
+| CHRT-02 | Phase 20 | Complete |
+| CHRT-03 | Phase 20 | Complete |
 | POL-01 | Phase 21 | Pending |
 | POL-02 | Phase 21 | Pending |
 | POL-03 | Phase 21 | Pending |
