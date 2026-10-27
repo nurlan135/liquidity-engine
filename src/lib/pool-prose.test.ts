@@ -4,10 +4,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  EMPTY_POOLS_BODY,
+  EMPTY_COPY,
+  NO_POOLS_COPY,
+  THIN_NOTE_COPY,
   formatRank1Sentence,
   HEDGE_FRAGMENT,
-  NO_POOLS_COPY,
   PAIN_THRESHOLD_LABEL,
   rank1Of,
   distAtrOf,
@@ -40,10 +41,12 @@ describe('pool-prose', () => {
     expect(HEDGE_FRAGMENT).toBe('(proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)');
   });
 
-  it('pins the Agri Heddi label, the Melumat yoxdur copy, and the no-pools body', () => {
+  it('pins the Agri Heddi label, the three copy literals, and the hedge', () => {
     expect(PAIN_THRESHOLD_LABEL).toBe('Ağrı Həddi');
-    expect(NO_POOLS_COPY).toBe('Məlumat yoxdur');
-    expect(EMPTY_POOLS_BODY).toBe('Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.');
+    expect(EMPTY_COPY).toBe('Məlumat yoxdur');
+    expect(NO_POOLS_COPY).toBe('Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.');
+    expect(THIN_NOTE_COPY).toBe('İncə tarixçə — proyeksiya zəif etimadla göstərilir.');
+    expect(HEDGE_FRAGMENT).toBe('(proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)');
   });
 
   it('formats the rank-1 sentence with side, two-decimal bounds, one-decimal ATR, status, and hedge', () => {
@@ -56,9 +59,7 @@ describe('pool-prose', () => {
   it('names SWEPT status verbatim with muted rendering left to the caller', () => {
     const sentence = formatRank1Sentence(pool({ status: 'SWEPT' }), 0.44);
     expect(sentence).toBe(
-      'SWEPT' === 'SWEPT'
-        ? 'BSL 26500.50 / 26450.25 · 0.4 ATR · SWEPT (proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)'
-        : '',
+      'BSL 26500.50 / 26450.25 · 0.4 ATR · SWEPT (proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)',
     );
   });
 
@@ -84,5 +85,32 @@ describe('pool-prose', () => {
     expect(dist).not.toBeNull();
     expect(Number.isFinite(dist!)).toBe(true);
     expect(rankDistAtr(pool(), [])).toBeNull();
+  });
+
+  it('banned reuse is absent from prose output and copy constants', () => {
+    const sentence = formatRank1Sentence(pool(), 1.25);
+    const bodies = [sentence, EMPTY_COPY, NO_POOLS_COPY, THIN_NOTE_COPY, HEDGE_FRAGMENT];
+    for (const body of bodies) {
+      expect(body).not.toMatch(/FIRE/);
+      expect(body).not.toMatch(/heatmap/i);
+      expect(body).not.toMatch(/LLM/i);
+    }
+    // Exact stop-price claims are banned; the hedge carries only the
+    // proyeksiya qualifier (deqiq stop qiymeti deyil), never a price promise.
+    for (const body of bodies) {
+      expect(body).not.toMatch(/stop qiyməti \d/);
+      expect(body).not.toMatch(/dəqiq .* olacaq/i);
+    }
+  });
+
+  it('rank-1 output carries all tokens in one string with no footer join', () => {
+    const sentence = formatRank1Sentence(pool(), 1.25);
+    expect(sentence).toContain('BSL');
+    expect(sentence).toContain('26500.50 / 26450.25');
+    expect(sentence).toContain('1.3 ATR');
+    expect(sentence).toContain('ACTIVE');
+    expect(sentence).toContain(HEDGE_FRAGMENT);
+    // Single-line prose: no newline join that would signal a footer split.
+    expect(sentence).not.toContain('\n');
   });
 });

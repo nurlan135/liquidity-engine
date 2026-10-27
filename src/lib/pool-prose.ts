@@ -9,15 +9,18 @@ import type { LiquidityPool } from '@/src/lib/ict/pools';
 import { computeATR } from '@/src/lib/ict/regime';
 
 // Inline hedge fragment (D-04, S1-03): lives inside the rank-1 sentence,
-// never a separate footer element.
+// never a separate footer element. No footer export exists by design.
 export const HEDGE_FRAGMENT = '(proyeksiya — k=2 D1 fraktal; dəqiq stop qiyməti deyil)';
 
 // Null-selector empty copy (D-08): never last-known/cached pools.
-export const NO_POOLS_COPY = 'Məlumat yoxdur';
+export const EMPTY_COPY = 'Məlumat yoxdur';
 
 // No-pools body line (D-05): distinct line when the selector is healthy
-// but zero ACTIVE pools exist.
-export const EMPTY_POOLS_BODY = 'Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.';
+// but zero pools exist.
+export const NO_POOLS_COPY = 'Aktiv hovuz yoxdur — D1 k=2 fraktal təsdiqlənmədi.';
+
+// Thin-history note (D-07): pools stay visible dimmed, never hidden.
+export const THIN_NOTE_COPY = 'İncə tarixçə — proyeksiya zəif etimadla göstərilir.';
 
 // Fixed Azerbaijani sub-block label (D-03).
 export const PAIN_THRESHOLD_LABEL = 'Ağrı Həddi';
