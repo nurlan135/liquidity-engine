@@ -1733,5 +1733,51 @@ describe('store: four-leg stagger plus intraday refusal (Phase 9 D-13/D-14/D-15)
 
     useDashboard.getState().stopDualPoll();
   });
+
+  it('threshold-default: fireThreshold defaults 4 with clamp refuse and reset pins', async () => {
+    const { useDashboard } = await resetDualState();
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(4);
+
+    useDashboard.getState().setFireThreshold(6);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(6);
+
+    // Clamp edges mirror the riskPct idiom: above max pins to 7, below min
+    // pins to 1.
+    useDashboard.getState().setFireThreshold(99);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(7);
+    useDashboard.getState().setFireThreshold(0.5);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(1);
+
+    // Refuse shapes leave state untouched (state still 1 from the clamp).
+    useDashboard.getState().setFireThreshold(NaN);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(1);
+    useDashboard.getState().setFireThreshold(Infinity);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(1);
+    useDashboard.getState().setFireThreshold(0);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(1);
+    useDashboard.getState().setFireThreshold(-3);
+    expect(useDashboard.getState().thresholdInputs.fireThreshold).toBe(1);
+
+    // Reset (fresh store instance) restores the code default 4.
+    const second = await resetDualState();
+    expect(second.useDashboard.getState().thresholdInputs.fireThreshold).toBe(4);
+
+    useDashboard.getState().stopDualPoll();
+  });
+
+  it('threshold-validate-on-read: tampered values fall back to the code default', async () => {
+    const { readFireThreshold } = await import('@/src/lib/store');
+    expect(readFireThreshold(4)).toBe(4);
+    expect(readFireThreshold(1)).toBe(1);
+    expect(readFireThreshold(7)).toBe(7);
+    expect(readFireThreshold(0)).toBe(4);
+    expect(readFireThreshold(8)).toBe(4);
+    expect(readFireThreshold(NaN)).toBe(4);
+    expect(readFireThreshold(Infinity)).toBe(4);
+    expect(readFireThreshold(2.5)).toBe(4);
+    expect(readFireThreshold('4')).toBe(4);
+    expect(readFireThreshold(null)).toBe(4);
+    expect(readFireThreshold(undefined)).toBe(4);
+  });
 });
 

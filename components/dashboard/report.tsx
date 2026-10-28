@@ -11,6 +11,16 @@ import crowdedLong from '@/src/lib/fixtures/crowded-long.json';
 import crowdedShort from '@/src/lib/fixtures/crowded-short.json';
 import balanced from '@/src/lib/fixtures/balanced.json';
 import { cn } from 'cn';
+import {
+  EMPTY_COPY as S1_EMPTY_COPY,
+  NO_POOLS_COPY as S1_NO_POOLS_COPY,
+  THIN_NOTE_COPY as S1_THIN_NOTE_COPY,
+  PAIN_THRESHOLD_LABEL,
+  formatRank1Sentence,
+  rank1Of,
+  rankDistAtr,
+} from '@/src/lib/pool-prose';
+import { countFireRate, fireRateCopy } from '@/src/lib/fire-rate';
 
 const SNAPSHOTS = {
   'crowded-long': crowdedLong,
@@ -81,6 +91,11 @@ export function Report() {
   const selectTrigger = useDashboard((s) => s.selectTrigger);
   const selectFatalFlaw = useDashboard((s) => s.selectFatalFlaw);
   const selectTicket = useDashboard((s) => s.selectTicket);
+  // Phase 20 §1 selector: stable selector-function subscription with
+  // derivation during render (selectLevels/selectLiquidityPath precedent —
+  // avoids useShallow loops on fresh nested identities). Read-only: no
+  // signature change, no swept-ness recomputation (D-18, D-19, D-21).
+  const selectPools = useDashboard((s) => s.selectPools);
 
   const position = selectPosition();
   const range4H = selectRange4H();
@@ -94,6 +109,17 @@ export function Report() {
   const trigger = selectTrigger();
   const flaw = selectFatalFlaw();
   const ticket = selectTicket();
+  // Phase 20 §1 derivation during render beside the existing selector
+  // pattern: poolsSel is null on stale/empty/thin-refused envelopes (never
+  // cached pools, D-08). NQ-leg lastError feeds the stale chain only.
+  const poolsSel = selectPools();
+  const poolsNqCandles = useDashboard((s) => s.nq.candles);
+  const poolsNqLastError = useDashboard.getState().nq.lastError;
+  // Phase 21 §5 fire-rate strip (D-09/D-10): reads the live firingLog array
+  // plus the operator thresholdInputs value — never cached, never derived
+  // into a gate. Empty log renders the honest-empty copy via the helper.
+  const firingLog = useDashboard((s) => s.firingLog);
+  const fireThreshold = useDashboard((s) => s.thresholdInputs.fireThreshold);
 
   const preNews = useMemo(() => {
     const snapshot = snapshotFor(scenario);
@@ -120,6 +146,66 @@ export function Report() {
       </CardHeader>
       <CardContent>
         {REPORT_SECTIONS.map((section) => {
+          // Phase 20 §1 live block (D-01 through D-08, D-17 through
+          // D-22): full honest-state matrix. Branch order is load-bearing:
+          // skeleton, then stale-verbatim, then null-empty, then no-pools,
+          // then thin-dimmed, then healthy. Placed before the generic
+          // unavailable branch, which no longer applies to §1 (D-22).
+          if (section.index === 1) {
+            const rank1 = poolsSel === null ? null : rank1Of(poolsSel.pools);
+            const rank1Dist = rank1 === null ? null : rankDistAtr(rank1, poolsNqCandles);
+            const rank1Sentence = rank1 === null ? null : formatRank1Sentence(rank1, rank1Dist);
+            const isSwept = rank1 !== null && rank1.status === 'SWEPT';
+            const isThin = poolsSel !== null && poolsSel.degraded.thin === true;
+            const rank1Prose = rank1Sentence === null ? null : (
+              <p className={`text-base font-semibold ${isSwept ? 'text-muted-foreground' : ''}`}>
+                {rank1Sentence.split(/(\d+\.\d+)/g).map((part, i) =>
+                  /^\d+\.\d+$/.test(part) ? (
+                    <span key={i} className="font-mono tabular-nums">
+                      {part}
+                    </span>
+                  ) : (
+                    <span key={i}>{part}</span>
+                  ),
+                )}
+              </p>
+            );
+            return (
+              <section key={section.index} data-slot="report-section" aria-live="polite">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                  {section.title}
+                </h3>
+                {lastUpdatedISO === null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                    <div className="h-3 animate-pulse" />
+                  </div>
+                ) : poolsSel === null && poolsNqLastError !== null ? (
+                  <p className="text-base font-semibold">{poolsNqLastError}</p>
+                ) : poolsSel === null ? (
+                  <p className="text-base font-semibold">{S1_EMPTY_COPY}</p>
+                ) : rank1Sentence === null ? (
+                  <p className="text-base font-semibold">{S1_NO_POOLS_COPY}</p>
+                ) : isThin ? (
+                  <div data-slot="s1-pain-threshold" className="space-y-1 opacity-45">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      {PAIN_THRESHOLD_LABEL}
+                    </h4>
+                    {rank1Prose}
+                    <p className="text-xs text-muted-foreground">{S1_THIN_NOTE_COPY}</p>
+                  </div>
+                ) : (
+                  <div data-slot="s1-pain-threshold" className="space-y-1">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                      {PAIN_THRESHOLD_LABEL}
+                    </h4>
+                    {rank1Prose}
+                  </div>
+                )}
+              </section>
+            );
+          }
           // Phase 9 §3 live block (D-01 through D-04, D-09 through D-12):
           // conviction line plus three sub-blocks in fixed stable order with
           // per-block verbatim reasons, never a §3-level banner.
@@ -235,25 +321,47 @@ export function Report() {
                     <div className="h-3 animate-pulse" />
                     <div className="h-3 animate-pulse" />
                   </div>
-                ) : ticket === null ? (
-                  <p className="text-base font-semibold">{ticketLegError ?? S3_EMPTY_COPY}</p>
                 ) : (
-                  <div data-slot="s5-paper-ticket">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em]">
-                      {`${ticket.verdict}${ticket.direction !== null ? ` · ${ticket.direction}` : ''}`}
-                    </p>
-                    <p className="text-base">{ticket.reason}</p>
-                    {ticket.verdict === 'STAND_ASIDE' ? null : (
-                      <div>
-                        <p className="font-mono text-xl font-semibold tabular-nums">
-                          {`Giriş ${ticket.entry === null ? '—' : ticket.entry.toFixed(2)} · Stop ${ticket.sl === null ? '—' : ticket.sl.toFixed(2)}`}
+                  <>
+                    {ticket === null ? (
+                      <p className="text-base font-semibold">{ticketLegError ?? S3_EMPTY_COPY}</p>
+                    ) : (
+                      <div data-slot="s5-paper-ticket">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                          {`${ticket.verdict}${ticket.direction !== null ? ` · ${ticket.direction}` : ''}`}
                         </p>
-                        <p className="font-mono text-xs tabular-nums">
-                          {`TP1 ${ticket.tp.tp1 === null ? '—' : ticket.tp.tp1.toFixed(2)} · TP2 ${ticket.tp.tp2 === null ? '—' : ticket.tp.tp2.toFixed(2)} · TP3 ${ticket.tp.tp3 === null ? '—' : ticket.tp.tp3.toFixed(2)} · R/R ${ticket.rr === null ? '—' : `1:${ticket.rr.toFixed(1)}`} · Ölçü ${ticket.sizeContracts === null ? '—' : ticket.sizeContracts} NQ`}
-                        </p>
+                        <p className="text-base">{ticket.reason}</p>
+                        {ticket.verdict === 'STAND_ASIDE' ? null : (
+                          <div>
+                            <p className="font-mono text-xl font-semibold tabular-nums">
+                              {`Giriş ${ticket.entry === null ? '—' : ticket.entry.toFixed(2)} · Stop ${ticket.sl === null ? '—' : ticket.sl.toFixed(2)}`}
+                            </p>
+                            <p className="font-mono text-xs tabular-nums">
+                              {`TP1 ${ticket.tp.tp1 === null ? '—' : ticket.tp.tp1.toFixed(2)} · TP2 ${ticket.tp.tp2 === null ? '—' : ticket.tp.tp2.toFixed(2)} · TP3 ${ticket.tp.tp3 === null ? '—' : ticket.tp.tp3.toFixed(2)} · R/R ${ticket.rr === null ? '—' : `1:${ticket.rr.toFixed(1)}`} · Ölçü ${ticket.sizeContracts === null ? '—' : ticket.sizeContracts} NQ`}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                    <p data-slot="fire-rate-strip" className="text-xs text-muted-foreground">
+                      {(() => {
+                        const rate = countFireRate(firingLog, Math.floor(Date.now() / 1000), fireThreshold);
+                        const copy = fireRateCopy(rate);
+                        // Locked literal shape "WHY NOW: {n} fires / 7d — tail":
+                        // keep the helper output verbatim, wrapping only the
+                        // count in mono numerals (Body + mono per UI-SPEC).
+                        const prefix = 'WHY NOW: ';
+                        const rest = copy.slice(`${prefix}${rate.count7d}`.length);
+                        return (
+                          <>
+                            {prefix}
+                            <span className="font-mono tabular-nums">{rate.count7d}</span>
+                            {rest}
+                          </>
+                        );
+                      })()}
+                    </p>
+                  </>
                 )}
               </section>
             );

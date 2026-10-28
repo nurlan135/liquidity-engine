@@ -6,6 +6,8 @@ import type { JudasOutput } from '@/src/lib/ict/judas';
 import type { SmtOutput } from '@/src/lib/ict/smt';
 import { asiaLineInputs, levelLineInputs, mapCandlesToSeries, priceLineInputs } from '@/src/lib/chart-mapper';
 import type { ThinTier } from '@/src/lib/thin-tier';
+import type { LiquidityPool } from '@/src/lib/ict/pools';
+import { isGhost, poolPriceLines, withoutGhosts } from '@/src/lib/pool-overlay';
 import { zoneBands } from '@/src/lib/zone-bands';
 import type { ZoneFillPrimitive } from '@/components/charts/zone-primitive';
 
@@ -47,6 +49,12 @@ export interface NqChartProps {
   ticketTP2?: number | null;
   ticketTP3?: number | null;
   fireBarDate?: string | null;
+  // Phase 20 pool overlay (tracer slice, D-09/D-11/D-21): terminal-shell
+  // passes the selectPools return through these optional props. poolsThin
+  // marks the degraded-thin envelope (pools render at uniform 0.5-dim tone).
+  // Null pools clear all pool lines via remove-then-create (D-14).
+  pools?: LiquidityPool[] | null;
+  poolsThin?: boolean;
 }
 
 // Chart CSS variable names (values live in app/globals.css under .dark).
@@ -142,7 +150,7 @@ function buildOverlayMarkers(
   return markers;
 }
 
-export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full', ticketVerdict = null, ticketDirection = null, ticketEntry = null, ticketSL = null, ticketTP1 = null, ticketTP2 = null, ticketTP3 = null, fireBarDate = null }: NqChartProps) {
+export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels = null, asiaHigh = null, asiaLow = null, judas = null, judasBarDate = null, smt = null, smtBarDate = null, overlayStale = false, thinTier = 'full', ticketVerdict = null, ticketDirection = null, ticketEntry = null, ticketSL = null, ticketTP1 = null, ticketTP2 = null, ticketTP3 = null, fireBarDate = null, pools = null, poolsThin = false }: NqChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Unknown handles keep the module top free of heavy chart types; each use
   // site narrows through a minimal local structural type.
@@ -163,14 +171,18 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
   const tp1LineRef = useRef<unknown>(null);
   const tp2LineRef = useRef<unknown>(null);
   const tp3LineRef = useRef<unknown>(null);
+  // Phase 20 pool line registry (D-09, D-14): one ref per emitted pool
+  // line — remove-then-create alongside the Asia refs so null pools clear
+  // cleanly with no stale leftovers.
+  const poolLineRefs = useRef<unknown[]>([]);
   // Phase 9 series-markers plugin handle (v5 createSeriesMarkers form only).
   const markersPluginRef = useRef<unknown>(null);
   const zoneRef = useRef<ZoneFillPrimitive | null>(null);
-  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate });
+  const propsRef = useRef({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate, pools, poolsThin });
   // Sync the latest props outside render so the zone-fill getter reads live
   // values without violating the react-hooks/refs render-phase rule.
   useEffect(() => {
-    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate };
+    propsRef.current = { candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, forming, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate, pools, poolsThin };
   });
 
   // Create the chart once per container; lightweight-charts loads lazily so
@@ -266,6 +278,41 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
         } catch {
           asiaHighLineRef.current = null;
           asiaLowLineRef.current = null;
+        }
+      }
+      // Phase 20 full pool registry (D-09 through D-16): capped ACTIVE
+      // pairs plus SWEPT ghosts via the finite-guarded poolPriceLines —
+      // before the ticket EXECUTE block so ticket stays on top. Per-leg
+      // try-catch nulls only that ref; a guard throw or null pools leaves
+      // zero lines and the chart never blocks (D-14). Dimmed envelopes
+      // (stale, thin, or thin-tier) force MUTED_GRAY (D-13). STAND_ASIDE
+      // skips ghost creation while ACTIVE pairs remain (D-15).
+      {
+        const poolDimmed =
+          props.overlayStale === true || props.poolsThin === true || props.thinTier !== 'full';
+        const poolSource = props.pools ?? [];
+        const poolVisible =
+          props.ticketVerdict === 'STAND_ASIDE' ? withoutGhosts(poolSource) : poolSource;
+        let poolInputs: { price: number; color: string; title: string }[] = [];
+        try {
+          poolInputs = poolPriceLines(poolVisible, { dimmed: poolDimmed });
+        } catch {
+          poolInputs = [];
+        }
+        poolLineRefs.current = [];
+        for (const input of poolInputs) {
+          try {
+            const line = typed.createPriceLine({
+              price: input.price,
+              color: input.color,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: input.title,
+            });
+            poolLineRefs.current.push(line);
+          } catch {
+            poolLineRefs.current.push(null);
+          }
         }
       }
       // Overlay markers via the v5 plugin form (D-06/D-07 plus Phase 17 T
@@ -431,6 +478,11 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       if (oteBearLineRef.current !== null) live.removePriceLine(oteBearLineRef.current);
       if (asiaHighLineRef.current !== null) live.removePriceLine(asiaHighLineRef.current);
       if (asiaLowLineRef.current !== null) live.removePriceLine(asiaLowLineRef.current);
+      // Phase 20 pool lines remove unconditionally first (D-14): null pools
+      // clear all pool lines so no stale leftovers survive on canvas.
+      for (const ref of poolLineRefs.current) {
+        if (ref !== null) live.removePriceLine(ref);
+      }
       // Ticket lines remove unconditionally first (D-10): skipping creation
       // alone leaves ghost what-if levels after a verdict flip to STAND ASIDE.
       if (entryLineRef.current !== null) live.removePriceLine(entryLineRef.current);
@@ -444,6 +496,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       oteBearLineRef.current = null;
       asiaHighLineRef.current = null;
       asiaLowLineRef.current = null;
+      poolLineRefs.current = [];
       entryLineRef.current = null;
       slLineRef.current = null;
       tp1LineRef.current = null;
@@ -537,6 +590,37 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
           asiaLowLineRef.current = null;
         }
       }
+      // Phase 20 full pool registry (D-09, D-11, D-13, D-14, D-15): same
+      // remove-then-create cycle — before the ticket EXECUTE block so ticket
+      // stays on top. Guard-throw or null pools render no lines and never
+      // block the chart. STAND_ASIDE skips ghost creation; ACTIVE pairs
+      // remain (removal above already cleared prior ghosts).
+      {
+        const poolDimmed = overlayStale || poolsThin || thinTier !== 'full';
+        const poolSource = pools ?? [];
+        const poolVisible = ticketVerdict === 'STAND_ASIDE' ? withoutGhosts(poolSource) : poolSource;
+        let poolInputs: { price: number; color: string; title: string }[] = [];
+        try {
+          poolInputs = poolPriceLines(poolVisible, { dimmed: poolDimmed });
+        } catch {
+          poolInputs = [];
+        }
+        poolLineRefs.current = [];
+        for (const input of poolInputs) {
+          try {
+            const line = live.createPriceLine({
+              price: input.price,
+              color: input.color,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              title: input.title,
+            });
+            poolLineRefs.current.push(line);
+          } catch {
+            poolLineRefs.current.push(null);
+          }
+        }
+      }
       // Ticket Entry/SL/TP1/TP2/TP3 lines (D-09): remove-then-create like the
       // Asia pair. EXECUTE verdict only; each leg renders independently —
       // null or non-finite legs (legal on a partial TP ladder) are skipped
@@ -602,7 +686,7 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
       zoneRef.current.opacityScale = status === 'stale' || refreshDimmed ? 0.5 : 1;
       zoneRef.current.updateBands();
     }
-  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate]);
+  }, [candles, rangeHigh, rangeLow, eq, dolPrice, dolName, status, levels, asiaHigh, asiaLow, judas, judasBarDate, smt, smtBarDate, overlayStale, thinTier, ticketVerdict, ticketDirection, ticketEntry, ticketSL, ticketTP1, ticketTP2, ticketTP3, fireBarDate, pools, poolsThin]);
 
   const latest = candles.length > 0 ? candles[candles.length - 1] : null;
   const hasAsiaLines = asiaHigh !== null && asiaHigh !== undefined && asiaLow !== null && asiaLow !== undefined;
@@ -618,10 +702,27 @@ export function NqChart({ candles, rangeHigh, rangeLow, eq, dolPrice, dolName, s
     (ticketVerdict === 'EXECUTE_LONG' || ticketVerdict === 'EXECUTE_SHORT') &&
     (ticketDirection === 'LONG' || ticketDirection === 'SHORT') &&
     fireBarDate !== null && fireBarDate !== undefined;
+  // Phase 20: hidden presence flags for the full pool registry (D-09) —
+  // mirrors the asia-lines span idiom. pool-lines covers ACTIVE pairs,
+  // pool-ghosts covers SWEPT ghosts. Render-pure: constant resolvers, no
+  // DOM reads. STAND_ASIDE suppresses ghosts in the flags as on canvas.
+  const poolFlagInputs = (() => {
+    if (pools === null || pools === undefined) return [];
+    const visible = ticketVerdict === 'STAND_ASIDE' ? withoutGhosts(pools) : pools;
+    try {
+      return poolPriceLines(visible, { dimmed: false });
+    } catch {
+      return [];
+    }
+  })();
+  const hasPoolLines = poolFlagInputs.some((l) => !l.title.includes('-ghost-'));
+  const hasPoolGhosts = poolFlagInputs.some((l) => l.title.includes('-ghost-'));
 
   return (
     <div data-slot="chart-block" data-overlay={status} className="relative min-h-[400px] w-full">
       {hasAsiaLines ? <span data-slot="asia-lines" aria-hidden="true" className="hidden" /> : null}
+      {hasPoolLines ? <span data-slot="pool-lines" aria-hidden="true" className="hidden" /> : null}
+      {hasPoolGhosts ? <span data-slot="pool-ghosts" aria-hidden="true" className="hidden" /> : null}
       {hasJudasMarkers ? <span data-slot="judas-markers" aria-hidden="true" className="hidden" /> : null}
       {hasSmtMarker ? <span data-slot="smt-marker" aria-hidden="true" className="hidden" /> : null}
       {hasTicketPin ? <span data-slot="ticket-pin" aria-hidden="true" className="hidden" /> : null}

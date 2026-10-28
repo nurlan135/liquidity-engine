@@ -6,7 +6,7 @@
 - ✅ **v2.0 Modul 3 (Liquidity Sequencing & SMT)** — Phases 6–9 (shipped 2026-09-08)
 - ✅ **v2.1 Cleanup & Polish** — Phases 10–13 (shipped 2026-09-09)
 - ✅ **v3.0 Execution (Modul 4)** — Phases 14–18 (shipped 2026-09-15)
-- 🚧 **v3.1 Pain Threshold (§1) + Execution Polish** — Phases 19–21 (in progress)
+- ✅ **v3.1 Pain Threshold (§1) + Execution Polish** — Phases 19–21 (shipped 2026-10-28)
 
 ## Phases
 
@@ -60,80 +60,13 @@ Full detail: `.planning/milestones/v3.0-ROADMAP.md`
 
 </details>
 
-### 🚧 v3.1 Pain Threshold (§1) + Execution Polish (In Progress)
+<details>
+<summary>✅ v3.1 Pain Threshold (§1) + Execution Polish (Phases 19–21) — SHIPPED 2026-10-28</summary>
 
-**Milestone Goal:** Hesabatın boş §1-i canlanır — BSL/SSL ağrı zonaları xəritələnir, trigger/ticket incə ayarlanır. Pools are read-only projection context that never votes.
+- [x] Phase 19: Pools Math (3/3 plans) — completed 2026-09-16 (verified 6/6)
+- [x] Phase 20: §1 Live + Chart Overlay (3/3 plans) — completed 2026-10-27 (verified PASS)
+- [x] Phase 21: Execution Polish (4/4 plans) — completed 2026-10-28 (verification passed, UAT 3/3)
 
-- [x] **Phase 19: Pools Math** - BSL/SSL stop-cluster projection as pure functions + guarded selector (verified 6/6 PASS, 2026-09-16, 458/458 tests, tsc clean)
-- [ ] **Phase 20: §1 Live + Chart Overlay** - Pain Threshold report block live + pool price lines on chart
-- [ ] **Phase 21: Execution Polish** - Threshold calibration, ticket buffers, parity proof, slider controls
+Full detail: `.planning/milestones/v3.1-ROADMAP.md`
 
-## Phase Details
-
-### Phase 19: Pools Math
-
-**Goal**: Ranked BSL/SSL stop-cluster inventory exists as pure, test-pinned math with a guarded selector
-**Depends on**: Phase 18 (v3.0 shipped; trigger/flaw/ticket calibration green, pools must not disturb it)
-**Requirements**: POOL-01, POOL-02, POOL-03, POOL-04, POOL-05, POOL-06
-**Success Criteria** (what must be TRUE):
-
-  1. User-facing pool data derives from D1 swing highs/lows via the shared swing contract (k=2 strict fractal) — no forked swing logic
-  2. Equal highs/lows rank heavier than single touches, and every pool shows side, zone bounds, weight, origin and ACTIVE/SWEPT/CONSUMED status
-  3. Swept pools stay swept (wick-pierce marks SWEPT, close-through marks CONSUMED, first-sweep-wins, no re-promotion)
-  4. Pool selector degrades honestly on stale/empty/thin legs (refuse-null envelope, sharedEpoch) and never throws
-
-**Plans**: 3/3 plans executed
-
-Plans:
-
-- [x] 19-01-PLAN.md — Tracer: shared swings extraction + thin pools pipeline + thin selectPools
-- [x] 19-02-PLAN.md — Full math matrix: equality bonus + lifecycle + ATR-merge/cap + scorer
-- [x] 19-03-PLAN.md — Guarded delivery: selectPools degrade matrix + swings pins + suite proof
-
-### Phase 20: §1 Live + Chart Overlay
-
-**Goal**: Users see the live Pain Threshold map in report §1 and as chart overlays
-**Depends on**: Phase 19
-**Requirements**: S1-01, S1-02, S1-03, CHRT-01, CHRT-02, CHRT-03
-**Success Criteria** (what must be TRUE):
-
-  1. User can read a live §1 Pain Threshold block naming which pool, where, whether swept, and how close — with verbatim Azerbaijani reasons
-  2. User sees honest §1 empty states (no pools / stale leg / thin history) instead of confident prose over a degraded banner
-  3. User can see BSL/SSL zones as dashed price-line pairs on the chart, capped to nearest-2-per-side, with rank-1 highlighted and swept pools dimmed
-  4. User sees pool lines dim under stale/thin tiers and sees ghost lines clear when the ticket stands aside, with ticket entry/SL/TP lines on top
-
-**Plans**: 3/3 plans created (verified PASS 2026-10-26)
-
-Plans:
-
-- [x] 20-01-PLAN.md — Tracer: rank-1 §1 sentence + single BSL chart pair end-to-end (S1-01, CHRT-01)
-- [x] 20-02-PLAN.md — Chart expansion: capped overlay + rank colors + ghosts + dim/clear (CHRT-01, CHRT-02, CHRT-03)
-- [x] 20-03-PLAN.md — §1 completion: honest-state matrix + hedge + banned-reuse (S1-01, S1-02, S1-03)
-
-**UI hint**: yes
-
-### Phase 21: Execution Polish
-
-**Goal**: Execution stays calibrated and uncorrupted with pools live — thresholds reviewed, ticket buffered, parity proven
-**Depends on**: Phase 20
-**Requirements**: POL-01, POL-02, POL-03, POL-04
-**Success Criteria** (what must be TRUE):
-
-  1. User (operator) can review WHY NOW fire-rate evidence (1–4/week band holds) with pools proven context-only from the firing log
-  2. User sees ticket SL placed beyond the extreme plus ATR buffer and TP partials booked before the extreme — never magnet-to-the-line
-  3. Parity harness proves trigger/flaw/ticket verdicts are identical with pools on vs off
-  4. User can adjust threshold/pool-tolerance controls rendered from the installed slider primitive
-
-**Plans**: TBD
-**UI hint**: yes
-
-## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 19 → 20 → 21
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 19. Pools Math | 3/3 | Complete (verified 6/6) | 2026-09-16 |
-| 20. §1 Live + Chart Overlay | 3/3 | Planned (verified PASS) | - |
-| 21. Execution Polish | 0/0 | Not started | - |
+</details>

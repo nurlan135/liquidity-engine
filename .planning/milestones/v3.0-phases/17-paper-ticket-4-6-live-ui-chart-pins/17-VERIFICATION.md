@@ -1,7 +1,7 @@
 ---
 phase: 17-paper-ticket-4-6-live-ui-chart-pins
 verified: 2026-09-14T15:00:00Z
-status: verified
+status: passed
 score: 15/15 must-haves verified
 covered_files:
   - .planning/phases/17-paper-ticket-4-6-live-ui-chart-pins/17-01-PLAN.md

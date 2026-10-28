@@ -6,7 +6,7 @@ import { innerJoinOnTimestamp, type JoinCoverage } from '@/src/lib/ict/join';
 import { ANCHOR_WINDOW, computePosition, computeRange } from '@/src/lib/ict/range';
 import { computeBias } from '@/src/lib/ict/bias';
 import { computePrimaryDOL } from '@/src/lib/ict/dol';
-import { computeRegime } from '@/src/lib/ict/regime';
+import { computeATR, computeRegime } from '@/src/lib/ict/regime';
 import { detectRollover } from '@/src/lib/ict/rollover';
 import { computeLevels, type LevelsOutput } from '@/src/lib/ict/levels';
 import { NY_TZ, aggregate1Hto4H } from '@/src/lib/ict/aggregate';
@@ -29,6 +29,11 @@ import {
 } from '@/src/lib/ict/trigger';
 import { checkFatalFlaw, type FatalFlawOutput } from '@/src/lib/ict/invalidation';
 import { PAPER_EQUITY_USD, RISK_PCT_MAX, RISK_PCT_MIN, computeTicket, type TicketOutput } from '@/src/lib/ticket';
+import {
+  FIRE_THRESHOLD_DEFAULT,
+  FIRE_THRESHOLD_MAX,
+  FIRE_THRESHOLD_MIN,
+} from '@/src/lib/fire-rate';
 import { resolveThinTier } from '@/src/lib/thin-tier';
 
 // Re-exported so consumers read the log shape from the store slice owner;
@@ -295,6 +300,12 @@ export interface DashboardState {
   // (capped at 50, firing-log idiom). Never derived, never inside ticket.ts.
   ticketInputs: { riskPct: number };
   setRiskPct: (pct: number) => void;
+  // Phase 21 thresholdInputs slice (D-06/D-08): single WHY NOW fire
+  // threshold in fires/week. Value lives here (never threaded into ict/ —
+  // the strip computes the band annotation only); persistence crosses at
+  // the component boundary through readFireThreshold validation on read.
+  thresholdInputs: { fireThreshold: number };
+  setFireThreshold: (n: number) => void;
   paperLog: PaperLogEntry[];
   paperLogOverflow: number;
   appendPaperLog: (entry: PaperLogEntry) => void;
@@ -473,6 +484,18 @@ export function firingLogToJson(entries: FiringLogEntry[], exportedAt: string): 
   return JSON.stringify(payload);
 }
 
+// Phase 21 validate-on-read (D-08/T-21-05): crafted localStorage values
+// cross here into operator state. Finite integers inside the band pass
+// through; everything else (strings, NaN, out-of-band, null, undefined)
+// falls back to the code default — never a throw, never a blank.
+export function readFireThreshold(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || !Number.isInteger(raw)) {
+    return FIRE_THRESHOLD_DEFAULT;
+  }
+  if (raw < FIRE_THRESHOLD_MIN || raw > FIRE_THRESHOLD_MAX) return FIRE_THRESHOLD_DEFAULT;
+  return raw;
+}
+
 // Phase 15: single time truth for selectAMD plus selectTrigger. Extracted
 // from the selectAMD epoch IIFE: nq1h lastUpdatedISO with a Date fallback at
 // the caller boundary only (ict/ never reads clocks), so both selectors can
@@ -506,6 +529,7 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
   firingLog: [],
   firingLogOverflow: 0,
   ticketInputs: { riskPct: 1 },
+  thresholdInputs: { fireThreshold: FIRE_THRESHOLD_DEFAULT },
   paperLog: [],
   paperLogOverflow: 0,
 
@@ -1069,6 +1093,17 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
     set({ ticketInputs: { riskPct: clamped } });
   },
 
+  // Phase 21 thresholdInputs setter (D-06/D-08): fireThreshold clamps into
+  // the 1–7 band mirroring the setRiskPct shape; NaN, non-finite, zero, and
+  // negative inputs are refused (state untouched) so a bad slider write can
+  // never mislabel the fire-rate band downstream. Step values stay integers:
+  // fractional writes clamp then floor into the integer band.
+  setFireThreshold: (n) => {
+    if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return;
+    const clamped = Math.min(FIRE_THRESHOLD_MAX, Math.max(FIRE_THRESHOLD_MIN, Math.floor(n)));
+    set({ thresholdInputs: { fireThreshold: clamped } });
+  },
+
   // Phase 17 paperLog (OQ-4): session-ephemeral KAĞIZ QEYD notes, capped at
   // 50 with an overflow counter (appendFiringLog trailing-slice idiom).
   // Oldest entries drop beyond the cap — replayable for Phase 18.
@@ -1143,7 +1178,12 @@ export const useDashboard = create<DashboardState>()((set, get) => ({
         }
       }
       const riskPct = get().ticketInputs.riskPct;
-      return computeTicket({ trigger, flaw, levels, range, dol, asia, riskPct, degraded, asOf: epoch });
+      // POL-02 (D-03): ATR from the same D1 candle set the scorer uses — the
+      // last computeATR value over the nq leg D1 candles, null when the series
+      // is empty so computeTicket degrades to a zero buffer.
+      const atrSeries = computeATR(nq.candles);
+      const atr = atrSeries.length === 0 ? null : atrSeries[atrSeries.length - 1];
+      return computeTicket({ trigger, flaw, levels, range, dol, asia, riskPct, degraded, atr, asOf: epoch });
     } catch {
       return null;
     }

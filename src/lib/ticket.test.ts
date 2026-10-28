@@ -229,3 +229,86 @@ describe('ticket: R-R TP1 gate plus sizing plus refusal table', () => {
     expect(NQ_POINT_VALUE).toBe(20);
   });
 });
+
+describe('ticket: POL-02 buffered SL plus TP pull-inside plus R-R edge honesty', () => {
+  // Base fixture: entry 20097.5, extremum 20085 (stop 12.5), TP1 20210
+  // (dist 112.5), TP2/TP3 20260. atr 50 → buffer 12.5: stop 25,
+  // SL 20072.5, TP1 20197.5 (dist 100 → R 4), size floor(500/500) = 1.
+  it('LONG buffered EXECUTE pins SL beyond the extreme and TPs pulled inside', () => {
+    const out = computeTicket(fixtureInput({ atr: 50, riskPct: 2 }));
+    expect(out.verdict).toBe('EXECUTE_LONG');
+    expect(out.entry).toBe(20097.5);
+    // SL = min(20090, 20085) − 12.5 = 20072.5, strictly below entry.
+    expect(out.sl).toBe(20072.5);
+    expect(out.sl as number).toBeLessThan(out.entry as number);
+    // Every resolving leg moves one buffer step toward entry.
+    expect(out.tp.tp1).toBe(20197.5);
+    expect(out.tp.tp2).toBe(20247.5);
+    expect(out.tp.tp3).toBe(20247.5);
+    expect(out.rr).toBe(4);
+    expect(out.rMultiples.tp2).toBe(6);
+    expect(out.rMultiples.tp3).toBe(6);
+    expect(out.sizeContracts).toBe(1);
+    expect(out.reason).toBe('EXECUTE LONG: giriş, stop və TP pilləsi həll edildi — R/R şərti ödənilir.');
+  });
+
+  it('SHORT mirrors: SL above the extreme plus TPs pulled toward entry', () => {
+    // BEARISH gap [20160, 20180] ∩ bearOTE [20165, 20207.5] → entry 20172.5;
+    // extremum max(20180, asia.high 20180) = 20180, stop 7.5 pre-buffer.
+    // atr 20 → buffer 5: SL 20185 (stop 12.5), TP1 20060 + 5 = 20065.
+    const out = computeTicket(
+      fixtureInput({
+        atr: 20,
+        trigger: fixtureTrigger({
+          verdict: 'FIRE_SHORT',
+          direction: 'SHORT',
+          reasonKey: 'FIRE_SHORT',
+          entryFvg: fixtureEntryFvg({ polarity: 'BEARISH', top: 20180, bottom: 20160 }),
+        }),
+        asia: fixtureAsia({ high: 20180, low: 20060 }),
+        dol: fixtureDol({ price: 20060 }),
+      }),
+    );
+    expect(out.verdict).toBe('EXECUTE_SHORT');
+    expect(out.entry).toBe(20172.5);
+    expect(out.sl).toBe(20185);
+    expect(out.sl as number).toBeGreaterThan(out.entry as number);
+    expect(out.tp.tp1).toBe(20065);
+    expect(out.tp.tp2).toBe(20065);
+    expect(out.tp.tp3).toBe(20015);
+    expect(out.rr).toBe(8.6);
+    expect(out.sizeContracts).toBe(1);
+    expect(out.reason).toBe('EXECUTE SHORT: giriş, stop və TP pilləsi həll edildi — R/R şərti ödənilir.');
+  });
+
+  it('buffer flipping a passing R-R gate yields honest STAND ASIDE with the ratio', () => {
+    // atr 80 → buffer 20: stop 32.5, TP1 20190 (dist 92.5) → R 2.846… < 3.
+    const out = computeTicket(fixtureInput({ atr: 80, riskPct: 2 }));
+    expect(out.verdict).toBe('STAND_ASIDE');
+    expect(out.reason).toBe('R/R 1:2.8 — EXECUTE bloklandı.');
+    expect(out.sizeContracts).toBeNull();
+    expect(out.rr).toBeNull();
+    expect(TICKET_RR_MIN).toBe(3);
+  });
+
+  it('buffer pulling TP1 to the entry side yields the unchanged TP refuse reason', () => {
+    // atr 480 → buffer 120: TP1 20210 − 120 = 20090 below entry → null.
+    const out = computeTicket(fixtureInput({ atr: 480, riskPct: 2 }));
+    expect(out.verdict).toBe('STAND_ASIDE');
+    expect(out.reason).toBe('STAND ASIDE: hədəf pilləsi həll edilmədi — qarşı likvidlik tapılmadı.');
+    expect(out.sizeContracts).toBeNull();
+  });
+
+  it('zero NaN negative and missing atr all behave as buffer zero with old numbers', () => {
+    const expected = { sl: 20085, tp1: 20210, tp2: 20260, tp3: 20260, rr: 9 };
+    for (const atr of [undefined, null, 0, -50, NaN, Infinity] as const) {
+      const out = computeTicket(fixtureInput({ atr }));
+      expect(out.verdict).toBe('EXECUTE_LONG');
+      expect(out.sl).toBe(expected.sl);
+      expect(out.tp.tp1).toBe(expected.tp1);
+      expect(out.tp.tp2).toBe(expected.tp2);
+      expect(out.tp.tp3).toBe(expected.tp3);
+      expect(out.rr).toBe(expected.rr);
+    }
+  });
+});

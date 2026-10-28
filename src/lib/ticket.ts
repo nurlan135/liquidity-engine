@@ -72,6 +72,10 @@ export interface TicketInput {
   riskPct: number;
   /** Degraded provenance carried through so panels dim with the naming leg. */
   degraded?: TicketDegraded;
+  /** Optional ATR from the same D1 candle set the scorer uses (D-03). Omitted,
+  // null, non-finite, or non-positive values degrade to a zero buffer so old
+  // fixtures reproduce pre-buffer numbers exactly. */
+  atr?: number | null;
   /** Injected evaluation instant in UTC epoch seconds — never a clock read. */
   asOf: number;
 }
@@ -249,12 +253,32 @@ function assertValidRiskPct(riskPct: TicketInput['riskPct']): void {
   }
 }
 
+// POL-02 (D-01/D-02): one quarter of ATR is the single buffer step. SL shifts
+// outward by direction (LONG minus, SHORT plus); every resolving TP leg moves
+// one step toward entry. A non-finite, null, or non-positive ATR degrades to
+// a zero buffer so fixtures omitting atr reproduce pre-buffer numbers exactly.
+export const TICKET_BUFFER_ATR_MULT = 0.25;
+
+function bufferOf(atr: number | null | undefined): number {
+  if (typeof atr !== 'number' || !Number.isFinite(atr) || atr <= 0) return 0;
+  return TICKET_BUFFER_ATR_MULT * atr;
+}
+
 // OQ-2 lock: LONG SL is the low that must hold (below entry-FVG bottom and
-// Asia low), SHORT mirrors. A stop on the wrong side of entry is degenerate.
-// A stop at or below the epsilon floor is degenerate too — sized NaN would
-// be false precision, so the caller refuses before any division.
-function resolveSL(direction: 'LONG' | 'SHORT', entry: number, entryFvg: FvgGap, asia: AsiaRange): number | null {
-  const sl = direction === 'LONG' ? Math.min(entryFvg.bottom, asia.low) : Math.max(entryFvg.top, asia.high);
+// Asia low), SHORT mirrors. The buffer shifts the locked extremum outward by
+// direction; side-of-entry null guards re-apply after the shift. A stop on the
+// wrong side of entry is degenerate. A stop at or below the epsilon floor is
+// degenerate too — sized NaN would be false precision, so the caller refuses
+// before any division.
+function resolveSL(
+  direction: 'LONG' | 'SHORT',
+  entry: number,
+  entryFvg: FvgGap,
+  asia: AsiaRange,
+  buffer: number = 0,
+): number | null {
+  const extreme = direction === 'LONG' ? Math.min(entryFvg.bottom, asia.low) : Math.max(entryFvg.top, asia.high);
+  const sl = direction === 'LONG' ? extreme - buffer : extreme + buffer;
   if (direction === 'LONG' && !(sl < entry)) return null;
   if (direction === 'SHORT' && !(sl > entry)) return null;
   return sl;
@@ -262,26 +286,34 @@ function resolveSL(direction: 'LONG' | 'SHORT', entry: number, entryFvg: FvgGap,
 
 // D-01/D-02 structure-first ladder: LONG TP1 is the opposing Asia edge
 // (nearest liquidity), TP2 the opposing DOL pool, TP3 the range far edge;
-// SHORT mirrors. A leg resolves only beyond entry in trade direction —
-// unresolvable legs stay null, never fixed-R fillers.
+// SHORT mirrors. Each resolving leg moves one buffer step toward entry (LONG
+// minus, SHORT plus); legs failing the entry-side check after the pull-in
+// resolve null, never fixed-R fillers, never magnetized to the extreme line.
 function resolveTP(
   direction: 'LONG' | 'SHORT',
   entry: number,
   asia: AsiaRange,
   dol: DOLTarget,
   range: DealingRange,
+  buffer: number = 0,
 ): { tp1: number | null; tp2: number | null; tp3: number | null } {
   if (direction === 'LONG') {
+    const tp1 = asia.high > entry ? asia.high - buffer : null;
+    const tp2 = dol.price > entry ? dol.price - buffer : null;
+    const tp3 = range.high > entry ? range.high - buffer : null;
     return {
-      tp1: asia.high > entry ? asia.high : null,
-      tp2: dol.price > entry ? dol.price : null,
-      tp3: range.high > entry ? range.high : null,
+      tp1: tp1 !== null && tp1 > entry ? tp1 : null,
+      tp2: tp2 !== null && tp2 > entry ? tp2 : null,
+      tp3: tp3 !== null && tp3 > entry ? tp3 : null,
     };
   }
+  const tp1 = asia.low < entry ? asia.low + buffer : null;
+  const tp2 = dol.price < entry ? dol.price + buffer : null;
+  const tp3 = range.low < entry ? range.low + buffer : null;
   return {
-    tp1: asia.low < entry ? asia.low : null,
-    tp2: dol.price < entry ? dol.price : null,
-    tp3: range.low < entry ? range.low : null,
+    tp1: tp1 !== null && tp1 < entry ? tp1 : null,
+    tp2: tp2 !== null && tp2 < entry ? tp2 : null,
+    tp3: tp3 !== null && tp3 < entry ? tp3 : null,
   };
 }
 
@@ -290,6 +322,9 @@ export function computeTicket(input: TicketInput): TicketOutput {
     throw new Error(`computeTicket requires an input object, got ${String(input)}`);
   }
   const { trigger, flaw, levels, range, dol, asia, riskPct, asOf } = input;
+  // POL-02 (D-01/D-02): additive buffer only — reason strings, R/R gate, and
+  // sizing below stay byte-identical.
+  const buffer = bufferOf(input.atr);
   if (!Number.isFinite(asOf) || (asOf as number) <= 0) {
     throw new Error(`computeTicket requires a finite positive asOf epoch, got ${String(asOf)}`);
   }
@@ -334,8 +369,8 @@ export function computeTicket(input: TicketInput): TicketOutput {
     return standAside(REASON_ENTRY, epoch, degraded);
   }
 
-  // Step 3 — SL from the locked OQ-2 rule table.
-  const sl = resolveSL(direction, entry, trigger.entryFvg as FvgGap, asia);
+  // Step 3 — SL from the locked OQ-2 rule table plus the ATR buffer shift.
+  const sl = resolveSL(direction, entry, trigger.entryFvg as FvgGap, asia, buffer);
   if (sl === null) {
     return standAside(REASON_SL, epoch, degraded);
   }
@@ -343,7 +378,7 @@ export function computeTicket(input: TicketInput): TicketOutput {
   // Step 4 — structure-first TP ladder (D-01/D-02): TP1 is the gate leg
   // and must resolve; TP2/TP3 omit as null when unresolvable, reported in
   // rMultiples as null — never synthesized fillers.
-  const tp = resolveTP(direction, entry, asia, dol, range);
+  const tp = resolveTP(direction, entry, asia, dol, range, buffer);
   if (tp.tp1 === null) {
     return standAside(REASON_TP, epoch, degraded);
   }

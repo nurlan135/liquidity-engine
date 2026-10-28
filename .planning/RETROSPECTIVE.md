@@ -2,6 +2,44 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.1 — Pain Threshold (§1) + Execution Polish
+
+**Shipped:** 2026-10-28
+**Phases:** 3 (19–21) | **Plans:** 10 | **Tasks:** 22 | **Timeline:** 2026-09-15 → 2026-10-28 (incl. reset detour)
+
+### What Was Built
+- Pools math: shared-k2 swing extraction, equality-bonus scoring + rank + ACTIVE/SWEPT/CONSUMED lifecycle, refuse-null selectPools envelope with sharedEpoch — 458/458 tests
+- §1 live report: rank-1 sentence (side + zone bounds + ATR distance + swept status + verbatim reason + hedge), full honest-state matrix, SWEPT muted tone — 480/480 tests
+- BSL/SSL chart overlay: capped ACTIVE pair registry (nearest-2-per-side, max 8 lines), rank brightness, swept ghosts, uniform dimming, null/STAND_ASIDE clearing
+- Execution polish: buffered ticket (+0.25xATR SL, TP pulled inside), pools-on/off parity harness, fire-rate strip (1–4/week band), threshold slider (operator-only) — 505/505 tests, UAT 3/3
+
+### What Worked
+- Pools-never-votes discipline held from research through Phase 21 — parity harness proved it mechanically, not just by review
+- Calibration-display-only pattern (slider value never enters ict) preserved replay determinism while giving operators a control
+- Zero-dependency streak continued (slider built from shadcn Base-UI flow, no new packages)
+
+### What Was Inefficient
+- Sept-16 state reset detour: 97 later commits pushed to backup/pre-reset branch, stale runtime leftovers (state.json phantom v3.2, empty v3.2-phases dir) manually deleted 2026-10-26
+- Phase 19/20 VERIFICATION.md went stale from later-phase file touches (store.ts, report.tsx) — substance stayed green but closeout needed override instead of verified
+- 21-UI-REVIEW follow-ups (slider token/thumb) deferred past close — visual contract vs theme tokens assumed, not pinned
+
+### Patterns Established
+- Parity harness pattern: same inputs with feature on/off must toEqual — reusable for any future read-only context (sentiment, calendar)
+- Calibration-display-only: operator controls that must not change semantics are validated at component boundary, never read at module scope
+- Fire-rate strip reads live firingLog every render (no cache) — staleness-as-current risk closed by construction
+
+### Key Lessons
+- Stale verification is a fingerprint problem, not a substance problem — shared files touched by later phases invalidate earlier digests by design; re-running the verifier is cheap, audit the override honestly
+- Main-branch reset with backup push is recoverable but costs a session of archaeology — prefer worktree isolation for risky phase overlaps
+- UI theme-token assumptions (spec says cyan, Base-UI default renders near-white) need a pinned visual test, not just a spec line
+
+### Cost Observations
+- Model mix: adaptive profile; executor-heavy phases (19-03, 20-02, 21-03)
+- Sessions: reset recovery + 3 phases over ~6 weeks wall-clock (mostly idle between)
+- Notable: tracer-first plan ordering (19-01, 20-01, 21-01) kept each phase green from the first commit
+
+---
+
 ## Milestone: v3.0 — Execution (Modul 4)
 
 **Shipped:** 2026-09-15
@@ -166,6 +204,7 @@
 | v1.0 | ~3 days | 5 | Baseline: backend-first + truth-row gates + decimal insertions |
 | v2.0 | ~3 days | 4 | + integration checker catches cross-phase orphans; + fingerprint staleness; + fail-closed drills |
 | v2.1 | 2 days | 4 | + verification-at-phase-time holds (zero retroactive gates); + 3-source audit cross-ref; + shared-component phase ordering |
+| v3.1 | ~6 wks wall | 3 | + parity-harness proves read-only discipline mechanically; stale-verification override honestly recorded; reset-recovery via backup branch |
 
 ### Cumulative Quality
 
@@ -174,6 +213,7 @@
 | v1.0 | 133/133 green, lint clean | 20/20 reqs, 5/5 flows | 0 new deps (chart-mapper helper only) |
 | v2.0 | 283/283 green, tsc clean | 15/15 reqs, 8/8 flows | 0 new deps |
 | v2.1 | 298/298 green, tsc clean | 7/7 reqs, 3/3 flows | 0 new deps |
+| v3.1 | 505/505 green, tsc clean | 16/16 reqs, UAT 3/3 | 0 new deps (slider via shadcn Base-UI flow) |
 
 ### Top Lessons (Verified Across Milestones)
 

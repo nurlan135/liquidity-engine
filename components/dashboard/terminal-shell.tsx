@@ -16,6 +16,7 @@ import { Module3 } from '@/components/dashboard/module-3';
 import { Module4 } from '@/components/dashboard/module-4';
 import { SmtRow } from '@/components/dashboard/smt-row';
 import { TicketPanel } from '@/components/dashboard/ticket-panel';
+import { ThresholdControl } from '@/components/dashboard/threshold-control';
 import { FatalFlaw } from '@/components/dashboard/fatal-flaw';
 import { toast } from '@/components/ui/toast';
 import { deriveStatus, formatStripAge } from '@/src/lib/freshness';
@@ -73,12 +74,23 @@ export function TerminalShell() {
   const selectJudas = useDashboard((s) => s.selectJudas);
   const selectSMT = useDashboard((s) => s.selectSMT);
   const selectTicketShell = useDashboard((s) => s.selectTicket);
+  // Phase 20 pool-to-chart wiring (D-21): the same stable selector-function
+  // subscription with derivation during render as the overlay selectors
+  // above. Read-only: no selectPools signature change, no swept-ness
+  // recomputation (D-18, D-19).
+  const selectPools = useDashboard((s) => s.selectPools);
   const nq1hStale = useDashboard((s) => s.nq1h.stale);
   const nq15mStale = useDashboard((s) => s.nq15m.stale);
   const esStale = useDashboard((s) => s.es.stale);
   const asia = selectAsia();
   const judas = selectJudas();
   const smt = selectSMT();
+  // Phase 20: pools thread through the existing NqChart props path with no
+  // other prop changes. poolsThin marks the degraded-thin envelope (chart
+  // dims the pair); null poolsSel clears all pool lines (D-14).
+  const poolsSel = selectPools();
+  const pools = poolsSel === null ? null : poolsSel.pools;
+  const poolsThin = poolsSel === null ? false : poolsSel.degraded.thin === true;
   // Phase 17 ticket-to-chart wiring (D-10): the same stable-function
   // derivation during render as the overlay selectors above. The shell fans
   // ticket truth out once — to the TicketPanel (via its own subscription)
@@ -332,6 +344,8 @@ export function TerminalShell() {
                   ticketTP2={ticketTP2}
                   ticketTP3={ticketTP3}
                   fireBarDate={fireBarDate}
+                  pools={pools}
+                  poolsThin={poolsThin}
                 />
               ) : (
                 <div data-slot="chart-empty">
@@ -360,6 +374,11 @@ export function TerminalShell() {
               ticket card is replaced one-to-one by the live TicketPanel,
               keeping the exact data-slot. */}
           <TicketPanel />
+          {/* Phase 21 threshold control (D-06): thin WHY NOW fire-threshold
+              slider bound to the thresholdInputs store slice, mounted
+              directly after the ticket panel in the ticket column. No modal,
+              no new primary action. */}
+          <ThresholdControl />
           <CalendarPanel />
           {/* Phase 17 panel swap (TICK-04/D-04): the locked UNAVAILABLE
               fatal-flaw card is replaced one-to-one by the live FatalFlaw

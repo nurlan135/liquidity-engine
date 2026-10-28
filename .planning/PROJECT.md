@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that reads charts through ICT liquidity-engineering methodology — not retail chart patterns. v1.0 shipped the D1 foundation (NQ=F daily proxy, dealing range, chart, report shell). v2.0 Modul 3 shipped liquidity sequencing: dual-symbol NQ+ES proxy (daily + 1H/15M intraday), time-anchored SMT divergence with correlation gate + rollover suppression, FVG map with sweep-then-reject ERL/IRL transition, NY-anchored 1H→4H synthesis, Baku-aware Asia Range + three-gate London Judas + AMD phase classifier — all fused into a live rule-based report §3 with Asia overlays and Judas/SMT markers, verified on the live Vercel URL. Built on Next.js 16 App Router with Zustand state, Baku-timezone awareness, and zero budget on Vercel free tier.
+A live institutional-grade execution terminal for Nasdaq-100 futures (NQ) that reads charts through ICT liquidity-engineering methodology — not retail chart patterns. v1.0 shipped the D1 foundation (NQ=F daily proxy, dealing range, chart, report shell). v2.0 Modul 3 shipped liquidity sequencing: dual-symbol NQ+ES proxy (daily + 1H/15M intraday), time-anchored SMT divergence with correlation gate + rollover suppression, FVG map with sweep-then-reject ERL/IRL transition, NY-anchored 1H→4H synthesis, Baku-aware Asia Range + three-gate London Judas + AMD phase classifier — all fused into a live rule-based report §3 with Asia overlays and Judas/SMT markers, verified on the live Vercel URL. v3.1 shipped pain-threshold §1 live (ranked BSL/SSL pools + chart overlays) plus execution polish — buffered ticket geometry, pools parity harness, fire-rate strip, threshold slider. Pools stay read-only projection context that never votes. Built on Next.js 16 App Router with Zustand state, Baku-timezone awareness, and zero budget on Vercel free tier.
 
 ## Core Value
 
@@ -50,11 +50,20 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 - ✓ Paper ticket: fixed-order derivation (direction → OTE×FVG entry → SL → TP ladder → R/R ≥ 1:3 gate → EXECUTE/STAND ASIDE), risk÷distance sizing, banned-word quarantine green, §§4–6 live report blocks + three dashboard panels + persistent KAĞIZ/PAPER banner + chart T pin + entry/SL/TP lines — v3.0
 - ✓ Verification + calibration harness: 20-session replay with pinned transition table + calibration summary JSON, 5-rule AMD/SMT-vs-trigger parity harness, full stale-leg matrix drill with degraded-with-provenance — 420/420 tests, UAT 10/10 — v3.0
 
+### Validated (continued — v3.1)
+
+- ✓ BSL/SSL pools math: shared-k2 swing extraction, equality-bonus scoring + rank + ACTIVE/SWEPT/CONSUMED lifecycle, refuse-null selectPools envelope with sharedEpoch — v3.1 Phase 19 (458/458 tests)
+- ✓ Live §1 Pain Threshold report: rank-1 sentence (side + zone bounds + ATR distance + swept status + verbatim reason + inline hedge), full honest-state matrix, SWEPT muted tone — v3.1 Phase 20
+- ✓ BSL/SSL chart overlay: capped ACTIVE pair registry (nearest-2-per-side, max 8 lines), rank-1 full brightness vs rank-2 50% alpha, SWEPT ghosts dimmed, uniform stale/thin MUTED dim, null-clears-all, STAND_ASIDE clears ghosts, ticket lines on top — v3.1 Phase 20
+- ✓ Buffered paper ticket: SL beyond extreme +0.25xATR, TP legs pulled inside extreme, zero-buffer degrade keeps old fixtures byte-exact — v3.1 Phase 21 (POL-02)
+- ✓ Pools parity harness: trigger/flaw/ticket verdicts toEqual pools-on vs pools-off across FIRE_LONG/FIRE_SHORT/ARMED triples — v3.1 Phase 21 (POL-03)
+- ✓ WHY NOW fire-rate strip: pure helper over live firingLog, 1–4/week band, threshold slice with clamp-on-write, honest-empty copy — v3.1 Phase 21 (POL-01, 505/505 tests, UAT 3/3)
+- ✓ Threshold slider: shadcn Base-UI slider.tsx primitive + threshold-control with persist/mount, calibration-display only (never enters ict) — v3.1 Phase 21 (POL-04)
+
 ### Active
 
-- [ ] BSL/SSL map (§1) — swing-high/low stoplarının proyeksiyası + chart overlay
-- [ ] §1 live report — Pain Threshold bloğu, verbatim səbəblərlə
-- [ ] Execution polish — threshold kalibrləmə, ticket UX, firing-log təhlili
+- [ ] Next milestone — to be defined via `/gsd-new-milestone` (candidate Pools P2: POOL2-01–05)
+- [ ] UI follow-ups from 21-UI-REVIEW.md: slider Track/Indicator mapped to terminal tokens (white fill vs cyan accent), 16px thumb + 44px hit-area (fixes 1-2)
 
 ### Out of Scope
 
@@ -69,7 +78,7 @@ Correct D1 Premium/Discount positioning on live NQ data — if the dealing-range
 Shipped v1.0 Live Terminal (2026-09-06): 5 phases, 16 plans, 152 commits, +26105/−906 across 158 files. 133/133 tests green, lint clean. Live at https://liquidity-engine-nine.vercel.app.
 Shipped v2.0 Modul 3 (2026-09-08): 4 phases, 14 plans, 32 tasks, 32 files +5141/−83. 283/283 tests green, tsc clean. Audit passed after remediation (ICT-11 closure + retroactive 08/09 VERIFICATIONs). Live observation period recommended before v3.0 scoping (Judas confirm rate, SMT rollover behavior, Asia live alignment, 09-07 Mandelbug recurrence watch).
 Shipped v2.1 Cleanup & Polish (2026-09-09): 4 phases, 7 plans, 12 tasks, 61 files +6984/−95, 67 commits over 2 days. 298/298 tests green, tsc clean, all UAT green (1/1 + 6/6 + 6/6 + 2/2). Audit tech_debt with zero gaps (7/7 reqs, 9/9 integration, 3/3 flows); 7 non-blocking debt items carried (dead thinHistory arg, orphaned export/type, Nyquist process notes — see v2.1-MILESTONE-AUDIT.md).
-Shipped v3.0 Execution (Modul 4) (2026-09-15): 5 phases, 17 plans, 45 tasks. 420/420 tests green. Terminal oxumaqdan icraya keçdi — WHY NOW trigger, fatal-flaw invalidation, kağız ticket, verification harness hamısı canlı. UAT 10/10, audit təmiz.
+Shipped v3.1 Pain Threshold (§1) + Execution Polish (2026-10-28): 3 phases, 10 plans (19: pools math 458/458 — 20: §1 live + chart overlay 480/480 — 21: execution polish 505/505, UAT 3/3). WHY NOW fire-rate strip 1–4/week band reviewed (pools context-only), ticket buffered (+0.25xATR SL, TP pulled inside), parity harness green pools-on/off, threshold slider operator-only. Known follow-ups: 21-UI-REVIEW slider token/thumb fixes, Phase 19/20 verification marked stale by later-phase file touches (substance green).
 Tech stack: Next.js 16 App Router, Zustand 5, lightweight-charts v5 (dynamic ssr:false), date-fns-tz, Tailwind v4, shadcn primitives (button, dropdown-menu, dialog, toast, calendar, card).
 Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc LayoutProps error (app/layout.tsx), Vercel token + Deployment Protection + drill-preview branch leftovers, thinHistory display gap.
 - Brownfield origin: Next.js 16.3.4 + React 19 scaffold; home page was stock placeholder, replaced by dashboard in Phase 2.
@@ -117,6 +126,16 @@ Known debt for next milestone: chart HiDPI/resize polish, pre-existing tsc Layou
 | [13] Thin-tier truth module + persistent banner stacked thin-first; uniform 0.5 zone/level dimming, markers/Asia/candles full strength | Dead thinHistory arg in zoneBands call + orphaned thinTier export/type noted as minor debt; Asia fallback increases overlay frequency by design | ✓ Good — honest rendering holds |
 | [13] Asia killzone 20:00–23:45 plus fallback to last completed session (edbc70a) | Per-candle wall-clock session resolution; fallback makes selectAsia non-null more often, tone stays accent/stale by design | ✓ Good — en passant fix |
 | [14] Audit debt cleanup: zoneBands narrowed to high/low/eq, thin-tier surface shrunk to 4 public names, co-located ict purity guard green | Mechanical cleanup, zero behavior change; 300/300 tests, tsc clean, UAT 3/3 | ✓ Good — Phase 15 trigger code inherits a clean surface |
+| [19] Pools math: equality-bonus scoring + rank + lifecycle + refuse-null selectPools envelope with sharedEpoch | Scorer internals stay in ict; selector returns ranked pools read-only; Phase 20 consumes without signature change | ✓ 458/458, selector contract holds |
+| [20] ATR for prose from shared nq candles via computeATR import (wiring, not new math) | selectRegime uses a different candle set; scorer-consistent distance needs the scorer's own source | ✓ rankDistAtr pinned, scorer untouched |
+| [20] Ghost titles SIDE-ghost-top/bottom (rank null outside cap) | Plan specified SIDE-rank titles which cannot name rankless ghosts | ✓ Unique traceable titles, cap tests green |
+| [21] Operator threshold calibration-display only — slider value never enters `src/lib/ict` | Live-wiring would change calibration semantics and break replay determinism without a calibration band | ✓ Purity holds, 505/505, parity harness green |
+| [21] WHY NOW fire-rate strip reads live firingLog every render, honest-empty copy, no cache | Stale-as-current disclosure risk closed by live-array reads + empty literal | ✓ Strip pins green, UAT 3/3 |
+| [21] Slider visual deviates from UI-SPEC (white fill vs cyan accent, 12px thumb vs 16px) | Shackcn Base-UI default `bg-primary` resolves near-white in this dark theme, not `--terminal-accent` as spec assumed | ⚠ Follow-up: map slider Track/Indicator to terminal tokens (21-UI-REVIEW.md fixes 1-2) |
+
+## Current State: v3.1 Shipped
+
+**Shipped 2026-10-28.** Pain Threshold §1 canlıdır (rank-1 cümlə + honest-state matrix + chart overlays), execution cilalanıb (buffered ticket, parity harness, fire-rate strip, threshold slider). Pools read-only projection olaraq qalır — heç vaxt səs vermir. Next: `/gsd-new-milestone` for v3.2 (Pools P2 candidate: POOL2-01–05) — fresh REQUIREMENTS.md required.
 
 ## Current State: v3.0 Shipped
 
@@ -170,4 +189,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-15 after v3.1 milestone start*
+*Last updated: 2026-10-28 after v3.1 milestone*

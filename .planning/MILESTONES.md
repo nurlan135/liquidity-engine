@@ -1,5 +1,23 @@
 # Milestones
 
+## v3.1 Pain Threshold + Execution Polish (Shipped: 2026-10-28)
+
+**Phases completed:** 3 phases, 10 plans, 22 tasks
+
+**Closeout type:** override_closeout — Phase 21 verification passed; Phase 19/20 implementation complete (458/458 + 480/480 tests green) but VERIFICATION.md reports stale after later-phase file touches (store.ts, store.test.ts, report.tsx, terminal-shell.tsx). Re-run `/gsd-execute-phase 19` and `/gsd-execute-phase 20` to refresh to verified_closeout.
+
+**Known verification overrides:** 0 newly acknowledged, 3 carried forward from a prior close (see STATE.md Deferred Items).
+
+**Key accomplishments:**
+- Thin BSL/SSL inventory flows NQ D1 candles through one shared k=2 swing contract into ranked zones behind a guarded selectPools — smt, purity, and full suite green.
+- Equality bonus curve, first-sweep-wins lifecycle, ATR-merge plus trailing-20 cap, and proximity-x-DOL scorer fully pinned by 30 boundary tests — pools/smt/purity 49/49 green.
+- selectPools degrades honestly on stale/empty/thin legs with a sharedEpoch time truth and a thin dim-flag, shared swings carry regression pins with smt green unmodified, and the full 439-test suite stays green at phase exit.
+- Live §1 rank-1 Pain Threshold sentence plus one BSL price-line pair on the chart, with unit pins green.
+- Full capped pool overlay with rank brightness, swept ghosts, uniform dimming, and null plus STAND_ASIDE clearing.
+- Full §1 honest-state matrix with distinct empty-state copy, inline hedge, and banned-reuse guard.
+
+---
+
 ## v3.0 Execution (Modul 4) (Shipped: 2026-09-15)
 
 **Phases completed:** 5 phases, 17 plans, 45 tasks
